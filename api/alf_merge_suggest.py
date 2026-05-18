@@ -24,8 +24,10 @@ _Base = make_handler_base()
 
 class handler(_Base):
     def do_GET(self):
-        # 전체 초안 목록 + 내용 조회
-        url = f"{SUPABASE_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,content&order=created_at.desc&limit=30"
+        # ALF 적용된 가이드만 대상으로 병합 분석
+        url = (f"{SUPABASE_URL}/rest/v1/alf_drafts"
+               f"?select=id,title,cluster_label,content"
+               f"&status=eq.applied&order=created_at.desc&limit=30")
         drafts = supabase_get(url, SUPABASE_SERVICE_KEY)
 
         if len(drafts) < 2:

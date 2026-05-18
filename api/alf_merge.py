@@ -68,12 +68,13 @@ class handler(_Base):
                 merged_title = line[2:].strip()
                 break
 
-        # 새 통합 초안 저장
+        # 새 통합 초안 저장 (병합은 적용 가이드 대상이므로 status=applied)
         new_draft = {
             "title": merged_title,
             "cluster_label": f"통합: {titles[:50]}",
             "content": merged_content,
             "source_chat_count": sum(d.get("source_chat_count", 0) for d in drafts),
+            "status": "applied",
         }
         saved = supabase_post(f"{SUPABASE_URL}/rest/v1/alf_drafts", new_draft, SUPABASE_SERVICE_KEY)
         draft_id = saved[0]["id"] if isinstance(saved, list) and saved else None

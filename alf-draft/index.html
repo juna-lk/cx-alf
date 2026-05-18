@@ -201,7 +201,8 @@
 
 <div class="tab-bar">
   <div class="tab active" onclick="switchTab('generate')">초안 생성</div>
-  <div class="tab" onclick="switchTab('library')">파일 라이브러리</div>
+  <div class="tab" onclick="switchTab('library')">📝 작성 중인 초안</div>
+  <div class="tab" onclick="switchTab('applied')">✅ ALF 적용 가이드</div>
   <div class="tab" onclick="switchTab('guide')">📖 작성 가이드</div>
 </div>
 
@@ -370,9 +371,33 @@
 
 <div class="page" id="tab-library">
   <div class="library-header">
-    <h2 style="font-size:16px;font-weight:600">저장된 초안</h2>
+    <div>
+      <h2 style="font-size:16px;font-weight:600">📝 작성 중인 초안</h2>
+      <p style="font-size:13px;color:#6b7280;margin-top:4px">
+        ALF에 실제 적용하기 전 작업 중인 초안들이에요.
+      </p>
+    </div>
     <div style="display:flex;gap:10px;align-items:center">
       <select id="formatFilter" class="format-filter" onchange="loadLibrary()">
+        <option value="all">전체</option>
+        <option value="article">📄 아티클만</option>
+        <option value="faq">💬 FAQ만</option>
+      </select>
+    </div>
+  </div>
+  <div id="draftList"></div>
+</div>
+
+<div class="page" id="tab-applied">
+  <div class="library-header">
+    <div>
+      <h2 style="font-size:16px;font-weight:600">✅ ALF 적용 가이드</h2>
+      <p style="font-size:13px;color:#6b7280;margin-top:4px">
+        채널톡 ALF에 실제로 적용한 가이드 모음이에요.
+      </p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <select id="appliedFormatFilter" class="format-filter" onchange="loadApplied()">
         <option value="all">전체</option>
         <option value="article">📄 아티클만</option>
         <option value="faq">💬 FAQ만</option>
@@ -380,7 +405,7 @@
       <button class="btn btn-secondary" onclick="analyzeMerge()">🔍 병합 분석</button>
     </div>
   </div>
-  <div id="draftList"></div>
+  <div id="appliedList"></div>
   <div id="mergeSuggestions" class="hidden">
     <h3 style="font-size:15px;font-weight:600;margin:20px 0 12px">병합 제안</h3>
     <div id="mergeSuggestionList"></div>
@@ -416,11 +441,12 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['generate','library','guide'][i] === name);
+    t.classList.toggle('active', ['generate','library','applied','guide'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'library') loadLibrary();
+  if (name === 'applied') loadApplied();
 }
 
 function setLoading(show, text = '분석 중...') {
@@ -650,9 +676,37 @@ function downloadMd(content, title) {
   a.click();
 }
 
+function renderDraftRow(d, isApplied) {
+  const isFAQ = d.format === 'faq';
+  const badge = isFAQ
+    ? '<span style="font-size:11px;font-weight:600;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;margin-right:6px">💬 FAQ</span>'
+    : '<span style="font-size:11px;font-weight:600;background:#e5e7eb;color:#374151;padding:2px 8px;border-radius:10px;margin-right:6px">📄 아티클</span>';
+  const safeTitle = d.title.replace(/'/g, "\\'");
+  const statusBtn = isApplied
+    ? `<button class="btn btn-secondary" style="font-size:13px;padding:6px 14px" onclick="unmarkApplied('${d.id}')">↩ 작성 중으로</button>`
+    : `<button class="btn btn-primary" style="font-size:13px;padding:6px 14px" onclick="markApplied('${d.id}')">✅ ALF 적용</button>`;
+  return `
+    <div class="draft-row">
+      <div class="draft-info">
+        <div class="title">${badge}${d.title}</div>
+        <div class="meta">${d.cluster_label || ''} · ${d.source_chat_count || 0}건 참고 · ${d.created_at?.slice(0,10)}</div>
+      </div>
+      <div class="draft-row-actions">
+        ${statusBtn}
+        <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
+          onclick="previewDraft('${d.id}', '${safeTitle}')">보기</button>
+        <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
+          onclick="downloadById('${d.id}', '${safeTitle}')">↓</button>
+        <button class="btn btn-danger" style="font-size:13px;padding:6px 14px"
+          onclick="deleteDraft('${d.id}', '${safeTitle}')">삭제</button>
+      </div>
+    </div>
+  `;
+}
+
 async function loadLibrary() {
   const filter = document.getElementById('formatFilter')?.value || 'all';
-  let url = `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,format,variations,source_chat_count,created_at&order=created_at.desc`;
+  let url = `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,format,variations,source_chat_count,created_at&status=eq.draft&order=created_at.desc`;
   if (filter !== 'all') url += `&format=eq.${filter}`;
   const res = await fetch(url,
     {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
@@ -660,31 +714,44 @@ async function loadLibrary() {
   state.allDrafts = await res.json();
   const list = document.getElementById('draftList');
   if (!state.allDrafts.length) {
-    list.innerHTML = '<p style="color:#9ca3af;font-size:14px">저장된 초안이 없어요.</p>';
+    list.innerHTML = '<p style="color:#9ca3af;font-size:14px">작성 중인 초안이 없어요. 초안 생성 탭에서 새로 만들어보세요.</p>';
     return;
   }
-  list.innerHTML = state.allDrafts.map(d => {
-    const isFAQ = d.format === 'faq';
-    const badge = isFAQ
-      ? '<span style="font-size:11px;font-weight:600;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;margin-right:6px">💬 FAQ</span>'
-      : '<span style="font-size:11px;font-weight:600;background:#e5e7eb;color:#374151;padding:2px 8px;border-radius:10px;margin-right:6px">📄 아티클</span>';
-    return `
-    <div class="draft-row">
-      <div class="draft-info">
-        <div class="title">${badge}${d.title}</div>
-        <div class="meta">${d.cluster_label || ''} · ${d.source_chat_count || 0}건 참고 · ${d.created_at?.slice(0,10)}</div>
-      </div>
-      <div class="draft-row-actions">
-        <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
-          onclick="previewDraft('${d.id}', '${d.title.replace(/'/g,"\\'")}')">보기</button>
-        <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
-          onclick="downloadById('${d.id}', '${d.title.replace(/'/g,"\\'")}')">↓</button>
-        <button class="btn btn-danger" style="font-size:13px;padding:6px 14px"
-          onclick="deleteDraft('${d.id}', '${d.title.replace(/'/g,"\\'")}')">삭제</button>
-      </div>
-    </div>
-  `;
-  }).join('');
+  list.innerHTML = state.allDrafts.map(d => renderDraftRow(d, false)).join('');
+}
+
+async function loadApplied() {
+  const filter = document.getElementById('appliedFormatFilter')?.value || 'all';
+  let url = `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,format,variations,source_chat_count,created_at&status=eq.applied&order=created_at.desc`;
+  if (filter !== 'all') url += `&format=eq.${filter}`;
+  const res = await fetch(url,
+    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
+  );
+  state.allDrafts = await res.json();
+  const list = document.getElementById('appliedList');
+  if (!state.allDrafts.length) {
+    list.innerHTML = '<p style="color:#9ca3af;font-size:14px">아직 적용한 가이드가 없어요. 작성 중인 초안에서 "ALF 적용" 버튼을 눌러 옮길 수 있어요.</p>';
+    return;
+  }
+  list.innerHTML = state.allDrafts.map(d => renderDraftRow(d, true)).join('');
+}
+
+async function markApplied(id) {
+  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({status: 'applied'}),
+  });
+  loadLibrary();
+}
+
+async function unmarkApplied(id) {
+  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({status: 'draft'}),
+  });
+  loadApplied();
 }
 
 async function previewDraft(id, title) {
@@ -771,8 +838,8 @@ async function executeMerge(draftIds) {
     });
     const data = await res.json();
     if (!data.ok) { alert('병합 실패'); return; }
-    alert(`병합 완료! "${data.title}" 초안이 라이브러리에 저장됐어요.`);
-    loadLibrary();
+    alert(`병합 완료! "${data.title}" 가이드가 적용 목록에 저장됐어요.`);
+    loadApplied();
   } catch(e) {
     alert('오류: ' + e.message);
   } finally {
