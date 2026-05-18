@@ -36,6 +36,9 @@
     .btn-secondary { background: white; color: #374151;
                      border: 1px solid #d1d5db; }
     .btn-secondary:hover { background: #f9fafb; }
+    .btn-danger { background: white; color: #b91c1c;
+                  border: 1px solid #fecaca; }
+    .btn-danger:hover { background: #fef2f2; }
 
     .banner { border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;
               font-size: 14px; display: none; }
@@ -547,6 +550,8 @@ async function loadLibrary() {
           onclick="previewDraft('${d.id}', '${d.title.replace(/'/g,"\\'")}')">보기</button>
         <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
           onclick="downloadById('${d.id}', '${d.title.replace(/'/g,"\\'")}')">↓</button>
+        <button class="btn btn-danger" style="font-size:13px;padding:6px 14px"
+          onclick="deleteDraft('${d.id}', '${d.title.replace(/'/g,"\\'")}')">삭제</button>
       </div>
     </div>
   `;
@@ -568,6 +573,19 @@ async function previewDraft(id, title) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalContent').textContent = state.modalContent;
   document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function deleteDraft(id, title) {
+  if (!confirm(`"${title}"\n\n정말 삭제할까요? (되돌릴 수 없어요)`)) return;
+  try {
+    await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`},
+    });
+    loadLibrary();
+  } catch(e) {
+    alert('삭제 실패: ' + e.message);
+  }
 }
 
 async function downloadById(id, title) {
