@@ -10,7 +10,35 @@
            background: #f5f5f5; color: #333; }
     .header { background: #1a1a2e; color: white; padding: 16px 24px;
               display: flex; align-items: center; gap: 12px; }
-    .header h1 { font-size: 18px; font-weight: 600; }
+    .header h1 { font-size: 18px; font-weight: 600; flex: 1; }
+    .header-btn { background: rgba(255,255,255,0.1); color: white;
+                  border: 1px solid rgba(255,255,255,0.2);
+                  padding: 8px 14px; border-radius: 8px; font-size: 13px;
+                  font-weight: 500; cursor: pointer; }
+    .header-btn:hover { background: rgba(255,255,255,0.2); }
+
+    .guide-modal { background: white; border-radius: 12px; padding: 32px;
+                   max-width: 800px; width: 92%; max-height: 85vh; overflow-y: auto; }
+    .guide-modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px;
+                      color: #1a1a2e; }
+    .guide-modal h3 { font-size: 16px; font-weight: 600; margin: 24px 0 10px;
+                      color: #1a1a2e; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; }
+    .guide-modal h4 { font-size: 14px; font-weight: 600; margin: 14px 0 6px;
+                      color: #4f46e5; }
+    .guide-modal p, .guide-modal li { font-size: 14px; line-height: 1.65;
+                                       color: #374151; }
+    .guide-modal ul { padding-left: 20px; margin: 6px 0 10px; }
+    .guide-modal table { width: 100%; border-collapse: collapse;
+                         margin: 12px 0; font-size: 13px; }
+    .guide-modal th, .guide-modal td { border: 1px solid #e5e7eb;
+                                        padding: 8px 12px; text-align: left; }
+    .guide-modal th { background: #f9fafb; font-weight: 600; }
+    .guide-modal td.center { text-align: center; }
+    .guide-modal .quote { background: #faf5ff; border-left: 3px solid #6d28d9;
+                          padding: 12px 16px; margin: 10px 0; font-size: 13px;
+                          color: #4c1d95; font-style: italic; }
+    .guide-modal code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px;
+                        font-size: 13px; font-family: 'Courier New', monospace; }
     .tab-bar { background: white; border-bottom: 1px solid #e5e7eb;
                display: flex; padding: 0 24px; }
     .tab { padding: 14px 20px; cursor: pointer; font-size: 14px;
@@ -147,6 +175,7 @@
     <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/>
   </svg>
   <h1>ALF 지식 초안 생성기</h1>
+  <button class="header-btn" onclick="openGuide()">📖 가이드</button>
 </div>
 
 <div class="tab-bar">
@@ -184,19 +213,24 @@
         <div class="format-guide-card">
           <div class="format-guide-head">📄 아티클</div>
           <div class="format-guide-desc">
-            <strong>복잡한 시나리오</strong>에 적합 — 다단계 절차, 조건 분기, 표/링크가 필요한 가이드 문서.
-            자유 형식 Markdown, 길이 제한 없음.
-            <br><em>예) 결제 실패 원인별 해결 방법, 회원 등급 시스템 안내</em>
+            <strong>다단계 절차 / 조건 분기 / 표·링크가 필요한 가이드 문서</strong><br>
+            구조화될수록 ALF의 RAG 품질이 올라가요. 2,000자 이내 권장.
+            <br><em>예) 결제 실패 원인별 해결, 환불 단계별 처리, 회원 등급 안내</em>
           </div>
         </div>
         <div class="format-guide-card">
           <div class="format-guide-head">💬 FAQ</div>
           <div class="format-guide-desc">
-            <strong>단순·반복 질문</strong>에 적합 — 답변이 짧고 명확한 단일 시나리오.
-            대표 질문 + 변형 질문 5~10개 + 답변(500자 이내).
-            <br><em>예) 환불 처리 기간, 비밀번호 찾기, 영수증 발급 방법</em>
+            <strong>같은 의도, 표현이 다양한 단순 반복 질문</strong><br>
+            질문 100자 + 추가 질문 최대 10개 + 답변 500자.
+            관련도 높은 문의에 ALF가 자동 매칭해요.
+            <br><em>예) 환불 처리 기간, 영수증 발급, 비밀번호 찾기</em>
           </div>
         </div>
+      </div>
+      <div style="margin-top:10px;text-align:right">
+        <a href="#" onclick="event.preventDefault();openGuide()"
+          style="font-size:13px;color:#4f46e5;text-decoration:none">자세한 작성 가이드 보기 →</a>
       </div>
     </div>
     <div class="cluster-actions">
@@ -266,6 +300,76 @@
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
       <button class="btn btn-primary" onclick="downloadModal()">↓ 다운로드</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="guideOverlay">
+  <div class="guide-modal">
+    <h2>📖 ALF 지식 작성 가이드</h2>
+    <p style="font-size:13px;color:#6b7280">채널톡 공식 가이드 기반 · 출처:
+      <a href="https://docs.channel.io/help/ko/articles/FAQ-db21218c" target="_blank" style="color:#4f46e5">FAQ</a> ·
+      <a href="https://docs.channel.io/help/ko/articles/지식-ALF-v2-803f6ac9" target="_blank" style="color:#4f46e5">ALF 지식</a>
+    </p>
+
+    <h3>💬 FAQ — 단순·반복 질문에 효과적</h3>
+    <h4>형식 규정 (채널톡 공식)</h4>
+    <ul>
+      <li><strong>질문</strong>: 최대 100자</li>
+      <li><strong>추가 질문</strong>: 최대 100자, <strong>최대 10개</strong></li>
+      <li><strong>답변</strong>: 최대 500자</li>
+      <li>등록 개수 제한 없음</li>
+    </ul>
+    <h4>ALF 동작 방식</h4>
+    <div class="quote">"등록된 FAQ의 질문과 관련도가 높은 문의가 인입될 경우, FAQ의 답변을 참고하여 대답합니다."</div>
+    <p>→ 공개(published) 상태의 FAQ만 참조됩니다.</p>
+    <h4>효과적인 작성 팁</h4>
+    <div class="quote">"질문에는 정확한 키워드를 입력해 주시고, 추가 질문은 질문과 키워드를 포함해 다양하게 설정해 주세요."</div>
+    <div class="quote">"답변을 구체적으로 입력해 주셔야, 추후 ALF가 더 잘 활용할 수 있습니다."</div>
+    <ul>
+      <li>고객이 실제로 검색할 표현으로 질문 작성</li>
+      <li>추가 질문엔 줄임말·구어체·오타까지 (예: "환불 어케해요?")</li>
+      <li>답변은 결론부터, 조건 분기는 명확히</li>
+    </ul>
+
+    <h3>📄 아티클 — 복잡·다단계 시나리오에 효과적</h3>
+    <h4>ALF가 활용하는 방식</h4>
+    <div class="quote">"지식이 잘 정리되어 있을수록 RAG 품질이 향상되며, 구체적이고 구조화된 지식을 추가할수록 ALF는 더욱 정확하고 신뢰도 높은 답변을 제공합니다."</div>
+    <h4>효과적인 구조</h4>
+    <ul>
+      <li><strong>제목</strong>: 고객이 검색할 표현 — <code># 구독 중인 플랜을 환불받는 방법</code></li>
+      <li><strong>첫 문단 = 결론</strong> — ALF는 앞부분을 우선 참조해서 답변 생성</li>
+      <li><strong>섹션 분리</strong>: <code>##</code> 헤딩으로 케이스/단계 구분</li>
+      <li><strong>조건 분기 명시</strong>: "경우에 따라" 대신 케이스별로
+        <ul>
+          <li>결제 후 7일 이내 → 전액 환불</li>
+          <li>7일 ~ 30일 → 50% 환불</li>
+        </ul>
+      </li>
+      <li><strong>시각 요소</strong>: 비교는 표(<code>|</code>), 강조는 콜아웃(<code>&gt;</code>), 절차는 번호 목록</li>
+      <li><strong>2,000자 이내 권장</strong>: 초과 시 별도 아티클로 분리</li>
+      <li><strong>아티클 안에 FAQ 첨부 가능</strong>: 큰 가이드 + 자주 묻는 짧은 질문 조합</li>
+    </ul>
+    <h4>피해야 할 표현</h4>
+    <ul>
+      <li>❌ "보통", "일반적으로", "경우에 따라"</li>
+      <li>❌ "담당자에게 문의하세요" 단독 사용 → 조건/방법 같이 명시</li>
+    </ul>
+
+    <h3>🤔 어떤 형식을 선택할지 — 판단 기준</h3>
+    <table>
+      <tr><th>상황</th><th>FAQ</th><th>아티클</th></tr>
+      <tr><td>답변이 500자 이내로 완결</td><td class="center">✅</td><td></td></tr>
+      <tr><td>답변이 단계별로 길거나 복잡</td><td></td><td class="center">✅</td></tr>
+      <tr><td>같은 의도, 표현이 다양한 질문</td><td class="center">✅</td><td></td></tr>
+      <tr><td>조건이 여러 갈래로 갈림</td><td></td><td class="center">✅</td></tr>
+      <tr><td>표·그림·링크가 필요</td><td></td><td class="center">✅</td></tr>
+      <tr><td>즉시 응답이 핵심 (영업시간 외)</td><td class="center">✅</td><td></td></tr>
+      <tr><td>깊이 있는 종합 가이드 필요</td><td></td><td class="center">✅</td></tr>
+    </table>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeGuide()">닫기</button>
     </div>
   </div>
 </div>
@@ -653,6 +757,8 @@ async function executeMerge(draftIds) {
 
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 function downloadModal() { downloadMd(state.modalContent, state.currentDraftTitle); }
+function openGuide() { document.getElementById('guideOverlay').classList.add('open'); }
+function closeGuide() { document.getElementById('guideOverlay').classList.remove('open'); }
 
 async function loadTags() {
   try {
