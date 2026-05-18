@@ -11,43 +11,59 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF용 FAQ 콘텐츠 작성 전문가입니다.
-실제 고객이 사용한 자연어 표현을 기반으로 FAQ를 작성합니다.
+
+**가장 중요한 원칙:**
+실제 상담원이 고객에게 답한 내용을 그대로 정리해서 작성하세요.
+ALF/봇이 답한 내용은 무시하고, 사람 상담원의 답변만 참고하세요.
+답변을 새로 만들어내지 말고, 실제 답변에서 공통된 패턴/문구를 추출하세요.
 
 작성 규칙:
-1. 대표 질문(question): 고객이 가장 자주 묻는 표현 1개 (100자 이내)
-2. 변형 질문(variations): 같은 의도지만 표현이 다른 질문 5~10개 (각 100자 이내)
-   - 반드시 실제 상담에서 나온 고객 표현을 기반으로 작성
-   - 줄임말/오타/구어체 포함 (예: "환불 어케해요?", "무료로 바꿀 수 있나요?")
-3. 답변(answer): 핵심만 간결하게 (500자 이내, Markdown 가능)
-   - 결론부터 먼저
-   - 조건이 있다면 명확하게 분기
-   - "담당자 문의" 단독 사용 금지"""
+1. 대표 질문(question): 고객이 가장 자주 묻는 표현 (100자 이내)
+2. 변형 질문(variations): 실제 상담에서 고객이 사용한 표현 5~10개
+   - 줄임말/구어체/오타 그대로 포함
+3. 답변(answer): 500자 이내, Markdown 가능
+   - **상담원이 실제로 답한 표현, 어투, 단계를 그대로 따를 것**
+   - 여러 상담의 답변에 공통적으로 등장하는 핵심을 묶어서 정리
+   - 결론부터 먼저, 조건 분기 명확히
+   - "담당자 문의" 단독 답변 금지 — 구체적인 조건/방법 명시"""
 
 
 def build_faq_prompt(cluster_label: str, chats: list) -> str:
     samples = []
-    for i, c in enumerate(chats[:20]):
+    for i, c in enumerate(chats[:15]):
         msgs = c.get("messages", [])
-        customer_msgs = [m.get("text", "") for m in msgs if m.get("role") == "customer"][:3]
-        agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"][:2]
-        if customer_msgs:
-            samples.append(
-                f"[상담 {i+1}]\n고객: {' / '.join(customer_msgs)}"
-                + (f"\n상담원: {' / '.join(agent_msgs)}" if agent_msgs else "")
-            )
+        # 고객 메시지 (질문 패턴용)
+        customer_msgs = [m.get("text", "")[:200] for m in msgs if m.get("role") == "customer"][:2]
+        # 상담원(매니저) 메시지만 - ALF/봇 제외, 답변 패턴 추출용
+        agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"]
+        if not customer_msgs or not agent_msgs:
+            continue
+        # 상담원 답변은 더 많이, 더 길게 포함 (답변 핵심 자료)
+        agent_full = "\n".join(f"  → {a[:400]}" for a in agent_msgs[:4])
+        samples.append(
+            f"[상담 {i+1}]\n"
+            f"고객: {' / '.join(customer_msgs)}\n"
+            f"상담원이 답한 내용:\n{agent_full}"
+        )
 
-    return f"""아래는 '{cluster_label}' 상황의 실제 고객 상담 {len(chats)}건입니다.
+    if not samples:
+        return f"'{cluster_label}' 관련 상담원 답변 데이터가 부족해서 FAQ 작성이 어렵습니다."
+
+    return f"""아래는 '{cluster_label}' 상황에 대한 실제 채널톡 상담 {len(samples)}건입니다.
+상담원(사람)이 실제로 작성한 답변에 주목해주세요.
 
 {chr(10).join(samples)}
 
-위 상담 데이터를 분석해서 FAQ 1개를 작성해주세요.
-**변형 질문은 위 상담에서 고객이 실제로 사용한 표현을 기반으로 5~10개 뽑아주세요.**
+위 데이터를 바탕으로 FAQ 1개를 작성해주세요.
+- **변형 질문**: 위 고객들이 실제로 쓴 표현 그대로
+- **답변**: 위 상담원들이 실제로 답한 내용에서 공통 패턴을 뽑아 정리
+  (새 답변을 창작하지 말고, 실제 답변 어투/문구를 따를 것)
 
 반드시 아래 JSON 형식으로만 답변하세요:
 {{
   "question": "대표 질문 (100자 이내)",
   "variations": ["변형 질문 1", "변형 질문 2", "..."],
-  "answer": "답변 본문 (500자 이내, Markdown 가능)"
+  "answer": "답변 본문 (500자 이내, 상담원 실제 답변 기반, Markdown 가능)"
 }}"""
 
 

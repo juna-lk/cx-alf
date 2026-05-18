@@ -11,42 +11,53 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 ALF_SYSTEM_PROMPT = """당신은 채널톡 ALF용 지식 아티클을 작성하는 전문가입니다.
-아래 규칙을 반드시 따르세요:
 
-1. 1문서 = 고객의 1가지 완결된 시나리오 (여러 상황을 섞지 말 것)
-2. 제목은 고객이 실제로 검색할 표현으로 (예: "구독 중 플랜 환불하는 방법")
-3. 핵심 답변을 첫 문단에 배치 (ALF가 앞부분을 더 중요하게 참조)
-4. 조건 분기는 "경우에 따라 다릅니다" 대신 케이스별로 명확히 작성
-5. 2,000자 이내 (초과 시 별도 아티클로 분리)
-6. "담당자에게 문의" 단독 사용 금지 — 구체적인 연락 방법 또는 조건 명시
-7. Markdown 형식: # 제목, ## 섹션, - 목록, > 콜아웃, | 표
-8. 모호한 표현 금지: "보통", "일반적으로", "경우에 따라" 사용 금지"""
+**가장 중요한 원칙:**
+실제 상담원(사람)이 작성한 답변을 그대로 정리해서 작성하세요.
+ALF/봇 답변은 무시하고, 매니저의 실제 답변에서 공통 패턴/단계/문구를 추출하세요.
+없는 내용을 새로 만들어내지 마세요.
+
+작성 규칙:
+1. 1문서 = 고객의 1가지 완결된 시나리오 (여러 상황 섞지 말 것)
+2. 제목은 고객이 실제로 검색할 표현 (예: "구독 중 플랜 환불하는 방법")
+3. 핵심 답변을 첫 문단에 배치
+4. 조건 분기는 케이스별로 명확히 ("경우에 따라" 금지)
+5. 2,000자 이내
+6. "담당자 문의" 단독 사용 금지 — 구체적 조건/방법 명시
+7. Markdown: # 제목, ## 섹션, - 목록, > 콜아웃, | 표
+8. 모호한 표현 금지: "보통", "일반적으로", "경우에 따라"
+9. **상담원 실제 답변의 어투/문구를 그대로 따를 것** (창작 금지)"""
 
 
 def build_generate_prompt(cluster_label: str, chats: list) -> str:
     samples = []
-    for i, c in enumerate(chats[:20]):
+    for i, c in enumerate(chats[:15]):
         msgs = c.get("messages", [])
-        customer_msgs = [m.get("text", "") for m in msgs if m.get("role") == "customer"]
+        customer_msgs = [m.get("text", "")[:200] for m in msgs if m.get("role") == "customer"][:2]
+        # 상담원 답변만 (ALF/봇 제외, 답변 패턴 추출용)
         agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"]
-        if not customer_msgs:
+        if not customer_msgs or not agent_msgs:
             continue
+        agent_full = "\n".join(f"  → {a[:500]}" for a in agent_msgs[:4])
         samples.append(
-            f"[상담 {i+1}] 고객: {' / '.join(customer_msgs[:2])}"
-            + (f" | 상담원: {' / '.join(agent_msgs[:2])}" if agent_msgs else "")
+            f"[상담 {i+1}]\n"
+            f"고객: {' / '.join(customer_msgs)}\n"
+            f"상담원이 답한 내용:\n{agent_full}"
         )
 
-    return f"""아래는 '{cluster_label}' 유형의 실제 상담 {len(chats)}건 요약입니다.
+    if not samples:
+        return f"'{cluster_label}' 관련 상담원 답변 데이터가 부족합니다."
+
+    return f"""아래는 '{cluster_label}' 상황의 실제 채널톡 상담 {len(samples)}건입니다.
+상담원(사람)이 실제로 작성한 답변에 주목해주세요.
 
 {chr(10).join(samples)}
 
-이 상담 데이터를 바탕으로 ALF가 고객 문의에 정확히 답변할 수 있도록
-채널톡 아티클 형식의 지식 문서 초안을 작성해주세요.
-
-요구사항:
-- 제목: '{cluster_label}' 상황에 처한 고객이 검색할 표현
-- 실제 상담에서 나온 답변 패턴을 기반으로 구체적인 내용 작성
-- Markdown 형식으로 작성"""
+위 데이터를 바탕으로 채널톡 아티클 형식의 지식 문서를 작성해주세요.
+- 제목: '{cluster_label}' 상황의 고객이 검색할 표현
+- **본문: 위 상담원들이 실제로 답한 내용에서 공통 패턴/단계/문구를 뽑아 정리**
+  (창작하지 말고 실제 답변 어투/표현 그대로 사용)
+- Markdown 형식"""
 
 
 _Base = make_handler_base()
