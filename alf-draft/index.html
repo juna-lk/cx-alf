@@ -75,6 +75,14 @@
     .cluster-count { font-size: 12px; color: #9ca3af; margin-left: auto;
                      white-space: nowrap; }
     .cluster-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .format-guide { margin-top: 18px; padding-top: 18px; border-top: 1px dashed #e5e7eb; }
+    .format-guide-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .format-guide-card { background: #f9fafb; border: 1px solid #e5e7eb;
+                         border-radius: 8px; padding: 14px; }
+    .format-guide-head { font-size: 14px; font-weight: 600; color: #374151;
+                         margin-bottom: 6px; }
+    .format-guide-desc { font-size: 13px; color: #6b7280; line-height: 1.55; }
+    .format-guide-desc em { color: #4f46e5; font-style: normal; font-size: 12px; }
 
     .result-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
     .result-card { background: white; border-radius: 10px; padding: 20px;
@@ -92,6 +100,10 @@
 
     .library-header { display: flex; justify-content: space-between;
                       align-items: center; margin-bottom: 16px; }
+    .format-filter { padding: 8px 12px; border: 1px solid #d1d5db;
+                     border-radius: 8px; font-size: 14px; background: white;
+                     cursor: pointer; outline: none; }
+    .format-filter:focus { border-color: #4f46e5; }
     .draft-row { background: white; border-radius: 8px; padding: 16px 20px;
                  margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.08);
                  display: flex; align-items: center; gap: 12px; }
@@ -164,6 +176,26 @@
   <div class="cluster-card" id="clusterCard">
     <div class="cluster-title" id="clusterTitle"></div>
     <div id="clusterList"></div>
+    <div class="format-guide">
+      <div class="format-guide-row">
+        <div class="format-guide-card">
+          <div class="format-guide-head">📄 아티클</div>
+          <div class="format-guide-desc">
+            <strong>복잡한 시나리오</strong>에 적합 — 다단계 절차, 조건 분기, 표/링크가 필요한 가이드 문서.
+            자유 형식 Markdown, 길이 제한 없음.
+            <br><em>예) 결제 실패 원인별 해결 방법, 회원 등급 시스템 안내</em>
+          </div>
+        </div>
+        <div class="format-guide-card">
+          <div class="format-guide-head">💬 FAQ</div>
+          <div class="format-guide-desc">
+            <strong>단순·반복 질문</strong>에 적합 — 답변이 짧고 명확한 단일 시나리오.
+            대표 질문 + 변형 질문 5~10개 + 답변(500자 이내).
+            <br><em>예) 환불 처리 기간, 비밀번호 찾기, 영수증 발급 방법</em>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="cluster-actions">
       <button class="btn btn-primary" onclick="generate('article')">📄 아티클로 생성</button>
       <button class="btn btn-primary" onclick="generate('faq')">💬 FAQ로 생성</button>
@@ -208,7 +240,12 @@
 <div class="page" id="tab-library">
   <div class="library-header">
     <h2 style="font-size:16px;font-weight:600">저장된 초안</h2>
-    <div style="display:flex;gap:10px">
+    <div style="display:flex;gap:10px;align-items:center">
+      <select id="formatFilter" class="format-filter" onchange="loadLibrary()">
+        <option value="all">전체</option>
+        <option value="article">📄 아티클만</option>
+        <option value="faq">💬 FAQ만</option>
+      </select>
       <button class="btn btn-secondary" onclick="analyzeMerge()">🔍 병합 분석</button>
     </div>
   </div>
@@ -482,14 +519,16 @@ function downloadMd(content, title) {
 }
 
 async function loadLibrary() {
-  const res = await fetch(
-    `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,format,variations,source_chat_count,created_at&order=created_at.desc`,
+  const filter = document.getElementById('formatFilter')?.value || 'all';
+  let url = `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,format,variations,source_chat_count,created_at&order=created_at.desc`;
+  if (filter !== 'all') url += `&format=eq.${filter}`;
+  const res = await fetch(url,
     {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
   );
   state.allDrafts = await res.json();
   const list = document.getElementById('draftList');
   if (!state.allDrafts.length) {
-    list.innerHTML = '<p style="color:#9ca3af;font-size:14px">아직 저장된 초안이 없어요.</p>';
+    list.innerHTML = '<p style="color:#9ca3af;font-size:14px">저장된 초안이 없어요.</p>';
     return;
   }
   list.innerHTML = state.allDrafts.map(d => {
