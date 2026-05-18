@@ -215,6 +215,29 @@
       z-index: 1000;
     }
 
+    /* 규칙 카드 */
+    .rule-card { background: white; border: 1px solid #e5e7eb;
+                 border-radius: 10px; padding: 18px 22px;
+                 margin-bottom: 10px; transition: border-color 0.15s; }
+    .rule-card:hover { border-color: #c7d2fe; }
+    .rule-card.suggestion { border: 1px dashed #c4b5fd; background: #faf5ff; }
+    .rule-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .rule-type-badge { font-size: 11px; font-weight: 700; padding: 3px 9px;
+                       border-radius: 6px; letter-spacing: 0.3px; }
+    .rule-type-badge.disambiguation { background: #fef3c7; color: #92400e; }
+    .rule-type-badge.tone { background: #dbeafe; color: #1e40af; }
+    .rule-type-badge.terminology { background: #e0e7ff; color: #4338ca; }
+    .rule-type-badge.priority { background: #fce7f3; color: #be185d; }
+    .rule-title { font-size: 15px; font-weight: 600; color: #111827; flex: 1; }
+    .rule-content { font-size: 13px; line-height: 1.65; color: #374151;
+                    background: #f9fafb; padding: 12px 14px; border-radius: 6px;
+                    margin: 8px 0; white-space: pre-wrap; }
+    .rule-reason { font-size: 12px; color: #6b7280; font-style: italic;
+                   margin-top: 8px; }
+    .rule-related { font-size: 11px; color: #4f46e5; margin-top: 6px; }
+    .rule-actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+    .rule-checkbox { width: 18px; height: 18px; cursor: pointer; }
+
     /* 인포 아이콘 — 클릭하면 라벨 아래에 인라인으로 펼침 */
     .info-icon { display: inline-flex; align-items: center; justify-content: center;
                  width: 16px; height: 16px; border-radius: 50%;
@@ -291,6 +314,7 @@
   <div class="tab active" onclick="switchTab('generate')">초안 생성</div>
   <div class="tab" onclick="switchTab('library')">📝 작성 중인 초안</div>
   <div class="tab" onclick="switchTab('applied')">✅ ALF 적용 가이드</div>
+  <div class="tab" onclick="switchTab('rules')">⚙️ ALF 규칙</div>
   <div class="tab" onclick="switchTab('guide')">📖 작성 가이드</div>
 </div>
 
@@ -383,6 +407,34 @@
       <button class="btn btn-secondary" onclick="downloadFAQ()">↓ FAQ 다운로드</button>
     </div>
   </div>
+</div>
+
+<div class="page" id="tab-rules">
+  <div class="library-header">
+    <div>
+      <h2 style="font-size:16px;font-weight:600">⚙️ ALF 규칙</h2>
+      <p style="font-size:13px;color:#6b7280;margin-top:4px">
+        적용된 가이드를 보고 ALF가 더 똑똑하게 답변하도록 돕는 규칙을 생성·관리해요.
+        <a href="#" onclick="event.preventDefault();switchTab('guide')"
+          style="color:#4f46e5;text-decoration:none">규칙이란? →</a>
+      </p>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="suggestRules()">✨ 규칙 추천받기</button>
+    </div>
+  </div>
+
+  <div id="ruleSuggestions" class="hidden" style="margin-bottom:24px">
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#4f46e5">💡 추천된 규칙 (저장 전 검토)</h3>
+    <div id="ruleSuggestionList"></div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn btn-primary" onclick="saveSuggestedRules()">💾 선택한 규칙 저장</button>
+      <button class="btn btn-secondary" onclick="dismissSuggestions()">취소</button>
+    </div>
+  </div>
+
+  <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#374151">📋 저장된 규칙</h3>
+  <div id="ruleList"></div>
 </div>
 
 <div class="page" id="tab-guide">
@@ -712,16 +764,18 @@ let state = {
   allTags: [],
   editingDraft: null,
   editingVariations: [],
+  suggestedRules: [],
 };
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['generate','library','applied','guide'][i] === name);
+    t.classList.toggle('active', ['generate','library','applied','rules','guide'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'library') loadLibrary();
   if (name === 'applied') loadApplied();
+  if (name === 'rules') loadRules();
 }
 
 function setLoading(show, text = '분석 중...') {
@@ -1219,6 +1273,129 @@ async function executeMerge(draftIds) {
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 function downloadModal() { downloadMd(state.modalContent, state.currentDraftTitle); }
 function openGuide() { switchTab('guide'); window.scrollTo(0, 0); }
+
+const RULE_TYPE_LABEL = {
+  disambiguation: '🔀 구분 (혼동 방지)',
+  tone: '🎙 톤 (어투/표현)',
+  terminology: '📚 용어사전',
+  priority: '⭐ 우선순위',
+};
+
+async function loadRules() {
+  const res = await fetch(
+    `${SUPA_URL}/rest/v1/alf_rules?select=*&order=created_at.desc`,
+    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
+  );
+  const rules = await res.json();
+  const list = document.getElementById('ruleList');
+  if (!rules.length) {
+    list.innerHTML = '<p style="color:#9ca3af;font-size:14px">아직 저장된 규칙이 없어요. "규칙 추천받기"로 시작해보세요.</p>';
+    return;
+  }
+  list.innerHTML = rules.map(r => `
+    <div class="rule-card">
+      <div class="rule-head">
+        <span class="rule-type-badge ${r.rule_type}">${RULE_TYPE_LABEL[r.rule_type] || r.rule_type}</span>
+        <span class="rule-title">${r.title}</span>
+      </div>
+      <div class="rule-content">${r.content}</div>
+      <div class="rule-actions">
+        <button class="icon-btn" onclick="copyRule('${r.id}')" data-tooltip="규칙 본문 복사">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="icon-btn danger" onclick="deleteRule('${r.id}')" data-tooltip="삭제">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function suggestRules() {
+  setLoading(true, 'ALF 규칙 추천 분석 중...');
+  try {
+    const res = await fetch(`${API}/api/alf_rule_suggest`, {method: 'GET'});
+    const data = await res.json();
+    if (!data.ok) { alert('추천 실패: ' + (data.error || '')); return; }
+    if (!data.rules?.length) {
+      alert(data.message || '추천할 규칙이 없어요.');
+      return;
+    }
+    state.suggestedRules = data.rules;
+    renderSuggestedRules();
+    document.getElementById('ruleSuggestions').classList.remove('hidden');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  } catch(e) {
+    alert('오류: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function renderSuggestedRules() {
+  const list = document.getElementById('ruleSuggestionList');
+  list.innerHTML = state.suggestedRules.map((r, i) => `
+    <div class="rule-card suggestion">
+      <div class="rule-head">
+        <input type="checkbox" class="rule-checkbox" id="suggest-${i}" checked>
+        <span class="rule-type-badge ${r.rule_type}">${RULE_TYPE_LABEL[r.rule_type] || r.rule_type}</span>
+        <span class="rule-title">${r.title}</span>
+      </div>
+      <div class="rule-content">${r.content}</div>
+      ${r.reason ? `<div class="rule-reason">💡 ${r.reason}</div>` : ''}
+      ${r.related_titles?.length ? `<div class="rule-related">관련: ${r.related_titles.join(' · ')}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function saveSuggestedRules() {
+  const selected = state.suggestedRules.filter((_, i) =>
+    document.getElementById('suggest-' + i)?.checked
+  );
+  if (!selected.length) { alert('저장할 규칙을 선택해주세요'); return; }
+  setLoading(true, '규칙 저장 중...');
+  try {
+    const res = await fetch(`${API}/api/alf_rule_suggest`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({rules: selected}),
+    });
+    const data = await res.json();
+    if (!data.ok) { alert('저장 실패'); return; }
+    alert(`${data.saved}개 규칙이 저장됐어요!`);
+    dismissSuggestions();
+    loadRules();
+  } catch(e) {
+    alert('오류: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function dismissSuggestions() {
+  document.getElementById('ruleSuggestions').classList.add('hidden');
+  state.suggestedRules = [];
+}
+
+async function deleteRule(id) {
+  if (!confirm('이 규칙을 삭제할까요?')) return;
+  await fetch(`${SUPA_URL}/rest/v1/alf_rules?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`},
+  });
+  loadRules();
+}
+
+async function copyRule(id) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/alf_rules?id=eq.${id}&select=content`,
+    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}});
+  const data = await res.json();
+  if (data[0]?.content) {
+    await navigator.clipboard.writeText(data[0].content);
+    alert('규칙 본문이 복사됐어요. 채널톡 규칙 페이지에 붙여넣으세요.');
+  }
+}
+
 function toggleTip(tipId, iconEl) {
   const tip = document.getElementById(tipId);
   if (!tip) return;
