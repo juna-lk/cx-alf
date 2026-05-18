@@ -135,6 +135,8 @@ _Base = make_handler_base()
 
 class handler(_Base):
     def do_POST(self):
+        if not self._check_auth():
+            return
         content_length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(content_length)) if content_length else {}
         days = int(body.get("days", DEFAULT_COLLECT_DAYS))

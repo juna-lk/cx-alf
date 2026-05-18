@@ -102,6 +102,8 @@ _Base = make_handler_base()
 
 class handler(_Base):
     def do_GET(self):
+        if not self._check_auth():
+            return
         # ALF 적용된 가이드만 조회
         url = (f"{SUPABASE_URL}/rest/v1/alf_drafts"
                f"?select=id,title,format,content"
@@ -134,6 +136,8 @@ class handler(_Base):
         self._respond(200, {"ok": True, "rules": rules})
 
     def do_POST(self):
+        if not self._check_auth():
+            return
         """추천된 규칙을 alf_rules 테이블에 저장"""
         content_length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(content_length)) if content_length else {}

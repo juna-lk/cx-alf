@@ -26,6 +26,8 @@ _Base = make_handler_base()
 
 class handler(_Base):
     def do_GET(self):
+        if not self._check_auth():
+            return
         # ALF 적용된 가이드만 대상으로 병합 분석
         url = (f"{SUPABASE_URL}/rest/v1/alf_drafts"
                f"?select=id,title,cluster_label,content"

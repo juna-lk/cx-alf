@@ -290,6 +290,31 @@
 </head>
 <body>
 
+<div class="login-overlay" id="loginOverlay" style="position:fixed;inset:0;background:linear-gradient(135deg,#1a1a2e 0%,#2d2b56 100%);display:none;align-items:center;justify-content:center;z-index:9999">
+  <div style="background:white;border-radius:14px;padding:40px;width:380px;box-shadow:0 25px 50px rgba(0,0,0,0.25)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <defs><linearGradient id="loginGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#c084fc"/>
+        </linearGradient></defs>
+        <rect width="32" height="32" rx="8" fill="url(#loginGrad)"/>
+        <path d="M9 9h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-4 3v-3h-1a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z" fill="white" opacity="0.95"/>
+        <path d="M19 7l0.6 1.8L21.4 9.4l-1.8 0.6L19 11.8l-0.6-1.8L16.6 9.4l1.8-0.6z" fill="#fbbf24"/>
+      </svg>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#1a1a2e">ALF Studio</div>
+        <div style="font-size:12px;color:#6b7280">접근 비밀번호를 입력해주세요</div>
+      </div>
+    </div>
+    <input type="password" id="loginInput" placeholder="비밀번호"
+      style="width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;outline:none;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')doLogin()" />
+    <div id="loginError" style="font-size:12px;color:#dc2626;margin-bottom:12px;display:none">비밀번호가 일치하지 않아요.</div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">입장</button>
+    <p style="font-size:11px;color:#9ca3af;margin-top:14px;text-align:center">내부 도구 — 외부 공유 금지</p>
+  </div>
+</div>
+
 <div class="header">
   <div class="logo">
     <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
@@ -849,8 +874,54 @@
 
 <script>
 const API = '';
-const SUPA_URL = 'https://axqrhnfmrqwdmebjmsrh.supabase.co';
-const ANON_KEY = 'sb_publishable_oNDxh87K9qCzx5gDT3gIDQ_1aZXlqtB';
+const TOKEN_KEY = 'alf_studio_token';
+
+// 인증 헤더 포함 fetch — 401시 토큰 삭제하고 로그인 화면 표시
+async function authFetch(url, options = {}) {
+  const token = localStorage.getItem(TOKEN_KEY) || '';
+  const headers = Object.assign({}, options.headers || {});
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(url, Object.assign({}, options, {headers}));
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    showLogin();
+    throw new Error('인증 실패. 다시 로그인해주세요.');
+  }
+  return res;
+}
+
+function showLogin() {
+  document.getElementById('loginOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('loginInput')?.focus(), 50);
+}
+
+function hideLogin() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('loginInput').value = '';
+}
+
+async function doLogin() {
+  const pwd = (document.getElementById('loginInput').value || '').trim();
+  if (!pwd) return;
+  localStorage.setItem(TOKEN_KEY, pwd);
+  // 검증: 가벼운 GET 호출
+  try {
+    const res = await authFetch(`${API}/api/alf_data?type=tags`, {
+      headers: {'Authorization': 'Bearer ' + pwd},
+    });
+    if (res.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      document.getElementById('loginError').style.display = 'block';
+      return;
+    }
+    hideLogin();
+    loadTags();
+  } catch(e) {
+    document.getElementById('loginError').textContent = '서버 연결 실패: ' + e.message;
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
 
 // XSS 방어: HTML 특수문자 이스케이프
 function escapeHtml(s) {
@@ -926,7 +997,7 @@ async function analyze() {
   setLoading(true, '관련 상담 수집 중...');
 
   try {
-    const res = await fetch(`${API}/api/alf_search`, {
+    const res = await authFetch(`${API}/api/alf_search`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({tag, keyword}),
@@ -963,7 +1034,7 @@ async function analyze() {
 
 async function suggestFormat(clusterLabel, chatIds) {
   try {
-    const res = await fetch(`${API}/api/alf_format_suggest`, {
+    const res = await authFetch(`${API}/api/alf_format_suggest`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({cluster_label: clusterLabel, chat_ids: chatIds}),
@@ -981,7 +1052,7 @@ async function suggestFormat(clusterLabel, chatIds) {
 
 async function suggestStructure(tag, clusterLabel) {
   try {
-    const res = await fetch(`${API}/api/alf_structure_suggest`, {
+    const res = await authFetch(`${API}/api/alf_structure_suggest`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({tag, cluster_label: clusterLabel}),
@@ -1017,7 +1088,7 @@ async function generate(format) {
   document.getElementById('faqCard').classList.add('hidden');
 
   try {
-    const res = await fetch(`${API}/api/${endpoint}`, {
+    const res = await authFetch(`${API}/api/${endpoint}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({cluster_label: cluster.label, chat_ids: cluster.chat_ids || []}),
@@ -1086,10 +1157,13 @@ async function saveFAQ() {
   if (!state.currentDraftId) { alert('먼저 FAQ를 생성해주세요'); return; }
   const question = document.getElementById('faqQuestion').value.trim();
   const answer = document.getElementById('faqAnswer').value.trim();
-  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${state.currentDraftId}`, {
-    method: 'PATCH',
-    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
-    body: JSON.stringify({title: question, content: answer, variations: state.currentVariations}),
+  await authFetch(`${API}/api/alf_data`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      action: 'save_draft', id: state.currentDraftId,
+      title: question, content: answer, variations: state.currentVariations,
+    }),
   });
   alert('FAQ가 저장됐어요!');
 }
@@ -1104,10 +1178,10 @@ function downloadFAQ() {
 async function saveDraft() {
   if (!state.currentDraftId) { alert('먼저 초안을 생성해주세요'); return; }
   const content = document.getElementById('draftArea').value;
-  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${state.currentDraftId}`, {
-    method: 'PATCH',
-    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
-    body: JSON.stringify({content}),
+  await authFetch(`${API}/api/alf_data`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'save_draft', id: state.currentDraftId, content}),
   });
   alert('저장됐어요!');
 }
@@ -1163,12 +1237,11 @@ function renderDraftRow(d, isApplied) {
 
 async function loadLibrary() {
   const filter = document.getElementById('formatFilter')?.value || 'all';
-  let url = `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,format,variations,source_chat_count,created_at&status=eq.draft&order=created_at.desc`;
-  if (filter !== 'all') url += `&format=eq.${filter}`;
-  const res = await fetch(url,
-    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
-  );
-  state.allDrafts = await res.json();
+  let url = `${API}/api/alf_data?type=drafts&status=draft`;
+  if (filter !== 'all') url += `&format=${filter}`;
+  const res = await authFetch(url);
+  const data = await res.json();
+  state.allDrafts = data.drafts || [];
   const list = document.getElementById('draftList');
   if (!state.allDrafts.length) {
     list.innerHTML = '<p style="color:#9ca3af;font-size:14px">작성 중인 초안이 없어요. 초안 생성 탭에서 새로 만들어보세요.</p>';
@@ -1179,12 +1252,11 @@ async function loadLibrary() {
 
 async function loadApplied() {
   const filter = document.getElementById('appliedFormatFilter')?.value || 'all';
-  let url = `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,format,variations,source_chat_count,created_at&status=eq.applied&order=created_at.desc`;
-  if (filter !== 'all') url += `&format=eq.${filter}`;
-  const res = await fetch(url,
-    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
-  );
-  state.allDrafts = await res.json();
+  let url = `${API}/api/alf_data?type=drafts&status=applied`;
+  if (filter !== 'all') url += `&format=${filter}`;
+  const res = await authFetch(url);
+  const data = await res.json();
+  state.allDrafts = data.drafts || [];
   const list = document.getElementById('appliedList');
   if (!state.allDrafts.length) {
     list.innerHTML = '<p style="color:#9ca3af;font-size:14px">아직 적용한 가이드가 없어요. 작성 중인 초안에서 "ALF 적용" 버튼을 눌러 옮길 수 있어요.</p>';
@@ -1194,28 +1266,27 @@ async function loadApplied() {
 }
 
 async function markApplied(id) {
-  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}`, {
-    method: 'PATCH',
-    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
-    body: JSON.stringify({status: 'applied'}),
+  await authFetch(`${API}/api/alf_data`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'update_status', id, status: 'applied'}),
   });
   loadLibrary();
 }
 
 async function unmarkApplied(id) {
-  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}`, {
-    method: 'PATCH',
-    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
-    body: JSON.stringify({status: 'draft'}),
+  await authFetch(`${API}/api/alf_data`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'update_status', id, status: 'draft'}),
   });
   loadApplied();
 }
 
 async function previewDraft(id, title) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=content,format,variations`,
-    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}});
+  const res = await authFetch(`${API}/api/alf_data?type=draft&id=${encodeURIComponent(id)}`);
   const data = await res.json();
-  const d = data[0] || {};
+  const d = data.draft || {};
   if (d.format === 'faq') {
     const variations = (d.variations || []).map(v => `- ${v}`).join('\n');
     state.modalContent = `# ${title}\n\n## 변형 질문\n${variations}\n\n## 답변\n${d.content || ''}\n`;
@@ -1229,12 +1300,9 @@ async function previewDraft(id, title) {
 }
 
 async function editDraft(id) {
-  const res = await fetch(
-    `${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=id,title,content,format,variations,status`,
-    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
-  );
+  const res = await authFetch(`${API}/api/alf_data?type=draft&id=${encodeURIComponent(id)}`);
   const data = await res.json();
-  const d = data[0];
+  const d = data.draft;
   if (!d) { alert('초안을 찾을 수 없어요'); return; }
 
   state.editingDraft = d;
@@ -1305,10 +1373,10 @@ async function saveEdit() {
       content: document.getElementById('editArticleContent').value,
     };
   }
-  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${d.id}`, {
-    method: 'PATCH',
-    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
-    body: JSON.stringify(payload),
+  await authFetch(`${API}/api/alf_data`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Object.assign({action: 'save_draft', id: d.id}, payload)),
   });
   closeEdit();
   if (d.status === 'applied') loadApplied();
@@ -1323,21 +1391,24 @@ function closeEdit() {
 async function deleteDraft(id, title) {
   if (!confirm(`"${title}"\n\n정말 삭제할까요? (되돌릴 수 없어요)`)) return;
   try {
-    await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}`, {
-      method: 'DELETE',
-      headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`},
+    await authFetch(`${API}/api/alf_data`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'delete_draft', id}),
     });
-    loadLibrary();
+    // 현재 활성 탭에 따라 재로드
+    const activeTab = document.querySelector('.tab.active')?.textContent || '';
+    if (activeTab.includes('적용')) loadApplied();
+    else loadLibrary();
   } catch(e) {
     alert('삭제 실패: ' + e.message);
   }
 }
 
 async function downloadById(id, title) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=content,format,variations`,
-    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}});
+  const res = await authFetch(`${API}/api/alf_data?type=draft&id=${encodeURIComponent(id)}`);
   const data = await res.json();
-  const d = data[0] || {};
+  const d = data.draft || {};
   let content = d.content || '';
   if (d.format === 'faq') {
     const variations = (d.variations || []).map(v => `- ${v}`).join('\n');
@@ -1349,7 +1420,7 @@ async function downloadById(id, title) {
 async function analyzeMerge() {
   setLoading(true, '병합 후보 분석 중...');
   try {
-    const res = await fetch(`${API}/api/alf_merge_suggest`, {method: 'GET'});
+    const res = await authFetch(`${API}/api/alf_merge_suggest`, {method: 'GET'});
     const data = await res.json();
     const container = document.getElementById('mergeSuggestions');
     const list = document.getElementById('mergeSuggestionList');
@@ -1386,7 +1457,7 @@ function executeMergeByIndex(i) {
 async function executeMerge(draftIds) {
   setLoading(true, '문서 병합 중...');
   try {
-    const res = await fetch(`${API}/api/alf_merge`, {
+    const res = await authFetch(`${API}/api/alf_merge`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({draft_ids: draftIds}),
@@ -1414,11 +1485,9 @@ const RULE_TYPE_LABEL = {
 };
 
 async function loadRules() {
-  const res = await fetch(
-    `${SUPA_URL}/rest/v1/alf_rules?select=*&order=created_at.desc`,
-    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
-  );
-  const rules = await res.json();
+  const res = await authFetch(`${API}/api/alf_data?type=rules`);
+  const data = await res.json();
+  const rules = data.rules || [];
   const list = document.getElementById('ruleList');
   if (!rules.length) {
     list.innerHTML = '<p style="color:#9ca3af;font-size:14px">아직 저장된 규칙이 없어요. "규칙 추천받기"로 시작해보세요.</p>';
@@ -1451,7 +1520,7 @@ async function loadRules() {
 async function suggestRules() {
   setLoading(true, 'ALF 규칙 추천 분석 중...');
   try {
-    const res = await fetch(`${API}/api/alf_rule_suggest`, {method: 'GET'});
+    const res = await authFetch(`${API}/api/alf_rule_suggest`, {method: 'GET'});
     const data = await res.json();
     if (!data.ok) { alert('추천 실패: ' + (data.error || '')); return; }
     if (!data.rules?.length) {
@@ -1496,7 +1565,7 @@ async function saveSuggestedRules() {
   if (!selected.length) { alert('저장할 규칙을 선택해주세요'); return; }
   setLoading(true, '규칙 저장 중...');
   try {
-    const res = await fetch(`${API}/api/alf_rule_suggest`, {
+    const res = await authFetch(`${API}/api/alf_rule_suggest`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({rules: selected}),
@@ -1520,9 +1589,10 @@ function dismissSuggestions() {
 
 async function deleteRule(id) {
   if (!confirm('이 규칙을 삭제할까요?')) return;
-  await fetch(`${SUPA_URL}/rest/v1/alf_rules?id=eq.${id}`, {
-    method: 'DELETE',
-    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`},
+  await authFetch(`${API}/api/alf_data`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'delete_rule', id}),
   });
   loadRules();
 }
@@ -1536,11 +1606,10 @@ function openRuleExamples() {
 }
 
 async function copyRule(id) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/alf_rules?id=eq.${id}&select=content`,
-    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}});
+  const res = await authFetch(`${API}/api/alf_data?type=rule&id=${encodeURIComponent(id)}`);
   const data = await res.json();
-  if (data[0]?.content) {
-    await navigator.clipboard.writeText(data[0].content);
+  if (data.rule?.content) {
+    await navigator.clipboard.writeText(data.rule.content);
     alert('규칙 본문이 복사됐어요. 채널톡 규칙 페이지에 붙여넣으세요.');
   }
 }
@@ -1554,27 +1623,17 @@ function toggleTip(tipId, iconEl) {
 
 async function loadTags() {
   try {
-    const res = await fetch(
-      `${SUPA_URL}/rest/v1/cx_full_messages?select=tags&limit=50000`,
-      {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
-    );
-    const rows = await res.json();
-    const counts = {};
-    rows.forEach(r => {
-      (r.tags || []).forEach(t => {
-        if (t) counts[t] = (counts[t] || 0) + 1;
-      });
-    });
-    state.allTags = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([tag]) => tag);
+    const res = await authFetch(`${API}/api/alf_data?type=tags`);
+    const data = await res.json();
+    if (!data.ok) return;
+    state.allTags = data.tags || [];
     const dl = document.getElementById('tagList');
     dl.innerHTML = state.allTags.map(t => `<option value="${escapeHtml(t)}">`).join('');
     console.log(`[tags] ${state.allTags.length}개 로드됨`);
   } catch(e) { console.warn('태그 로드 실패:', e); }
 }
 
-// FAQ 답변 글자 수 카운터 + 태그 자동완성
+// FAQ 답변 글자 수 카운터 + 태그 자동완성 + 로그인 체크
 document.addEventListener('DOMContentLoaded', () => {
   const faqAnswer = document.getElementById('faqAnswer');
   const faqCount = document.getElementById('faqAnswerCount');
@@ -1590,7 +1649,12 @@ document.addEventListener('DOMContentLoaded', () => {
       editFaqCount.textContent = editFaqAnswer.value.length;
     });
   }
-  loadTags();
+  // 토큰 있으면 태그 로드 (검증 겸용), 없으면 로그인 화면
+  if (localStorage.getItem(TOKEN_KEY)) {
+    loadTags();
+  } else {
+    showLogin();
+  }
 });
 </script>
 </body>

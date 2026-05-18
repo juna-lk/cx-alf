@@ -146,7 +146,8 @@ def supabase_post(url: str, data: dict | list, service_key: str, method: str = "
 
 
 def make_handler_base():
-    """Vercel 서버리스 handler 공통 CORS 응답 헬퍼 반환"""
+    """Vercel 서버리스 handler 공통 CORS + 인증 헬퍼 반환"""
+    import hmac
     from http.server import BaseHTTPRequestHandler
 
     class _Base(BaseHTTPRequestHandler):
@@ -158,11 +159,25 @@ def make_handler_base():
             self.end_headers()
             self.wfile.write(body)
 
+        def _check_auth(self) -> bool:
+            """Authorization 헤더 검증. 통과: True / 실패: 401 응답 + False.
+            APP_AUTH_TOKEN 환경변수가 비어있으면 인증 비활성화 (개발용).
+            """
+            token_env = os.environ.get("APP_AUTH_TOKEN", "")
+            if not token_env:
+                return True
+            header = self.headers.get("Authorization", "")
+            token = header.removeprefix("Bearer ").strip() if header.startswith("Bearer ") else header.strip()
+            if token and hmac.compare_digest(token, token_env):
+                return True
+            self._respond(401, {"ok": False, "error": "인증 필요"})
+            return False
+
         def do_OPTIONS(self):
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
             self.end_headers()
 
         def log_message(self, *args):

@@ -11,6 +11,7 @@
     "api/alf_merge.py":              { "maxDuration": 60 },
     "api/alf_format_suggest.py":     { "maxDuration": 30 },
     "api/alf_faq_generate.py":       { "maxDuration": 60 },
-    "api/alf_rule_suggest.py":       { "maxDuration": 60 }
+    "api/alf_rule_suggest.py":       { "maxDuration": 60 },
+    "api/alf_data.py":               { "maxDuration": 15 }
   }
 }
