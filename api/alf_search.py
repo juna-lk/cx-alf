@@ -62,8 +62,8 @@ class handler(_Base):
             self._respond(400, {"ok": False, "error": "tag 필요"})
             return
 
-        # Supabase에서 태그 매칭 채팅 조회
-        encoded_tag = urllib.parse.quote(f'{{"{tag}"}}')
+        # Supabase에서 태그 매칭 채팅 조회 (/ 등 특수문자 인코딩 위해 safe='')
+        encoded_tag = urllib.parse.quote(f'{{"{tag}"}}', safe='')
         url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
                f"?select=chat_id,messages,tags,date,assignee_name,csat_score"
                f"&tags=cs.{encoded_tag}&limit=200")
