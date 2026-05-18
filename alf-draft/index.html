@@ -435,7 +435,37 @@
     <pre id="modalContent"></pre>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
-      <button class="btn btn-primary" onclick="downloadModal()">↓ 다운로드</button>
+      <button class="btn btn-primary" onclick="downloadModal()">⬇ 다운로드</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editOverlay">
+  <div class="modal" style="max-width:760px">
+    <h2 id="editModalTitle">초안 편집</h2>
+
+    <div id="editArticleForm" class="hidden">
+      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">제목</label>
+      <input type="text" id="editArticleTitle" class="faq-q-input" />
+      <label style="display:block;font-size:13px;font-weight:600;margin:14px 0 6px">본문 (Markdown)</label>
+      <textarea class="draft-area" id="editArticleContent" style="min-height:340px"></textarea>
+    </div>
+
+    <div id="editFaqForm" class="hidden">
+      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">대표 질문 (100자)</label>
+      <input type="text" id="editFaqQuestion" class="faq-q-input" maxlength="100" />
+      <label style="display:block;font-size:13px;font-weight:600;margin:14px 0 6px">변형 질문 <span style="font-weight:400;color:#9ca3af;font-size:12px">— 최대 10개</span></label>
+      <div class="faq-variations" id="editFaqVariations"></div>
+      <label style="display:block;font-size:13px;font-weight:600;margin:14px 0 6px">답변 (500자)</label>
+      <textarea class="faq-answer" id="editFaqAnswer" maxlength="500"></textarea>
+      <div style="text-align:right;font-size:12px;color:#9ca3af;margin-top:4px">
+        <span id="editFaqAnswerCount">0</span> / 500자
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeEdit()">취소</button>
+      <button class="btn btn-primary" onclick="saveEdit()">💾 저장</button>
     </div>
   </div>
 </div>
@@ -454,6 +484,8 @@ let state = {
   modalContent: '',
   allDrafts: [],
   allTags: [],
+  editingDraft: null,
+  editingVariations: [],
 };
 
 function switchTab(name) {
@@ -717,11 +749,13 @@ function renderDraftRow(d, isApplied) {
       <div class="draft-row-actions">
         ${statusBtn}
         <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
-          onclick="previewDraft('${d.id}', '${safeTitle}')">보기</button>
+          onclick="previewDraft('${d.id}', '${safeTitle}')">👁 보기</button>
         <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
-          onclick="downloadById('${d.id}', '${safeTitle}')">↓</button>
+          onclick="editDraft('${d.id}')">✏️ 편집</button>
+        <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
+          onclick="downloadById('${d.id}', '${safeTitle}')">⬇ 다운로드</button>
         <button class="btn btn-danger" style="font-size:13px;padding:6px 14px"
-          onclick="deleteDraft('${d.id}', '${safeTitle}')">삭제</button>
+          onclick="deleteDraft('${d.id}', '${safeTitle}')">🗑 삭제</button>
       </div>
     </div>
   `;
@@ -792,6 +826,93 @@ async function previewDraft(id, title) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalContent').textContent = state.modalContent;
   document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function editDraft(id) {
+  const res = await fetch(
+    `${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=id,title,content,format,variations,status`,
+    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
+  );
+  const data = await res.json();
+  const d = data[0];
+  if (!d) { alert('초안을 찾을 수 없어요'); return; }
+
+  state.editingDraft = d;
+  document.getElementById('editArticleForm').classList.add('hidden');
+  document.getElementById('editFaqForm').classList.add('hidden');
+
+  if (d.format === 'faq') {
+    document.getElementById('editModalTitle').textContent = '💬 FAQ 편집';
+    document.getElementById('editFaqQuestion').value = d.title || '';
+    document.getElementById('editFaqAnswer').value = d.content || '';
+    document.getElementById('editFaqAnswerCount').textContent = (d.content || '').length;
+    state.editingVariations = [...(d.variations || [])];
+    renderEditVariations();
+    document.getElementById('editFaqForm').classList.remove('hidden');
+  } else {
+    document.getElementById('editModalTitle').textContent = '📄 아티클 편집';
+    document.getElementById('editArticleTitle').value = d.title || '';
+    document.getElementById('editArticleContent').value = d.content || '';
+    document.getElementById('editArticleForm').classList.remove('hidden');
+  }
+
+  document.getElementById('editOverlay').classList.add('open');
+}
+
+function renderEditVariations() {
+  const container = document.getElementById('editFaqVariations');
+  container.innerHTML = state.editingVariations.map((v, i) => `
+    <span class="faq-variation">
+      ${v}
+      <span class="remove" onclick="removeEditVariation(${i})">×</span>
+    </span>
+  `).join('') + (state.editingVariations.length < 10
+    ? `<span class="faq-add-var" onclick="addEditVariation()">+ 추가</span>`
+    : '');
+}
+
+function removeEditVariation(i) {
+  state.editingVariations.splice(i, 1);
+  renderEditVariations();
+}
+
+function addEditVariation() {
+  const v = prompt('변형 질문 입력 (100자 이내):');
+  if (v && v.trim() && v.length <= 100) {
+    state.editingVariations.push(v.trim());
+    renderEditVariations();
+  }
+}
+
+async function saveEdit() {
+  const d = state.editingDraft;
+  if (!d) return;
+  let payload = {};
+  if (d.format === 'faq') {
+    payload = {
+      title: document.getElementById('editFaqQuestion').value.trim(),
+      content: document.getElementById('editFaqAnswer').value.trim(),
+      variations: state.editingVariations,
+    };
+  } else {
+    payload = {
+      title: document.getElementById('editArticleTitle').value.trim(),
+      content: document.getElementById('editArticleContent').value,
+    };
+  }
+  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${d.id}`, {
+    method: 'PATCH',
+    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+  closeEdit();
+  if (d.status === 'applied') loadApplied();
+  else loadLibrary();
+}
+
+function closeEdit() {
+  document.getElementById('editOverlay').classList.remove('open');
+  state.editingDraft = null;
 }
 
 async function deleteDraft(id, title) {
@@ -903,6 +1024,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (faqAnswer && faqCount) {
     faqAnswer.addEventListener('input', () => {
       faqCount.textContent = faqAnswer.value.length;
+    });
+  }
+  const editFaqAnswer = document.getElementById('editFaqAnswer');
+  const editFaqCount = document.getElementById('editFaqAnswerCount');
+  if (editFaqAnswer && editFaqCount) {
+    editFaqAnswer.addEventListener('input', () => {
+      editFaqCount.textContent = editFaqAnswer.value.length;
     });
   }
   loadTags();
