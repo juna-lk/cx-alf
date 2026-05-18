@@ -34,7 +34,8 @@ def test_build_cluster_prompt_contains_chats():
             {"role": "agent", "text": "네 가능합니다"},
         ]}
     ]
-    prompt = build_cluster_prompt(chats, "플랜 환불")
+    prompt, sample_indices = build_cluster_prompt(chats, "플랜 환불")
     assert "환불" in prompt
     assert "플랜 환불" in prompt
     assert "JSON" in prompt
+    assert sample_indices == [0]

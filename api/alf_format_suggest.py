@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
-from _alf_common import call_anthropic, supabase_get, make_handler_base
+from _alf_common import call_anthropic, supabase_get, make_handler_base, extract_json
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -66,10 +66,7 @@ class handler(_Base):
         raw = call_anthropic(prompt, system=FORMAT_SYSTEM, max_tokens=512, api_key=GROQ_API_KEY)
 
         try:
-            text = raw.strip()
-            if "```" in text:
-                text = text.split("```")[1].lstrip("json").strip()
-            result = json.loads(text)
+            result = extract_json(raw)
             recommendation = result.get("recommendation", "article")
             reason = result.get("reason", "")
         except Exception:

@@ -104,6 +104,34 @@ def supabase_get(url: str, service_key: str) -> list:
         return json.loads(resp.read())
 
 
+def supabase_delete(url: str, service_key: str) -> None:
+    """Supabase REST DELETE 요청"""
+    req = urllib.request.Request(
+        url, headers=get_supabase_headers(service_key), method="DELETE",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        resp.read()
+
+
+def extract_json(text: str) -> dict | list:
+    """LLM 출력에서 JSON 객체/배열을 안전하게 추출.
+
+    ```json ... ``` 코드블록이든, 일반 텍스트 안의 객체든 모두 처리.
+    """
+    if not text:
+        return {}
+    text = text.strip()
+    # 코드블록 안의 JSON 추출 시도
+    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if m:
+        candidate = m.group(1).strip()
+    else:
+        # 첫 { 또는 [ 부터 매칭되는 닫는 짝까지 추출
+        m = re.search(r"[\{\[][\s\S]*[\}\]]", text)
+        candidate = m.group(0) if m else text
+    return json.loads(candidate)
+
+
 def supabase_post(url: str, data: dict | list, service_key: str, method: str = "POST") -> dict:
     """Supabase REST POST/PATCH 요청"""
     payload = json.dumps(data).encode()

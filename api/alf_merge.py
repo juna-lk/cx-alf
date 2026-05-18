@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base
+from _alf_common import call_anthropic, supabase_get, supabase_post, supabase_delete, make_handler_base
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -81,9 +81,23 @@ class handler(_Base):
         saved = supabase_post(f"{SUPABASE_URL}/rest/v1/alf_drafts", new_draft, SUPABASE_SERVICE_KEY)
         draft_id = saved[0]["id"] if isinstance(saved, list) and saved else None
 
+        # 병합 성공 시에만 원본 삭제 (병합본이 만들어진 후)
+        deleted = 0
+        if draft_id:
+            for did in draft_ids:
+                try:
+                    supabase_delete(
+                        f"{SUPABASE_URL}/rest/v1/alf_drafts?id=eq.{did}",
+                        SUPABASE_SERVICE_KEY,
+                    )
+                    deleted += 1
+                except Exception as e:
+                    print(f"[warn] 원본 {did} 삭제 실패: {e}")
+
         self._respond(200, {
             "ok": True,
             "draft_id": draft_id,
             "title": merged_title,
             "content": merged_content,
+            "deleted_sources": deleted,
         })

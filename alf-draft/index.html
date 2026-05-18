@@ -851,6 +851,22 @@
 const API = '';
 const SUPA_URL = 'https://axqrhnfmrqwdmebjmsrh.supabase.co';
 const ANON_KEY = 'sb_publishable_oNDxh87K9qCzx5gDT3gIDQ_1aZXlqtB';
+
+// XSS 방어: HTML 특수문자 이스케이프
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+// onclick 인자용: JS 문자열 리터럴 안전 이스케이프
+function escapeJs(s) {
+  if (s == null) return '';
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
 let state = {
   clusters: [],
   currentDraftId: null,
@@ -863,6 +879,7 @@ let state = {
   editingDraft: null,
   editingVariations: [],
   suggestedRules: [],
+  mergeSuggestions: [],
 };
 
 function switchTab(name) {
@@ -924,10 +941,10 @@ async function analyze() {
       <div class="cluster-item" onclick="toggleCluster(${i})">
         <input type="checkbox" id="cl${i}" checked>
         <div>
-          <div class="cluster-label">${cl.label}</div>
-          <div class="cluster-desc">${cl.description || ''}</div>
+          <div class="cluster-label">${escapeHtml(cl.label)}</div>
+          <div class="cluster-desc">${escapeHtml(cl.description || '')}</div>
         </div>
-        <div class="cluster-count">${cl.count}건</div>
+        <div class="cluster-count">${Number(cl.count) || 0}건</div>
       </div>
     `).join('');
     document.getElementById('clusterCard').style.display = 'block';
@@ -956,8 +973,8 @@ async function suggestFormat(clusterLabel, chatIds) {
     const banner = document.getElementById('bannerFormat');
     const icon = data.recommendation === 'faq' ? '💬' : '📄';
     const label = data.recommendation === 'faq' ? 'FAQ' : '아티클';
-    banner.innerHTML = `${icon} <strong>포맷 추천</strong>: <strong>${label}</strong>이(가) 효과적이에요.<br>
-      <span style="font-size:13px;color:#065f46">${data.reason}</span>`;
+    banner.innerHTML = `${icon} <strong>포맷 추천</strong>: <strong>${escapeHtml(label)}</strong>이(가) 효과적이에요.<br>
+      <span style="font-size:13px;color:#065f46">${escapeHtml(data.reason || '')}</span>`;
     banner.style.display = 'block';
   } catch(e) { /* 조용히 실패 */ }
 }
@@ -973,11 +990,11 @@ async function suggestStructure(tag, clusterLabel) {
     if (!data.ok) return;
     const banner = document.getElementById('bannerSuggest');
     if (data.recommendation === 'add' && data.target_title) {
-      banner.innerHTML = `💡 <strong>구조 추천</strong>: 기존 문서 "<strong>${data.target_title}</strong>"에 추가를 권장해요.<br>
-        <span style="font-size:13px;color:#1e40af">${data.reason}</span>`;
+      banner.innerHTML = `💡 <strong>구조 추천</strong>: 기존 문서 "<strong>${escapeHtml(data.target_title)}</strong>"에 추가를 권장해요.<br>
+        <span style="font-size:13px;color:#1e40af">${escapeHtml(data.reason || '')}</span>`;
     } else {
       banner.innerHTML = `✨ <strong>구조 추천</strong>: 새 문서로 생성을 권장해요.<br>
-        <span style="font-size:13px;color:#1e40af">${data.reason}</span>`;
+        <span style="font-size:13px;color:#1e40af">${escapeHtml(data.reason || '')}</span>`;
     }
     banner.style.display = 'block';
   } catch(e) { /* 추천 실패는 조용히 무시 */ }
@@ -1024,7 +1041,7 @@ async function generate(format) {
       document.getElementById('chatCount').textContent = cluster.count;
       document.getElementById('chatList').innerHTML =
         (cluster.chat_ids || []).slice(0, 8).map(id =>
-          `<div class="chat-item"><div style="font-size:12px;color:#6b7280">${id.slice(0,12)}...</div></div>`
+          `<div class="chat-item"><div style="font-size:12px;color:#6b7280">${escapeHtml(String(id).slice(0,12))}...</div></div>`
         ).join('');
       document.getElementById('resultGrid').classList.remove('hidden');
     }
@@ -1039,7 +1056,7 @@ function renderVariations() {
   const container = document.getElementById('faqVariations');
   container.innerHTML = state.currentVariations.map((v, i) => `
     <span class="faq-variation">
-      ${v}
+      ${escapeHtml(v)}
       <span class="remove" onclick="removeVariation(${i})">×</span>
     </span>
   `).join('') + `
@@ -1053,11 +1070,16 @@ function removeVariation(i) {
 }
 
 function addVariation() {
-  const v = prompt('변형 질문 입력 (100자 이내):');
-  if (v && v.trim() && v.length <= 100) {
-    state.currentVariations.push(v.trim());
-    renderVariations();
+  if (state.currentVariations.length >= 10) {
+    alert('변형 질문은 최대 10개까지 등록할 수 있어요 (채널톡 공식 규격).');
+    return;
   }
+  const raw = prompt('변형 질문 입력 (100자 이내):');
+  const v = (raw || '').trim();
+  if (!v) return;
+  if (v.length > 100) { alert('100자 이내로 입력해주세요.'); return; }
+  state.currentVariations.push(v);
+  renderVariations();
 }
 
 async function saveFAQ() {
@@ -1107,30 +1129,31 @@ function renderDraftRow(d, isApplied) {
   const isFAQ = d.format === 'faq';
   const formatClass = isFAQ ? 'faq' : 'article';
   const formatLabel = isFAQ ? 'FAQ' : 'ARTICLE';
-  const safeTitle = d.title.replace(/'/g, "\\'");
+  const idAttr = escapeHtml(d.id);
+  const safeTitleAttr = escapeHtml(escapeJs(d.title || ''));
   const statusBtn = isApplied
-    ? `<button class="icon-btn" onclick="unmarkApplied('${d.id}')" data-tooltip="작성 중으로 되돌리기">↩ 작성 중으로</button>`
-    : `<button class="icon-btn primary" onclick="markApplied('${d.id}')" data-tooltip="ALF에 적용하기">✓ ALF 적용</button>`;
+    ? `<button class="icon-btn" onclick="unmarkApplied('${idAttr}')" data-tooltip="작성 중으로 되돌리기">↩ 작성 중으로</button>`
+    : `<button class="icon-btn primary" onclick="markApplied('${idAttr}')" data-tooltip="ALF에 적용하기">✓ ALF 적용</button>`;
   return `
     <div class="draft-row format-${formatClass}">
       <div class="format-marker ${formatClass}">${formatLabel}</div>
       <div class="draft-info">
-        <div class="title">${d.title}</div>
-        <div class="meta">${d.cluster_label || ''} · ${d.source_chat_count || 0}건 참고 · ${d.created_at?.slice(0,10)}</div>
+        <div class="title">${escapeHtml(d.title || '')}</div>
+        <div class="meta">${escapeHtml(d.cluster_label || '')} · ${Number(d.source_chat_count) || 0}건 참고 · ${escapeHtml((d.created_at || '').slice(0,10))}</div>
       </div>
       <div class="draft-row-actions">
         ${statusBtn}
         <div class="btn-divider"></div>
-        <button class="icon-btn" onclick="previewDraft('${d.id}', '${safeTitle}')" data-tooltip="보기">
+        <button class="icon-btn" onclick="previewDraft('${idAttr}', '${safeTitleAttr}')" data-tooltip="보기">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-        <button class="icon-btn" onclick="editDraft('${d.id}')" data-tooltip="편집">
+        <button class="icon-btn" onclick="editDraft('${idAttr}')" data-tooltip="편집">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
-        <button class="icon-btn" onclick="downloadById('${d.id}', '${safeTitle}')" data-tooltip="다운로드">
+        <button class="icon-btn" onclick="downloadById('${idAttr}', '${safeTitleAttr}')" data-tooltip="다운로드">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
-        <button class="icon-btn danger" onclick="deleteDraft('${d.id}', '${safeTitle}')" data-tooltip="삭제">
+        <button class="icon-btn danger" onclick="deleteDraft('${idAttr}', '${safeTitleAttr}')" data-tooltip="삭제">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </button>
       </div>
@@ -1240,7 +1263,7 @@ function renderEditVariations() {
   const container = document.getElementById('editFaqVariations');
   container.innerHTML = state.editingVariations.map((v, i) => `
     <span class="faq-variation">
-      ${v}
+      ${escapeHtml(v)}
       <span class="remove" onclick="removeEditVariation(${i})">×</span>
     </span>
   `).join('') + (state.editingVariations.length < 10
@@ -1254,11 +1277,16 @@ function removeEditVariation(i) {
 }
 
 function addEditVariation() {
-  const v = prompt('변형 질문 입력 (100자 이내):');
-  if (v && v.trim() && v.length <= 100) {
-    state.editingVariations.push(v.trim());
-    renderEditVariations();
+  if (state.editingVariations.length >= 10) {
+    alert('변형 질문은 최대 10개까지 등록할 수 있어요 (채널톡 공식 규격).');
+    return;
   }
+  const raw = prompt('변형 질문 입력 (100자 이내):');
+  const v = (raw || '').trim();
+  if (!v) return;
+  if (v.length > 100) { alert('100자 이내로 입력해주세요.'); return; }
+  state.editingVariations.push(v);
+  renderEditVariations();
 }
 
 async function saveEdit() {
@@ -1330,13 +1358,14 @@ async function analyzeMerge() {
       container.classList.remove('hidden');
       return;
     }
-    list.innerHTML = data.suggestions.map(sg => `
+    state.mergeSuggestions = data.suggestions;
+    list.innerHTML = data.suggestions.map((sg, i) => `
       <div class="merge-suggestion">
-        <span class="type-badge">${sg.type}</span>
-        <div class="docs">📄 ${sg.draft_titles?.join(' + ')}</div>
-        <div class="reason">${sg.reason}</div>
+        <span class="type-badge">${escapeHtml(sg.type || '')}</span>
+        <div class="docs">📄 ${escapeHtml((sg.draft_titles || []).join(' + '))}</div>
+        <div class="reason">${escapeHtml(sg.reason || '')}</div>
         <button class="btn btn-primary" style="margin-top:12px;font-size:13px"
-          onclick='executeMerge(${JSON.stringify(sg.draft_ids)})'>
+          onclick="executeMergeByIndex(${i})">
           병합해서 새 초안 생성
         </button>
       </div>
@@ -1347,6 +1376,11 @@ async function analyzeMerge() {
   } finally {
     setLoading(false);
   }
+}
+
+function executeMergeByIndex(i) {
+  const sg = state.mergeSuggestions[i];
+  if (sg && Array.isArray(sg.draft_ids)) executeMerge(sg.draft_ids);
 }
 
 async function executeMerge(draftIds) {
@@ -1390,23 +1424,28 @@ async function loadRules() {
     list.innerHTML = '<p style="color:#9ca3af;font-size:14px">아직 저장된 규칙이 없어요. "규칙 추천받기"로 시작해보세요.</p>';
     return;
   }
-  list.innerHTML = rules.map(r => `
+  const allowedTypes = ['disambiguation','tone','terminology','priority'];
+  list.innerHTML = rules.map(r => {
+    const ruleType = allowedTypes.includes(r.rule_type) ? r.rule_type : 'tone';
+    const ruleLabel = RULE_TYPE_LABEL[ruleType] || ruleType;
+    const idAttr = escapeHtml(r.id);
+    return `
     <div class="rule-card">
       <div class="rule-head">
-        <span class="rule-type-badge ${r.rule_type}">${RULE_TYPE_LABEL[r.rule_type] || r.rule_type}</span>
-        <span class="rule-title">${r.title}</span>
+        <span class="rule-type-badge ${ruleType}">${escapeHtml(ruleLabel)}</span>
+        <span class="rule-title">${escapeHtml(r.title || '')}</span>
       </div>
-      <div class="rule-content">${r.content}</div>
+      <div class="rule-content">${escapeHtml(r.content || '')}</div>
       <div class="rule-actions">
-        <button class="icon-btn" onclick="copyRule('${r.id}')" data-tooltip="규칙 본문 복사">
+        <button class="icon-btn" onclick="copyRule('${idAttr}')" data-tooltip="규칙 본문 복사">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
-        <button class="icon-btn danger" onclick="deleteRule('${r.id}')" data-tooltip="삭제">
+        <button class="icon-btn danger" onclick="deleteRule('${idAttr}')" data-tooltip="삭제">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         </button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 async function suggestRules() {
@@ -1432,18 +1471,22 @@ async function suggestRules() {
 
 function renderSuggestedRules() {
   const list = document.getElementById('ruleSuggestionList');
-  list.innerHTML = state.suggestedRules.map((r, i) => `
+  const allowedTypes = ['disambiguation','tone','terminology','priority'];
+  list.innerHTML = state.suggestedRules.map((r, i) => {
+    const ruleType = allowedTypes.includes(r.rule_type) ? r.rule_type : 'tone';
+    const ruleLabel = RULE_TYPE_LABEL[ruleType] || ruleType;
+    return `
     <div class="rule-card suggestion">
       <div class="rule-head">
         <input type="checkbox" class="rule-checkbox" id="suggest-${i}" checked>
-        <span class="rule-type-badge ${r.rule_type}">${RULE_TYPE_LABEL[r.rule_type] || r.rule_type}</span>
-        <span class="rule-title">${r.title}</span>
+        <span class="rule-type-badge ${ruleType}">${escapeHtml(ruleLabel)}</span>
+        <span class="rule-title">${escapeHtml(r.title || '')}</span>
       </div>
-      <div class="rule-content">${r.content}</div>
-      ${r.reason ? `<div class="rule-reason">💡 ${r.reason}</div>` : ''}
-      ${r.related_titles?.length ? `<div class="rule-related">관련: ${r.related_titles.join(' · ')}</div>` : ''}
-    </div>
-  `).join('');
+      <div class="rule-content">${escapeHtml(r.content || '')}</div>
+      ${r.reason ? `<div class="rule-reason">💡 ${escapeHtml(r.reason)}</div>` : ''}
+      ${r.related_titles?.length ? `<div class="rule-related">관련: ${escapeHtml(r.related_titles.join(' · '))}</div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 async function saveSuggestedRules() {
@@ -1526,7 +1569,7 @@ async function loadTags() {
       .sort((a, b) => b[1] - a[1])
       .map(([tag]) => tag);
     const dl = document.getElementById('tagList');
-    dl.innerHTML = state.allTags.map(t => `<option value="${t}">`).join('');
+    dl.innerHTML = state.allTags.map(t => `<option value="${escapeHtml(t)}">`).join('');
     console.log(`[tags] ${state.allTags.length}개 로드됨`);
   } catch(e) { console.warn('태그 로드 실패:', e); }
 }

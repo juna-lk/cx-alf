@@ -6,7 +6,7 @@ import json
 import urllib.request
 import urllib.parse
 
-from _alf_common import call_anthropic, supabase_get, make_handler_base
+from _alf_common import call_anthropic, supabase_get, extract_json, make_handler_base
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -30,39 +30,51 @@ def filter_by_keyword(chats: list, keyword: str) -> list:
     return result
 
 
-def build_cluster_prompt(chats: list, tag: str) -> str:
-    """클러스터링용 Claude 프롬프트 생성"""
+CLUSTER_SAMPLE_LIMIT = 20
+
+
+def build_cluster_prompt(chats: list, tag: str) -> tuple[str, list[int]]:
+    """클러스터링용 Claude 프롬프트 생성.
+
+    반환: (prompt, sample_indices)
+    sample_indices: 프롬프트에 포함된 chats 배열 인덱스 (LLM이 반환하는 chat_indices와 매핑)
+    """
     samples = []
-    for i, c in enumerate(chats[:20]):  # 최대 20건 샘플
-        # 고객 메시지만 추출 (요청 사이즈 절약 + 클러스터링에 더 유용)
+    sample_indices = []
+    for i, c in enumerate(chats[:CLUSTER_SAMPLE_LIMIT]):
         customer_msgs = [
-            m.get("text", "")[:200]  # 메시지당 최대 200자
+            m.get("text", "")[:200]
             for m in c.get("messages", [])
             if m.get("role") == "customer"
-        ][:3]  # 건당 최대 3개
+        ][:3]
         if not customer_msgs:
             continue
-        samples.append(f"[상담 {i+1}] {' / '.join(customer_msgs)}")
+        samples.append(f"[상담 {i}] {' / '.join(customer_msgs)}")
+        sample_indices.append(i)
 
-    return f"""아래는 '{tag}' 관련 실제 고객 상담 {len(chats)}건의 샘플입니다.
+    prompt = f"""아래는 '{tag}' 관련 실제 고객 상담 샘플입니다 (총 {len(chats)}건 중 {len(samples)}건 발췌).
 
 {chr(10).join(samples)}
 
 위 상담들을 고객이 처한 **구체적인 상황**을 기준으로 2~5개 그룹으로 분류해주세요.
 각 그룹은 ALF 지식 아티클 1개로 만들 수 있는 단위여야 합니다.
 
-**언어 규칙: 모든 텍스트는 반드시 한국어로만 작성하세요. 일본어(히라가나/가타카나), 중국어 한자, 영어는 절대 사용하지 마세요.**
-- "編集" → "편집"
-- "プラン" → "플랜"
-- "サイト" → "사이트"
+**중요**: 각 클러스터에 어떤 상담들이 속하는지 위 "[상담 N]" 번호(N)로 알려주세요.
+하나의 상담은 하나의 클러스터에만 속해야 합니다.
+
+**언어 규칙: 모든 텍스트는 반드시 한국어로만 작성하세요. 일본어/한자/영어 금지.**
 
 반드시 아래 JSON 형식으로만 답변하세요:
 {{
   "clusters": [
-    {{"label": "그룹명 (한국어, 구체적으로)", "count": 숫자, "description": "이 그룹에 해당하는 고객 상황 한 줄 설명 (한국어)"}},
-    ...
+    {{
+      "label": "그룹명 (한국어, 구체적으로)",
+      "description": "이 그룹의 고객 상황 한 줄 설명 (한국어)",
+      "chat_indices": [0, 3, 7]
+    }}
   ]
 }}"""
+    return prompt, sample_indices
 
 
 _Base = make_handler_base()
@@ -79,8 +91,10 @@ class handler(_Base):
             self._respond(400, {"ok": False, "error": "tag 필요"})
             return
 
-        # Supabase에서 태그 매칭 채팅 조회 (/ 등 특수문자 인코딩 위해 safe='')
-        encoded_tag = urllib.parse.quote(f'{{"{tag}"}}', safe='')
+        # Supabase에서 태그 매칭 채팅 조회
+        # PostgreSQL 배열 리터럴 안에서 "는 \\"로, \는 \\\\로 이스케이프
+        safe_tag = tag.replace('\\', '\\\\').replace('"', '\\"')
+        encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
         url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
                f"?select=chat_id,messages,tags,date,assignee_name,csat_score"
                f"&tags=cs.{encoded_tag}&limit=200")
@@ -93,21 +107,48 @@ class handler(_Base):
             return
 
         # Claude로 클러스터링
-        prompt = build_cluster_prompt(filtered, tag)
+        prompt, _sample_indices = build_cluster_prompt(filtered, tag)
         raw = call_anthropic(prompt, max_tokens=1024, api_key=GROQ_API_KEY)
 
         try:
-            text = raw.strip()
-            if "```" in text:
-                text = text.split("```")[1].lstrip("json").strip()
-            cluster_data = json.loads(text)
-            clusters = cluster_data.get("clusters", [])
+            cluster_data = extract_json(raw)
+            clusters = cluster_data.get("clusters", []) if isinstance(cluster_data, dict) else []
         except Exception:
-            clusters = [{"label": "전체", "count": len(filtered), "description": "분류 실패 — 전체 포함"}]
+            clusters = []
 
-        # 클러스터에 chat_ids 배분
+        # 빈 결과 fallback: 전체 한 그룹으로
+        if not clusters:
+            clusters = [{
+                "label": "전체",
+                "description": "분류 실패 — 전체 포함",
+                "chat_indices": list(range(min(len(filtered), CLUSTER_SAMPLE_LIMIT))),
+            }]
+
+        # chat_indices → chat_ids 매핑 (LLM이 반환한 인덱스를 실제 chat_id로 변환)
         n = len(filtered)
+        assigned = set()
         for cl in clusters:
-            cl["chat_ids"] = [c["chat_id"] for c in filtered[:min(cl.get("count", 10), n)]]
+            indices = cl.get("chat_indices", [])
+            if not isinstance(indices, list):
+                indices = []
+            chat_ids = []
+            for idx in indices:
+                try:
+                    i = int(idx)
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= i < n and i not in assigned:
+                    chat_ids.append(filtered[i]["chat_id"])
+                    assigned.add(i)
+            cl["chat_ids"] = chat_ids
+            cl["count"] = len(chat_ids)
+            cl.pop("chat_indices", None)
+
+        # 어느 클러스터에도 안 들어간 chat이 있으면 첫 클러스터에 추가
+        unassigned = [i for i in range(min(n, CLUSTER_SAMPLE_LIMIT)) if i not in assigned]
+        if unassigned and clusters:
+            for i in unassigned:
+                clusters[0]["chat_ids"].append(filtered[i]["chat_id"])
+            clusters[0]["count"] = len(clusters[0]["chat_ids"])
 
         self._respond(200, {"ok": True, "total": len(filtered), "clusters": clusters})

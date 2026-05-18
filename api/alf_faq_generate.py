@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -107,15 +107,13 @@ class handler(_Base):
         )
 
         try:
-            text = raw.strip()
-            if "```" in text:
-                text = text.split("```")[1].lstrip("json").strip()
-            faq = json.loads(text)
+            faq = extract_json(raw)
             question = faq.get("question", cluster_label)
             variations = faq.get("variations", [])
             answer = faq.get("answer", "")
         except Exception as e:
-            self._respond(500, {"ok": False, "error": f"FAQ 파싱 실패: {e}", "raw": raw[:500]})
+            print(f"[alf_faq_generate] 파싱 실패: {e}; raw[:200]={raw[:200]!r}")
+            self._respond(500, {"ok": False, "error": "FAQ 생성에 실패했어요. 잠시 후 다시 시도해주세요."})
             return
 
         # alf_drafts에 저장 (format='faq')

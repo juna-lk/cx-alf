@@ -13,7 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -117,10 +117,7 @@ class handler(_Base):
         raw = call_anthropic(prompt, system=RULE_SYSTEM, max_tokens=2048, api_key=GROQ_API_KEY)
 
         try:
-            text = raw.strip()
-            if "```" in text:
-                text = text.split("```")[1].lstrip("json").strip()
-            result = json.loads(text)
+            result = extract_json(raw)
             rules = result.get("rules", [])
             # 관련 문서 제목 → ID 매핑
             title_to_id = {d["title"]: d["id"] for d in drafts}
@@ -130,7 +127,8 @@ class handler(_Base):
                     if t in title_to_id
                 ]
         except Exception as e:
-            self._respond(500, {"ok": False, "error": f"규칙 추천 파싱 실패: {e}", "raw": raw[:500]})
+            print(f"[alf_rule_suggest] 파싱 실패: {e}; raw[:200]={raw[:200]!r}")
+            self._respond(500, {"ok": False, "error": "규칙 추천에 실패했어요. 잠시 후 다시 시도해주세요."})
             return
 
         self._respond(200, {"ok": True, "rules": rules})
