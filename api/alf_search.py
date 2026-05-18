@@ -27,10 +27,16 @@ def filter_by_keyword(chats: list, keyword: str) -> list:
 def build_cluster_prompt(chats: list, tag: str) -> str:
     """클러스터링용 Claude 프롬프트 생성"""
     samples = []
-    for i, c in enumerate(chats[:40]):  # 최대 40건만 샘플로 사용
-        msgs = c.get("messages", [])[:6]  # 건당 최대 6개 메시지
-        text = "\n".join(f"[{m.get('role','?')}] {m.get('text','')}" for m in msgs)
-        samples.append(f"=== 상담 {i+1} ===\n{text}")
+    for i, c in enumerate(chats[:20]):  # 최대 20건 샘플
+        # 고객 메시지만 추출 (요청 사이즈 절약 + 클러스터링에 더 유용)
+        customer_msgs = [
+            m.get("text", "")[:200]  # 메시지당 최대 200자
+            for m in c.get("messages", [])
+            if m.get("role") == "customer"
+        ][:3]  # 건당 최대 3개
+        if not customer_msgs:
+            continue
+        samples.append(f"[상담 {i+1}] {' / '.join(customer_msgs)}")
 
     return f"""아래는 '{tag}' 관련 실제 고객 상담 {len(chats)}건의 샘플입니다.
 
