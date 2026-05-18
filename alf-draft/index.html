@@ -639,19 +639,22 @@ function downloadModal() { downloadMd(state.modalContent, state.currentDraftTitl
 async function loadTags() {
   try {
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/cx_chats?select=tag&limit=50000`,
+      `${SUPA_URL}/rest/v1/cx_full_messages?select=tags&limit=50000`,
       {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
     );
     const rows = await res.json();
     const counts = {};
     rows.forEach(r => {
-      if (r.tag) counts[r.tag] = (counts[r.tag] || 0) + 1;
+      (r.tags || []).forEach(t => {
+        if (t) counts[t] = (counts[t] || 0) + 1;
+      });
     });
     state.allTags = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([tag]) => tag);
     const dl = document.getElementById('tagList');
     dl.innerHTML = state.allTags.map(t => `<option value="${t}">`).join('');
+    console.log(`[tags] ${state.allTags.length}개 로드됨`);
   } catch(e) { console.warn('태그 로드 실패:', e); }
 }
 

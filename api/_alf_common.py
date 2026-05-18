@@ -28,6 +28,7 @@ def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_ke
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "cx-alf/1.0 (+https://github.com/juna-lk/cx-alf)",
         },
     )
     with urllib.request.urlopen(req, timeout=55) as resp:
