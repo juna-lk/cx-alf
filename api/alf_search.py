@@ -14,14 +14,20 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 
 def filter_by_keyword(chats: list, keyword: str) -> list:
-    """키워드가 메시지 텍스트에 포함된 채팅만 반환"""
+    """공백 구분 키워드들이 모두 어딘가에 포함된 채팅만 반환 (AND 매칭)"""
     if not keyword:
         return chats
-    kw = keyword.lower()
-    return [
-        c for c in chats
-        if any(kw in m.get("text", "").lower() for m in c.get("messages", []))
-    ]
+    tokens = [t.strip().lower() for t in keyword.split() if t.strip()]
+    if not tokens:
+        return chats
+    result = []
+    for c in chats:
+        full_text = " ".join(
+            m.get("text", "").lower() for m in c.get("messages", [])
+        )
+        if all(tok in full_text for tok in tokens):
+            result.append(c)
+    return result
 
 
 def build_cluster_prompt(chats: list, tag: str) -> str:
