@@ -144,7 +144,8 @@
     <div class="input-row">
       <div class="field">
         <label>태그</label>
-        <input type="text" id="inputTag" placeholder="예: 플랜 환불" />
+        <input type="text" id="inputTag" placeholder="예: 플랜 환불" list="tagList" autocomplete="off" />
+        <datalist id="tagList"></datalist>
       </div>
       <div class="field">
         <label>키워드 (선택)</label>
@@ -241,6 +242,7 @@ let state = {
   currentVariations: [],
   modalContent: '',
   allDrafts: [],
+  allTags: [],
 };
 
 function switchTab(name) {
@@ -262,6 +264,19 @@ async function analyze() {
   const tag = document.getElementById('inputTag').value.trim();
   const keyword = document.getElementById('inputKeyword').value.trim();
   if (!tag) { alert('태그를 입력해주세요'); return; }
+
+  // 태그 유효성 검사
+  if (state.allTags.length > 0 && !state.allTags.includes(tag)) {
+    const similar = state.allTags.filter(t =>
+      t.includes(tag) || tag.includes(t) ||
+      t.replace(/\s/g, '').includes(tag.replace(/\s/g, ''))
+    ).slice(0, 5);
+    const hint = similar.length
+      ? `\n\n비슷한 태그:\n${similar.map(s => `• ${s}`).join('\n')}`
+      : '';
+    alert(`'${tag}' 태그는 존재하지 않아요.${hint}`);
+    return;
+  }
 
   document.getElementById('btnAnalyze').disabled = true;
   document.getElementById('clusterCard').style.display = 'none';
@@ -582,7 +597,26 @@ async function executeMerge(draftIds) {
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 function downloadModal() { downloadMd(state.modalContent, state.currentDraftTitle); }
 
-// FAQ 답변 글자 수 카운터
+async function loadTags() {
+  try {
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/cx_chats?select=tag&limit=50000`,
+      {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
+    );
+    const rows = await res.json();
+    const counts = {};
+    rows.forEach(r => {
+      if (r.tag) counts[r.tag] = (counts[r.tag] || 0) + 1;
+    });
+    state.allTags = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => tag);
+    const dl = document.getElementById('tagList');
+    dl.innerHTML = state.allTags.map(t => `<option value="${t}">`).join('');
+  } catch(e) { console.warn('태그 로드 실패:', e); }
+}
+
+// FAQ 답변 글자 수 카운터 + 태그 자동완성
 document.addEventListener('DOMContentLoaded', () => {
   const faqAnswer = document.getElementById('faqAnswer');
   const faqCount = document.getElementById('faqAnswerCount');
@@ -591,6 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
       faqCount.textContent = faqAnswer.value.length;
     });
   }
+  loadTags();
 });
 </script>
 </body>
