@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALF 지식 초안 생성기</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #f5f5f5; color: #333; }
+    .header { background: #1a1a2e; color: white; padding: 16px 24px;
+              display: flex; align-items: center; gap: 12px; }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .tab-bar { background: white; border-bottom: 1px solid #e5e7eb;
+               display: flex; padding: 0 24px; }
+    .tab { padding: 14px 20px; cursor: pointer; font-size: 14px;
+           border-bottom: 2px solid transparent; color: #6b7280; }
+    .tab.active { border-bottom-color: #4f46e5; color: #4f46e5; font-weight: 600; }
+    .page { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    .input-card { background: white; border-radius: 10px; padding: 24px;
+                  box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .input-row { display: flex; gap: 12px; align-items: flex-end; }
+    .field { flex: 1; }
+    .field label { display: block; font-size: 13px; font-weight: 500;
+                   color: #374151; margin-bottom: 6px; }
+    .field input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db;
+                   border-radius: 8px; font-size: 14px; outline: none; }
+    .field input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px;
+           font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+    .btn-secondary { background: white; color: #374151;
+                     border: 1px solid #d1d5db; }
+    .btn-secondary:hover { background: #f9fafb; }
+
+    .banner { border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;
+              font-size: 14px; display: none; }
+    .banner.info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .banner.loading { background: #faf5ff; border: 1px solid #e9d5ff; color: #6d28d9; }
+
+    .cluster-card { background: white; border-radius: 10px; padding: 24px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; display: none; }
+    .cluster-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+    .cluster-item { display: flex; align-items: flex-start; gap: 10px;
+                    padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px;
+                    margin-bottom: 8px; cursor: pointer; }
+    .cluster-item:hover { border-color: #4f46e5; background: #fafafa; }
+    .cluster-item input[type=checkbox] { margin-top: 2px; }
+    .cluster-label { font-weight: 500; font-size: 14px; }
+    .cluster-desc { font-size: 13px; color: #6b7280; margin-top: 2px; }
+    .cluster-count { font-size: 12px; color: #9ca3af; margin-left: auto;
+                     white-space: nowrap; }
+    .cluster-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+    .result-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+    .result-card { background: white; border-radius: 10px; padding: 20px;
+                   box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .result-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px;
+                      color: #374151; }
+    .chat-item { padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;
+                 margin-bottom: 8px; font-size: 13px; }
+    .draft-area { width: 100%; min-height: 400px; border: 1px solid #e5e7eb;
+                  border-radius: 8px; padding: 14px; font-size: 14px;
+                  font-family: 'Courier New', monospace; line-height: 1.6;
+                  resize: vertical; outline: none; }
+    .draft-area:focus { border-color: #4f46e5; }
+    .draft-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+    .library-header { display: flex; justify-content: space-between;
+                      align-items: center; margin-bottom: 16px; }
+    .draft-row { background: white; border-radius: 8px; padding: 16px 20px;
+                 margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+                 display: flex; align-items: center; gap: 12px; }
+    .draft-info { flex: 1; }
+    .draft-info .title { font-weight: 500; font-size: 15px; }
+    .draft-info .meta { font-size: 13px; color: #9ca3af; margin-top: 2px; }
+    .draft-row-actions { display: flex; gap: 8px; }
+
+    .merge-suggestion { border: 1px solid #e9d5ff; border-radius: 10px;
+                        padding: 18px; margin-bottom: 14px; background: #faf5ff; }
+    .merge-suggestion .type-badge { font-size: 12px; font-weight: 600;
+      background: #4f46e5; color: white; padding: 2px 8px; border-radius: 12px;
+      display: inline-block; margin-bottom: 8px; }
+    .merge-suggestion .docs { font-size: 13px; color: #374151; margin-bottom: 8px; }
+    .merge-suggestion .reason { font-size: 13px; color: #6b7280; line-height: 1.5; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+                     display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 24px;
+             max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+    .modal pre { background: #f9fafb; border-radius: 6px; padding: 14px;
+                 font-size: 13px; white-space: pre-wrap; line-height: 1.5; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+
+    .spinner { display: inline-block; width: 16px; height: 16px;
+               border: 2px solid #e9d5ff; border-top-color: #6d28d9;
+               border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+  </svg>
+  <h1>ALF 지식 초안 생성기</h1>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('generate')">초안 생성</div>
+  <div class="tab" onclick="switchTab('library')">파일 라이브러리</div>
+</div>
+
+<div class="page active" id="tab-generate">
+  <div class="input-card">
+    <div class="input-row">
+      <div class="field">
+        <label>태그</label>
+        <input type="text" id="inputTag" placeholder="예: 플랜 환불" />
+      </div>
+      <div class="field">
+        <label>키워드 (선택)</label>
+        <input type="text" id="inputKeyword" placeholder="예: 환불 해주세요" />
+      </div>
+      <button class="btn btn-primary" id="btnAnalyze" onclick="analyze()">분석하기</button>
+    </div>
+  </div>
+
+  <div class="banner info" id="bannerSuggest"></div>
+  <div class="banner loading hidden" id="bannerLoading">
+    <span class="spinner"></span>&nbsp; <span id="loadingText">분석 중...</span>
+  </div>
+
+  <div class="cluster-card" id="clusterCard">
+    <div class="cluster-title" id="clusterTitle"></div>
+    <div id="clusterList"></div>
+    <div class="cluster-actions">
+      <button class="btn btn-primary" onclick="generate()">선택한 유형으로 초안 생성</button>
+    </div>
+  </div>
+
+  <div class="result-grid hidden" id="resultGrid">
+    <div class="result-card">
+      <h3>참고 상담 <span id="chatCount"></span>건</h3>
+      <div id="chatList"></div>
+    </div>
+    <div class="result-card">
+      <h3>생성된 초안 <span style="font-size:12px;color:#9ca3af;font-weight:400">(편집 가능)</span></h3>
+      <textarea class="draft-area" id="draftArea"></textarea>
+      <div class="draft-actions">
+        <button class="btn btn-primary" onclick="saveDraft()">저장</button>
+        <button class="btn btn-secondary" onclick="downloadDraft()">↓ .md 다운로드</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="tab-library">
+  <div class="library-header">
+    <h2 style="font-size:16px;font-weight:600">저장된 초안</h2>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-secondary" onclick="analyzeMerge()">🔍 병합 분석</button>
+    </div>
+  </div>
+  <div id="draftList"></div>
+  <div id="mergeSuggestions" class="hidden">
+    <h3 style="font-size:15px;font-weight:600;margin:20px 0 12px">병합 제안</h3>
+    <div id="mergeSuggestionList"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle"></h2>
+    <pre id="modalContent"></pre>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
+      <button class="btn btn-primary" onclick="downloadModal()">↓ 다운로드</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+const SUPA_URL = 'https://axqrhnfmrqwdmebjmsrh.supabase.co';
+const ANON_KEY = 'sb_publishable_oNDxh87K9qCzx5gDT3gIDQ_1aZXlqtB';
+let state = {
+  clusters: [],
+  currentDraftId: null,
+  currentDraftTitle: '',
+  modalContent: '',
+  allDrafts: [],
+};
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['generate','library'][i] === name);
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'library') loadLibrary();
+}
+
+function setLoading(show, text = '분석 중...') {
+  const el = document.getElementById('bannerLoading');
+  el.classList.toggle('hidden', !show);
+  if (show) document.getElementById('loadingText').textContent = text;
+}
+
+async function analyze() {
+  const tag = document.getElementById('inputTag').value.trim();
+  const keyword = document.getElementById('inputKeyword').value.trim();
+  if (!tag) { alert('태그를 입력해주세요'); return; }
+
+  document.getElementById('btnAnalyze').disabled = true;
+  document.getElementById('clusterCard').style.display = 'none';
+  document.getElementById('resultGrid').classList.add('hidden');
+  document.getElementById('bannerSuggest').style.display = 'none';
+  setLoading(true, '관련 상담 수집 중...');
+
+  try {
+    const res = await fetch(`${API}/api/alf_search`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tag, keyword}),
+    });
+    const data = await res.json();
+    if (!data.ok || data.total === 0) { alert('관련 상담을 찾을 수 없습니다.'); return; }
+
+    state.clusters = data.clusters;
+    document.getElementById('clusterTitle').textContent =
+      `관련 상담 ${data.total}건 발견 — 세부 유형 ${data.clusters.length}개`;
+    document.getElementById('clusterList').innerHTML = data.clusters.map((cl, i) => `
+      <div class="cluster-item" onclick="toggleCluster(${i})">
+        <input type="checkbox" id="cl${i}" checked>
+        <div>
+          <div class="cluster-label">${cl.label}</div>
+          <div class="cluster-desc">${cl.description || ''}</div>
+        </div>
+        <div class="cluster-count">${cl.count}건</div>
+      </div>
+    `).join('');
+    document.getElementById('clusterCard').style.display = 'block';
+
+    if (data.clusters.length > 0) suggestStructure(tag, data.clusters[0].label);
+  } catch(e) {
+    alert('오류: ' + e.message);
+  } finally {
+    setLoading(false);
+    document.getElementById('btnAnalyze').disabled = false;
+  }
+}
+
+async function suggestStructure(tag, clusterLabel) {
+  try {
+    const res = await fetch(`${API}/api/alf_structure_suggest`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tag, cluster_label: clusterLabel}),
+    });
+    const data = await res.json();
+    if (!data.ok) return;
+    const banner = document.getElementById('bannerSuggest');
+    if (data.recommendation === 'add' && data.target_title) {
+      banner.innerHTML = `💡 <strong>구조 추천</strong>: 기존 문서 "<strong>${data.target_title}</strong>"에 추가를 권장해요.<br>
+        <span style="font-size:13px;color:#1e40af">${data.reason}</span>`;
+    } else {
+      banner.innerHTML = `✨ <strong>구조 추천</strong>: 새 문서로 생성을 권장해요.<br>
+        <span style="font-size:13px;color:#1e40af">${data.reason}</span>`;
+    }
+    banner.style.display = 'block';
+  } catch(e) { /* 추천 실패는 조용히 무시 */ }
+}
+
+function toggleCluster(i) {
+  const cb = document.getElementById('cl' + i);
+  cb.checked = !cb.checked;
+}
+
+async function generate() {
+  const selected = state.clusters.filter((_, i) => document.getElementById('cl' + i)?.checked);
+  if (selected.length === 0) { alert('유형을 하나 이상 선택해주세요'); return; }
+
+  const cluster = selected[0];
+  setLoading(true, 'Claude가 초안 생성 중...');
+  document.getElementById('resultGrid').classList.add('hidden');
+
+  try {
+    const res = await fetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cluster_label: cluster.label, chat_ids: cluster.chat_ids || []}),
+    });
+    const data = await res.json();
+    if (!data.ok) { alert('생성 실패: ' + data.error); return; }
+
+    state.currentDraftId = data.draft_id;
+    state.currentDraftTitle = data.title;
+    document.getElementById('draftArea').value = data.content;
+    document.getElementById('chatCount').textContent = cluster.count;
+    document.getElementById('chatList').innerHTML =
+      (cluster.chat_ids || []).slice(0, 8).map(id =>
+        `<div class="chat-item"><div style="font-size:12px;color:#6b7280">${id.slice(0,12)}...</div></div>`
+      ).join('');
+    document.getElementById('resultGrid').classList.remove('hidden');
+  } catch(e) {
+    alert('오류: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function saveDraft() {
+  if (!state.currentDraftId) { alert('먼저 초안을 생성해주세요'); return; }
+  const content = document.getElementById('draftArea').value;
+  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${state.currentDraftId}`, {
+    method: 'PATCH',
+    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({content}),
+  });
+  alert('저장됐어요!');
+}
+
+function downloadDraft() {
+  downloadMd(document.getElementById('draftArea').value, state.currentDraftTitle || 'alf-draft');
+}
+
+function downloadMd(content, title) {
+  const blob = new Blob([content], {type: 'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const safe = title.replace(/[^가-힣a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+  a.download = `${new Date().toISOString().slice(0,10)}-${safe}.md`;
+  a.click();
+}
+
+async function loadLibrary() {
+  const res = await fetch(
+    `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,source_chat_count,created_at&order=created_at.desc`,
+    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
+  );
+  state.allDrafts = await res.json();
+  const list = document.getElementById('draftList');
+  if (!state.allDrafts.length) {
+    list.innerHTML = '<p style="color:#9ca3af;font-size:14px">아직 저장된 초안이 없어요.</p>';
+    return;
+  }
+  list.innerHTML = state.allDrafts.map(d => `
+    <div class="draft-row">
+      <div class="draft-info">
+        <div class="title">${d.title}</div>
+        <div class="meta">${d.cluster_label || ''} · ${d.source_chat_count || 0}건 참고 · ${d.created_at?.slice(0,10)}</div>
+      </div>
+      <div class="draft-row-actions">
+        <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
+          onclick="previewDraft('${d.id}', '${d.title.replace(/'/g,"\\'")}')">보기</button>
+        <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
+          onclick="downloadById('${d.id}', '${d.title.replace(/'/g,"\\'")}')">↓</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function previewDraft(id, title) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=content`,
+    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}});
+  const data = await res.json();
+  state.modalContent = data[0]?.content || '';
+  state.currentDraftTitle = title;
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalContent').textContent = state.modalContent;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function downloadById(id, title) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=content`,
+    {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}});
+  const data = await res.json();
+  downloadMd(data[0]?.content || '', title);
+}
+
+async function analyzeMerge() {
+  setLoading(true, '병합 후보 분석 중...');
+  try {
+    const res = await fetch(`${API}/api/alf_merge_suggest`, {method: 'GET'});
+    const data = await res.json();
+    const container = document.getElementById('mergeSuggestions');
+    const list = document.getElementById('mergeSuggestionList');
+    if (!data.suggestions?.length) {
+      list.innerHTML = '<p style="color:#9ca3af;font-size:14px">병합 권장 문서가 없어요.</p>';
+      container.classList.remove('hidden');
+      return;
+    }
+    list.innerHTML = data.suggestions.map(sg => `
+      <div class="merge-suggestion">
+        <span class="type-badge">${sg.type}</span>
+        <div class="docs">📄 ${sg.draft_titles?.join(' + ')}</div>
+        <div class="reason">${sg.reason}</div>
+        <button class="btn btn-primary" style="margin-top:12px;font-size:13px"
+          onclick='executeMerge(${JSON.stringify(sg.draft_ids)})'>
+          병합해서 새 초안 생성
+        </button>
+      </div>
+    `).join('');
+    container.classList.remove('hidden');
+  } catch(e) {
+    alert('오류: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function executeMerge(draftIds) {
+  setLoading(true, '문서 병합 중...');
+  try {
+    const res = await fetch(`${API}/api/alf_merge`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({draft_ids: draftIds}),
+    });
+    const data = await res.json();
+    if (!data.ok) { alert('병합 실패'); return; }
+    alert(`병합 완료! "${data.title}" 초안이 라이브러리에 저장됐어요.`);
+    loadLibrary();
+  } catch(e) {
+    alert('오류: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function downloadModal() { downloadMd(state.modalContent, state.currentDraftTitle); }
+</script>
+</body>
+</html>

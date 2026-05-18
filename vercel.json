@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/alf-draft/index.html" }
+  ],
+  "functions": {
+    "api/alf_search.py":             { "maxDuration": 30 },
+    "api/alf_generate.py":           { "maxDuration": 60 },
+    "api/alf_collect.py":            { "maxDuration": 300 },
+    "api/alf_structure_suggest.py":  { "maxDuration": 30 },
+    "api/alf_merge_suggest.py":      { "maxDuration": 30 },
+    "api/alf_merge.py":              { "maxDuration": 60 }
+  }
+}
