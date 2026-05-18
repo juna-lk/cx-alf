@@ -40,7 +40,27 @@
     .banner { border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;
               font-size: 14px; display: none; }
     .banner.info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .banner.format { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
     .banner.loading { background: #faf5ff; border: 1px solid #e9d5ff; color: #6d28d9; }
+
+    .faq-card { background: white; border-radius: 10px; padding: 24px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 20px; }
+    .faq-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #374151; }
+    .faq-q-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db;
+                   border-radius: 8px; font-size: 14px; margin-bottom: 16px; outline: none; }
+    .faq-q-input:focus { border-color: #4f46e5; }
+    .faq-variations { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .faq-variation { background: #f3f4f6; padding: 6px 12px; border-radius: 16px;
+                     font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+    .faq-variation .remove { cursor: pointer; color: #9ca3af; font-weight: bold; }
+    .faq-variation .remove:hover { color: #ef4444; }
+    .faq-add-var { background: white; border: 1px dashed #d1d5db; padding: 6px 12px;
+                   border-radius: 16px; font-size: 13px; cursor: pointer; color: #6b7280; }
+    .faq-add-var:hover { border-color: #4f46e5; color: #4f46e5; }
+    .faq-answer { width: 100%; min-height: 200px; border: 1px solid #d1d5db;
+                  border-radius: 8px; padding: 14px; font-size: 14px; line-height: 1.6;
+                  resize: vertical; outline: none; font-family: inherit; }
+    .faq-answer:focus { border-color: #4f46e5; }
 
     .cluster-card { background: white; border-radius: 10px; padding: 24px;
                     box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; display: none; }
@@ -135,6 +155,7 @@
   </div>
 
   <div class="banner info" id="bannerSuggest"></div>
+  <div class="banner format" id="bannerFormat"></div>
   <div class="banner loading hidden" id="bannerLoading">
     <span class="spinner"></span>&nbsp; <span id="loadingText">분석 중...</span>
   </div>
@@ -143,7 +164,8 @@
     <div class="cluster-title" id="clusterTitle"></div>
     <div id="clusterList"></div>
     <div class="cluster-actions">
-      <button class="btn btn-primary" onclick="generate()">선택한 유형으로 초안 생성</button>
+      <button class="btn btn-primary" onclick="generate('article')">📄 아티클로 생성</button>
+      <button class="btn btn-primary" onclick="generate('faq')">💬 FAQ로 생성</button>
     </div>
   </div>
 
@@ -159,6 +181,25 @@
         <button class="btn btn-primary" onclick="saveDraft()">저장</button>
         <button class="btn btn-secondary" onclick="downloadDraft()">↓ .md 다운로드</button>
       </div>
+    </div>
+  </div>
+
+  <div class="faq-card hidden" id="faqCard">
+    <h3>📋 대표 질문</h3>
+    <input type="text" class="faq-q-input" id="faqQuestion" maxlength="100" />
+
+    <h3>🔄 변형 질문 <span style="font-size:12px;color:#9ca3af;font-weight:400">— 고객이 실제로 쓴 표현 기반</span></h3>
+    <div class="faq-variations" id="faqVariations"></div>
+
+    <h3>💡 답변 <span style="font-size:12px;color:#9ca3af;font-weight:400">(500자 이내)</span></h3>
+    <textarea class="faq-answer" id="faqAnswer" maxlength="500"></textarea>
+    <div style="text-align:right;font-size:12px;color:#9ca3af;margin-top:4px">
+      <span id="faqAnswerCount">0</span> / 500자
+    </div>
+
+    <div class="draft-actions">
+      <button class="btn btn-primary" onclick="saveFAQ()">저장</button>
+      <button class="btn btn-secondary" onclick="downloadFAQ()">↓ FAQ 다운로드</button>
     </div>
   </div>
 </div>
@@ -196,6 +237,8 @@ let state = {
   clusters: [],
   currentDraftId: null,
   currentDraftTitle: '',
+  currentFormat: 'article',
+  currentVariations: [],
   modalContent: '',
   allDrafts: [],
 };
@@ -223,7 +266,9 @@ async function analyze() {
   document.getElementById('btnAnalyze').disabled = true;
   document.getElementById('clusterCard').style.display = 'none';
   document.getElementById('resultGrid').classList.add('hidden');
+  document.getElementById('faqCard').classList.add('hidden');
   document.getElementById('bannerSuggest').style.display = 'none';
+  document.getElementById('bannerFormat').style.display = 'none';
   setLoading(true, '관련 상담 수집 중...');
 
   try {
@@ -250,13 +295,34 @@ async function analyze() {
     `).join('');
     document.getElementById('clusterCard').style.display = 'block';
 
-    if (data.clusters.length > 0) suggestStructure(tag, data.clusters[0].label);
+    if (data.clusters.length > 0) {
+      suggestStructure(tag, data.clusters[0].label);
+      suggestFormat(data.clusters[0].label, data.clusters[0].chat_ids || []);
+    }
   } catch(e) {
     alert('오류: ' + e.message);
   } finally {
     setLoading(false);
     document.getElementById('btnAnalyze').disabled = false;
   }
+}
+
+async function suggestFormat(clusterLabel, chatIds) {
+  try {
+    const res = await fetch(`${API}/api/alf_format_suggest`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cluster_label: clusterLabel, chat_ids: chatIds}),
+    });
+    const data = await res.json();
+    if (!data.ok) return;
+    const banner = document.getElementById('bannerFormat');
+    const icon = data.recommendation === 'faq' ? '💬' : '📄';
+    const label = data.recommendation === 'faq' ? 'FAQ' : '아티클';
+    banner.innerHTML = `${icon} <strong>포맷 추천</strong>: <strong>${label}</strong>이(가) 효과적이에요.<br>
+      <span style="font-size:13px;color:#065f46">${data.reason}</span>`;
+    banner.style.display = 'block';
+  } catch(e) { /* 조용히 실패 */ }
 }
 
 async function suggestStructure(tag, clusterLabel) {
@@ -285,37 +351,95 @@ function toggleCluster(i) {
   cb.checked = !cb.checked;
 }
 
-async function generate() {
+async function generate(format) {
   const selected = state.clusters.filter((_, i) => document.getElementById('cl' + i)?.checked);
   if (selected.length === 0) { alert('유형을 하나 이상 선택해주세요'); return; }
 
   const cluster = selected[0];
-  setLoading(true, 'Claude가 초안 생성 중...');
+  state.currentFormat = format;
+  const endpoint = format === 'faq' ? 'alf_faq_generate' : 'alf_generate';
+  setLoading(true, format === 'faq' ? 'FAQ 생성 중...' : '아티클 생성 중...');
   document.getElementById('resultGrid').classList.add('hidden');
+  document.getElementById('faqCard').classList.add('hidden');
 
   try {
-    const res = await fetch(`${API}/api/alf_generate`, {
+    const res = await fetch(`${API}/api/${endpoint}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({cluster_label: cluster.label, chat_ids: cluster.chat_ids || []}),
     });
     const data = await res.json();
-    if (!data.ok) { alert('생성 실패: ' + data.error); return; }
+    if (!data.ok) { alert('생성 실패: ' + (data.error || '')); return; }
 
     state.currentDraftId = data.draft_id;
-    state.currentDraftTitle = data.title;
-    document.getElementById('draftArea').value = data.content;
-    document.getElementById('chatCount').textContent = cluster.count;
-    document.getElementById('chatList').innerHTML =
-      (cluster.chat_ids || []).slice(0, 8).map(id =>
-        `<div class="chat-item"><div style="font-size:12px;color:#6b7280">${id.slice(0,12)}...</div></div>`
-      ).join('');
-    document.getElementById('resultGrid').classList.remove('hidden');
+
+    if (format === 'faq') {
+      state.currentDraftTitle = data.question;
+      state.currentVariations = data.variations || [];
+      document.getElementById('faqQuestion').value = data.question;
+      document.getElementById('faqAnswer').value = data.answer;
+      document.getElementById('faqAnswerCount').textContent = (data.answer || '').length;
+      renderVariations();
+      document.getElementById('faqCard').classList.remove('hidden');
+    } else {
+      state.currentDraftTitle = data.title;
+      document.getElementById('draftArea').value = data.content;
+      document.getElementById('chatCount').textContent = cluster.count;
+      document.getElementById('chatList').innerHTML =
+        (cluster.chat_ids || []).slice(0, 8).map(id =>
+          `<div class="chat-item"><div style="font-size:12px;color:#6b7280">${id.slice(0,12)}...</div></div>`
+        ).join('');
+      document.getElementById('resultGrid').classList.remove('hidden');
+    }
   } catch(e) {
     alert('오류: ' + e.message);
   } finally {
     setLoading(false);
   }
+}
+
+function renderVariations() {
+  const container = document.getElementById('faqVariations');
+  container.innerHTML = state.currentVariations.map((v, i) => `
+    <span class="faq-variation">
+      ${v}
+      <span class="remove" onclick="removeVariation(${i})">×</span>
+    </span>
+  `).join('') + `
+    <span class="faq-add-var" onclick="addVariation()">+ 추가</span>
+  `;
+}
+
+function removeVariation(i) {
+  state.currentVariations.splice(i, 1);
+  renderVariations();
+}
+
+function addVariation() {
+  const v = prompt('변형 질문 입력 (100자 이내):');
+  if (v && v.trim() && v.length <= 100) {
+    state.currentVariations.push(v.trim());
+    renderVariations();
+  }
+}
+
+async function saveFAQ() {
+  if (!state.currentDraftId) { alert('먼저 FAQ를 생성해주세요'); return; }
+  const question = document.getElementById('faqQuestion').value.trim();
+  const answer = document.getElementById('faqAnswer').value.trim();
+  await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${state.currentDraftId}`, {
+    method: 'PATCH',
+    headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({title: question, content: answer, variations: state.currentVariations}),
+  });
+  alert('FAQ가 저장됐어요!');
+}
+
+function downloadFAQ() {
+  const question = document.getElementById('faqQuestion').value.trim();
+  const answer = document.getElementById('faqAnswer').value.trim();
+  const content = `# ${question}\n\n## 변형 질문\n${state.currentVariations.map(v => `- ${v}`).join('\n')}\n\n## 답변\n${answer}\n`;
+  downloadMd(content, question);
 }
 
 async function saveDraft() {
@@ -344,7 +468,7 @@ function downloadMd(content, title) {
 
 async function loadLibrary() {
   const res = await fetch(
-    `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,source_chat_count,created_at&order=created_at.desc`,
+    `${SUPA_URL}/rest/v1/alf_drafts?select=id,title,cluster_label,format,variations,source_chat_count,created_at&order=created_at.desc`,
     {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}}
   );
   state.allDrafts = await res.json();
@@ -353,10 +477,15 @@ async function loadLibrary() {
     list.innerHTML = '<p style="color:#9ca3af;font-size:14px">아직 저장된 초안이 없어요.</p>';
     return;
   }
-  list.innerHTML = state.allDrafts.map(d => `
+  list.innerHTML = state.allDrafts.map(d => {
+    const isFAQ = d.format === 'faq';
+    const badge = isFAQ
+      ? '<span style="font-size:11px;font-weight:600;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;margin-right:6px">💬 FAQ</span>'
+      : '<span style="font-size:11px;font-weight:600;background:#e5e7eb;color:#374151;padding:2px 8px;border-radius:10px;margin-right:6px">📄 아티클</span>';
+    return `
     <div class="draft-row">
       <div class="draft-info">
-        <div class="title">${d.title}</div>
+        <div class="title">${badge}${d.title}</div>
         <div class="meta">${d.cluster_label || ''} · ${d.source_chat_count || 0}건 참고 · ${d.created_at?.slice(0,10)}</div>
       </div>
       <div class="draft-row-actions">
@@ -366,14 +495,21 @@ async function loadLibrary() {
           onclick="downloadById('${d.id}', '${d.title.replace(/'/g,"\\'")}')">↓</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function previewDraft(id, title) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=content`,
+  const res = await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=content,format,variations`,
     {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}});
   const data = await res.json();
-  state.modalContent = data[0]?.content || '';
+  const d = data[0] || {};
+  if (d.format === 'faq') {
+    const variations = (d.variations || []).map(v => `- ${v}`).join('\n');
+    state.modalContent = `# ${title}\n\n## 변형 질문\n${variations}\n\n## 답변\n${d.content || ''}\n`;
+  } else {
+    state.modalContent = d.content || '';
+  }
   state.currentDraftTitle = title;
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalContent').textContent = state.modalContent;
@@ -381,10 +517,16 @@ async function previewDraft(id, title) {
 }
 
 async function downloadById(id, title) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=content`,
+  const res = await fetch(`${SUPA_URL}/rest/v1/alf_drafts?id=eq.${id}&select=content,format,variations`,
     {headers: {'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`}});
   const data = await res.json();
-  downloadMd(data[0]?.content || '', title);
+  const d = data[0] || {};
+  let content = d.content || '';
+  if (d.format === 'faq') {
+    const variations = (d.variations || []).map(v => `- ${v}`).join('\n');
+    content = `# ${title}\n\n## 변형 질문\n${variations}\n\n## 답변\n${d.content || ''}\n`;
+  }
+  downloadMd(content, title);
 }
 
 async function analyzeMerge() {
@@ -439,6 +581,17 @@ async function executeMerge(draftIds) {
 
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 function downloadModal() { downloadMd(state.modalContent, state.currentDraftTitle); }
+
+// FAQ 답변 글자 수 카운터
+document.addEventListener('DOMContentLoaded', () => {
+  const faqAnswer = document.getElementById('faqAnswer');
+  const faqCount = document.getElementById('faqAnswerCount');
+  if (faqAnswer && faqCount) {
+    faqAnswer.addEventListener('input', () => {
+      faqCount.textContent = faqAnswer.value.length;
+    });
+  }
+});
 </script>
 </body>
 </html>
