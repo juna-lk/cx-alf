@@ -159,11 +159,28 @@
     .format-filter:focus { border-color: #4f46e5; }
     .draft-row { background: white; border-radius: 8px; padding: 16px 20px;
                  margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-                 display: flex; align-items: center; gap: 12px; }
-    .draft-info { flex: 1; }
-    .draft-info .title { font-weight: 500; font-size: 15px; }
-    .draft-info .meta { font-size: 13px; color: #9ca3af; margin-top: 2px; }
-    .draft-row-actions { display: flex; gap: 8px; }
+                 display: flex; align-items: center; gap: 14px;
+                 border-left: 5px solid transparent; transition: transform 0.1s; }
+    .draft-row:hover { transform: translateX(2px); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .draft-row.format-faq { border-left-color: #3b82f6; background: linear-gradient(to right, #eff6ff 0%, white 60%); }
+    .draft-row.format-article { border-left-color: #6b7280; background: linear-gradient(to right, #f9fafb 0%, white 60%); }
+    .format-icon { font-size: 26px; line-height: 1;
+                   width: 44px; height: 44px; border-radius: 8px;
+                   display: flex; align-items: center; justify-content: center;
+                   flex-shrink: 0; }
+    .format-icon.faq { background: #dbeafe; }
+    .format-icon.article { background: #e5e7eb; }
+    .draft-info { flex: 1; min-width: 0; }
+    .draft-info .title { font-weight: 600; font-size: 15px; color: #1a1a2e;
+                         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .draft-info .meta { font-size: 12px; color: #6b7280; margin-top: 4px;
+                        display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .format-tag { font-size: 11px; font-weight: 700; padding: 2px 8px;
+                  border-radius: 10px; letter-spacing: 0.3px; }
+    .format-tag.faq { background: #3b82f6; color: white; }
+    .format-tag.article { background: #6b7280; color: white; }
+    .draft-row-actions { display: flex; gap: 6px; flex-wrap: wrap;
+                         justify-content: flex-end; }
 
     .merge-suggestion { border: 1px solid #e9d5ff; border-radius: 10px;
                         padding: 18px; margin-bottom: 14px; background: #faf5ff; }
@@ -678,18 +695,24 @@ function downloadMd(content, title) {
 
 function renderDraftRow(d, isApplied) {
   const isFAQ = d.format === 'faq';
-  const badge = isFAQ
-    ? '<span style="font-size:11px;font-weight:600;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;margin-right:6px">💬 FAQ</span>'
-    : '<span style="font-size:11px;font-weight:600;background:#e5e7eb;color:#374151;padding:2px 8px;border-radius:10px;margin-right:6px">📄 아티클</span>';
+  const formatClass = isFAQ ? 'faq' : 'article';
+  const icon = isFAQ ? '💬' : '📄';
+  const formatLabel = isFAQ ? 'FAQ' : 'ARTICLE';
   const safeTitle = d.title.replace(/'/g, "\\'");
   const statusBtn = isApplied
     ? `<button class="btn btn-secondary" style="font-size:13px;padding:6px 14px" onclick="unmarkApplied('${d.id}')">↩ 작성 중으로</button>`
     : `<button class="btn btn-primary" style="font-size:13px;padding:6px 14px" onclick="markApplied('${d.id}')">✅ ALF 적용</button>`;
   return `
-    <div class="draft-row">
+    <div class="draft-row format-${formatClass}">
+      <div class="format-icon ${formatClass}">${icon}</div>
       <div class="draft-info">
-        <div class="title">${badge}${d.title}</div>
-        <div class="meta">${d.cluster_label || ''} · ${d.source_chat_count || 0}건 참고 · ${d.created_at?.slice(0,10)}</div>
+        <div class="title">${d.title}</div>
+        <div class="meta">
+          <span class="format-tag ${formatClass}">${formatLabel}</span>
+          <span>${d.cluster_label || ''}</span>
+          <span>· ${d.source_chat_count || 0}건 참고</span>
+          <span>· ${d.created_at?.slice(0,10)}</span>
+        </div>
       </div>
       <div class="draft-row-actions">
         ${statusBtn}
