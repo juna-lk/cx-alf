@@ -1,9 +1,60 @@
 from __future__ import annotations
 import json
+import re
 import urllib.request
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+
+# 한자/일본어 자주 혼입되는 단어 → 한글 치환 사전
+CJK_REPLACE = {
+    "内容": "내용", "內容": "내용",
+    "編集": "편집", "編輯": "편집",
+    "顧客": "고객",
+    "答弁": "답변", "答辯": "답변", "返答": "답변",
+    "質問": "질문",
+    "回答": "회답",
+    "管理": "관리",
+    "設定": "설정",
+    "確認": "확인",
+    "問題": "문제",
+    "解決": "해결",
+    "対応": "대응", "対處": "대처",
+    "情報": "정보",
+    "状態": "상태",
+    "変更": "변경", "變更": "변경",
+    "新規": "신규",
+    "기능을 안내": "기능을 안내",
+    # 일본어 가타카나
+    "プラン": "플랜",
+    "サイト": "사이트",
+    "ホスティング": "호스팅",
+    "アップグレード": "업그레이드",
+    "ダウングレード": "다운그레이드",
+    "サービス": "서비스",
+    "ユーザー": "사용자",
+    "コンテンツ": "콘텐츠",
+    "メッセージ": "메시지",
+    "アンケート": "설문",
+}
+
+
+def sanitize_korean(text: str) -> str:
+    """LLM 출력에서 한자/일본어 단어를 한글로 치환.
+    사전에 없는 한자/가타카나가 남아있으면 제거(공백으로) 처리.
+    """
+    if not text:
+        return text
+    # 1) 사전 치환 (긴 단어부터)
+    for foreign, korean in sorted(CJK_REPLACE.items(), key=lambda x: -len(x[0])):
+        text = text.replace(foreign, korean)
+    # 2) 남은 일본어 가타카나·히라가나 제거 (안전망)
+    text = re.sub(r"[぀-ゟ゠-ヿ]+", "", text)
+    # 3) 남은 한자(CJK Unified Ideographs) 단독 → 제거. 한글 텍스트 사이에 끼면 어색하지만 안전망.
+    text = re.sub(r"[㐀-䶿一-鿿]+", "", text)
+    # 4) 연속 공백 정리
+    text = re.sub(r"  +", " ", text)
+    return text
 
 
 def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_key: str = "") -> str:
@@ -33,7 +84,7 @@ def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_ke
     )
     with urllib.request.urlopen(req, timeout=55) as resp:
         data = json.loads(resp.read())
-    return data["choices"][0]["message"]["content"]
+    return sanitize_korean(data["choices"][0]["message"]["content"])
 
 
 def get_supabase_headers(service_key: str) -> dict:
