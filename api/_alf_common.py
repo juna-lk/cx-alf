@@ -145,9 +145,28 @@ def supabase_post(url: str, data: dict | list, service_key: str, method: str = "
         return json.loads(body) if body else {}
 
 
+def _verify_supabase_token(access_token: str) -> dict | None:
+    """Supabase 액세스 토큰으로 사용자 정보 조회. 실패시 None."""
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    anon_key = os.environ.get("SUPABASE_ANON_KEY", "")
+    if not supabase_url or not anon_key or not access_token:
+        return None
+    try:
+        req = urllib.request.Request(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "apikey": anon_key,
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read())
+    except Exception:
+        return None
+
+
 def make_handler_base():
-    """Vercel 서버리스 handler 공통 CORS + 인증 헬퍼 반환"""
-    import hmac
+    """Vercel 서버리스 handler 공통 CORS + Supabase OAuth 인증"""
     from http.server import BaseHTTPRequestHandler
 
     class _Base(BaseHTTPRequestHandler):
@@ -160,18 +179,24 @@ def make_handler_base():
             self.wfile.write(body)
 
         def _check_auth(self) -> bool:
-            """Authorization 헤더 검증. 통과: True / 실패: 401 응답 + False.
-            APP_AUTH_TOKEN 환경변수가 비어있으면 인증 비활성화 (개발용).
+            """Supabase 액세스 토큰 검증 + 이메일 도메인 화이트리스트.
+            SUPABASE_URL / SUPABASE_ANON_KEY 미설정 시 비활성화 (개발용).
             """
-            token_env = os.environ.get("APP_AUTH_TOKEN", "")
-            if not token_env:
+            anon_key = os.environ.get("SUPABASE_ANON_KEY", "")
+            if not anon_key:
                 return True
+            allowed_domain = os.environ.get("ALLOWED_EMAIL_DOMAIN", "liveklass.com").lower()
             header = self.headers.get("Authorization", "")
             token = header.removeprefix("Bearer ").strip() if header.startswith("Bearer ") else header.strip()
-            if token and hmac.compare_digest(token, token_env):
-                return True
-            self._respond(401, {"ok": False, "error": "인증 필요"})
-            return False
+            user = _verify_supabase_token(token) if token else None
+            if not user:
+                self._respond(401, {"ok": False, "error": "인증 필요 — Google 로그인해주세요"})
+                return False
+            email = (user.get("email") or "").lower()
+            if not email.endswith("@" + allowed_domain):
+                self._respond(403, {"ok": False, "error": f"@{allowed_domain} 계정만 접근 가능"})
+                return False
+            return True
 
         def do_OPTIONS(self):
             self.send_response(200)

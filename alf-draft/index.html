@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ALF Studio — CX 상담 기반 지식 초안 생성</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%234f46e5'/%3E%3Cstop offset='100%25' stop-color='%236d28d9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M9 9h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-4 3v-3h-1a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z' fill='white' opacity='0.95'/%3E%3Cpath d='M19 7l0.6 1.8L21.4 9.4l-1.8 0.6L19 11.8l-0.6-1.8L16.6 9.4l1.8-0.6z' fill='%23fbbf24'/%3E%3C/svg%3E">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -291,9 +292,9 @@
 <body>
 
 <div class="login-overlay" id="loginOverlay" style="position:fixed;inset:0;background:linear-gradient(135deg,#1a1a2e 0%,#2d2b56 100%);display:none;align-items:center;justify-content:center;z-index:9999">
-  <div style="background:white;border-radius:14px;padding:40px;width:380px;box-shadow:0 25px 50px rgba(0,0,0,0.25)">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <div style="background:white;border-radius:14px;padding:40px;width:380px;box-shadow:0 25px 50px rgba(0,0,0,0.25);text-align:center">
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
+      <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
         <defs><linearGradient id="loginGrad" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#c084fc"/>
         </linearGradient></defs>
@@ -301,17 +302,16 @@
         <path d="M9 9h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-4 3v-3h-1a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z" fill="white" opacity="0.95"/>
         <path d="M19 7l0.6 1.8L21.4 9.4l-1.8 0.6L19 11.8l-0.6-1.8L16.6 9.4l1.8-0.6z" fill="#fbbf24"/>
       </svg>
-      <div>
-        <div style="font-size:18px;font-weight:700;color:#1a1a2e">ALF Studio</div>
-        <div style="font-size:12px;color:#6b7280">접근 비밀번호를 입력해주세요</div>
-      </div>
     </div>
-    <input type="password" id="loginInput" placeholder="비밀번호"
-      style="width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;outline:none;margin-bottom:12px"
-      onkeydown="if(event.key==='Enter')doLogin()" />
-    <div id="loginError" style="font-size:12px;color:#dc2626;margin-bottom:12px;display:none">비밀번호가 일치하지 않아요.</div>
-    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">입장</button>
-    <p style="font-size:11px;color:#9ca3af;margin-top:14px;text-align:center">내부 도구 — 외부 공유 금지</p>
+    <h1 style="font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:6px">ALF Studio</h1>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:28px">liveklass.com 계정으로 로그인해주세요</p>
+    <button onclick="_googleLogin()" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px;background:#fff;border:1px solid #d1d5db;border-radius:10px;font-size:14px;font-weight:600;color:#374151;cursor:pointer;transition:all .15s"
+      onmouseover="this.style.background='#f9fafb';this.style.borderColor='#9ca3af'" onmouseout="this.style.background='#fff';this.style.borderColor='#d1d5db'">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20" alt="Google">
+      Google 계정으로 로그인
+    </button>
+    <div id="loginError" style="display:none;margin-top:16px;font-size:12px;color:#dc2626;background:#fef2f2;padding:8px 12px;border-radius:6px"></div>
+    <p style="font-size:11px;color:#9ca3af;margin-top:20px">내부 도구 — 외부 공유 금지</p>
   </div>
 </div>
 
@@ -874,53 +874,80 @@
 
 <script>
 const API = '';
-const TOKEN_KEY = 'alf_studio_token';
+const SUPA_URL = 'https://axqrhnfmrqwdmebjmsrh.supabase.co';
+const SUPA_ANON_KEY = 'sb_publishable_oNDxh87K9qCzx5gDT3gIDQ_1aZXlqtB';
+const ALLOWED_DOMAIN = 'liveklass.com';
+const SESSION_HOURS = 4;
 
-// 인증 헤더 포함 fetch — 401시 토큰 삭제하고 로그인 화면 표시
+const _supa = window.supabase.createClient(SUPA_URL, SUPA_ANON_KEY);
+
+// 인증 헤더 포함 fetch — 401/403 시 로그인 화면 표시
 async function authFetch(url, options = {}) {
-  const token = localStorage.getItem(TOKEN_KEY) || '';
+  const { data: { session } } = await _supa.auth.getSession();
+  const token = session?.access_token || '';
+  if (!token) { showLogin(); throw new Error('인증 필요'); }
   const headers = Object.assign({}, options.headers || {});
-  if (token) headers['Authorization'] = 'Bearer ' + token;
+  headers['Authorization'] = 'Bearer ' + token;
   const res = await fetch(url, Object.assign({}, options, {headers}));
-  if (res.status === 401) {
-    localStorage.removeItem(TOKEN_KEY);
-    showLogin();
-    throw new Error('인증 실패. 다시 로그인해주세요.');
+  if (res.status === 401 || res.status === 403) {
+    let msg = '인증 실패';
+    try { const j = await res.clone().json(); msg = j.error || msg; } catch(_) {}
+    showLogin(msg);
+    throw new Error(msg);
   }
   return res;
 }
 
-function showLogin() {
+function showLogin(errorMsg) {
   document.getElementById('loginOverlay').style.display = 'flex';
-  setTimeout(() => document.getElementById('loginInput')?.focus(), 50);
+  const err = document.getElementById('loginError');
+  if (errorMsg) { err.textContent = errorMsg; err.style.display = 'block'; }
+  else err.style.display = 'none';
 }
 
 function hideLogin() {
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('loginError').style.display = 'none';
-  document.getElementById('loginInput').value = '';
 }
 
-async function doLogin() {
-  const pwd = (document.getElementById('loginInput').value || '').trim();
-  if (!pwd) return;
-  localStorage.setItem(TOKEN_KEY, pwd);
-  // 검증: 가벼운 GET 호출
-  try {
-    const res = await authFetch(`${API}/api/alf_data?type=tags`, {
-      headers: {'Authorization': 'Bearer ' + pwd},
-    });
-    if (res.status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
-      document.getElementById('loginError').style.display = 'block';
-      return;
-    }
-    hideLogin();
-    loadTags();
-  } catch(e) {
-    document.getElementById('loginError').textContent = '서버 연결 실패: ' + e.message;
+async function _googleLogin() {
+  const { error } = await _supa.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + window.location.pathname },
+  });
+  if (error) {
+    document.getElementById('loginError').textContent = '로그인 실패: ' + error.message;
     document.getElementById('loginError').style.display = 'block';
   }
+}
+
+async function _logout() {
+  await _supa.auth.signOut();
+  localStorage.removeItem('alf_login_time');
+  showLogin();
+}
+
+async function _checkAuth() {
+  const { data: { session } } = await _supa.auth.getSession();
+  if (!session) { showLogin(); return false; }
+  const email = (session.user?.email || '').toLowerCase();
+  const domain = email.split('@')[1] || '';
+  if (domain !== ALLOWED_DOMAIN) {
+    await _supa.auth.signOut();
+    showLogin(`${email}은(는) 접근 권한이 없습니다. @${ALLOWED_DOMAIN} 계정으로 로그인해주세요.`);
+    return false;
+  }
+  // 세션 만료 (4시간)
+  const loginTime = localStorage.getItem('alf_login_time');
+  if (loginTime && (Date.now() - parseInt(loginTime)) > SESSION_HOURS * 3600 * 1000) {
+    await _supa.auth.signOut();
+    localStorage.removeItem('alf_login_time');
+    showLogin('세션이 만료되었습니다. 다시 로그인해주세요.');
+    return false;
+  }
+  if (!loginTime) localStorage.setItem('alf_login_time', String(Date.now()));
+  hideLogin();
+  return true;
 }
 
 // XSS 방어: HTML 특수문자 이스케이프
@@ -1649,12 +1676,12 @@ document.addEventListener('DOMContentLoaded', () => {
       editFaqCount.textContent = editFaqAnswer.value.length;
     });
   }
-  // 토큰 있으면 태그 로드 (검증 겸용), 없으면 로그인 화면
-  if (localStorage.getItem(TOKEN_KEY)) {
-    loadTags();
-  } else {
-    showLogin();
-  }
+  // 인증 확인 → 통과 시 태그 로드, 실패 시 로그인 화면
+  _checkAuth().then(ok => { if (ok) loadTags(); });
+  // OAuth 콜백 후 자동 처리
+  _supa.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_IN') _checkAuth().then(ok => { if (ok) loadTags(); });
+  });
 });
 </script>
 </body>
