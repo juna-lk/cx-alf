@@ -215,29 +215,30 @@
       z-index: 1000;
     }
 
-    /* 인포 아이콘 + 큰 툴팁 */
+    /* 인포 아이콘 — 클릭하면 라벨 아래에 인라인으로 펼침 */
     .info-icon { display: inline-flex; align-items: center; justify-content: center;
                  width: 16px; height: 16px; border-radius: 50%;
                  background: #e5e7eb; color: #6b7280;
-                 font-size: 11px; font-weight: 700; cursor: help;
-                 margin-left: 6px; position: relative; }
-    .info-icon:hover { background: #c7d2fe; color: #4338ca; }
-    .info-icon .tip {
-      visibility: hidden; opacity: 0;
-      position: absolute; bottom: calc(100% + 8px); left: 50%;
-      transform: translateX(-50%);
-      width: 320px;
-      background: white; color: #374151;
-      border: 1px solid #e5e7eb;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-      padding: 12px 14px; border-radius: 8px;
-      font-size: 12px; font-weight: 400; line-height: 1.55;
-      text-align: left; z-index: 1000;
-      transition: opacity 0.15s;
+                 font-size: 11px; font-weight: 700; cursor: pointer;
+                 margin-left: 6px; user-select: none; transition: all 0.1s; }
+    .info-icon:hover, .info-icon.open { background: #4f46e5; color: white; }
+    .field-tip {
+      display: none;
+      margin: 6px 0 10px;
+      padding: 12px 14px;
+      background: #faf5ff;
+      border-left: 3px solid #6d28d9;
+      border-radius: 6px;
+      font-size: 12px; line-height: 1.6;
+      color: #4c1d95;
     }
-    .info-icon .tip strong { color: #1a1a2e; font-weight: 600; }
-    .info-icon .tip ul { padding-left: 16px; margin: 4px 0; }
-    .info-icon:hover .tip { visibility: visible; opacity: 1; }
+    .field-tip.show { display: block; }
+    .field-tip strong { color: #1a1a2e; font-weight: 700; }
+    .field-tip ul { padding-left: 18px; margin: 4px 0 0; }
+    .field-tip li { margin-bottom: 3px; color: #374151; }
+    .field-tip code { background: white; border: 1px solid #e9d5ff;
+                      padding: 1px 5px; border-radius: 3px;
+                      font-family: 'Courier New', monospace; font-size: 11px; }
 
     .merge-suggestion { border: 1px solid #e9d5ff; border-radius: 10px;
                         padding: 18px; margin-bottom: 14px; background: #faf5ff; }
@@ -517,83 +518,78 @@
     <div id="editArticleForm" class="hidden">
       <label style="display:flex;align-items:center;font-size:13px;font-weight:600;margin-bottom:6px">
         제목
-        <span class="info-icon">i
-          <span class="tip">
-            <strong>좋은 제목 만들기</strong>
-            <ul>
-              <li>고객이 실제로 검색할 표현으로 작성</li>
-              <li>예) <code>구독 중인 플랜을 환불받는 방법</code></li>
-              <li>모호한 단어("관련", "안내") 대신 구체적인 동작/대상 명시</li>
-            </ul>
-          </span>
-        </span>
+        <span class="info-icon" onclick="toggleTip('tip-art-title', this)">i</span>
       </label>
+      <div class="field-tip" id="tip-art-title">
+        <strong>좋은 제목 만들기</strong>
+        <ul>
+          <li>고객이 실제로 검색할 표현으로 작성</li>
+          <li>예) <code>구독 중인 플랜을 환불받는 방법</code></li>
+          <li>모호한 단어("관련", "안내") 대신 구체적인 동작/대상 명시</li>
+        </ul>
+      </div>
       <input type="text" id="editArticleTitle" class="faq-q-input" />
 
       <label style="display:flex;align-items:center;font-size:13px;font-weight:600;margin:14px 0 6px">
         본문 (Markdown)
-        <span class="info-icon">i
-          <span class="tip">
-            <strong>효과적인 본문 구조</strong>
-            <ul>
-              <li><strong>첫 문단 = 결론</strong>: ALF는 앞부분을 우선 참조해요</li>
-              <li><strong>섹션 분리</strong>: <code>##</code> 헤딩으로 케이스/단계 구분</li>
-              <li><strong>조건 분기 명시</strong>: "경우에 따라" 금지, 케이스별로</li>
-              <li><strong>2,000자 이내</strong>, 초과 시 분리</li>
-              <li>"담당자에게 문의" 단독 사용 금지</li>
-            </ul>
-          </span>
-        </span>
+        <span class="info-icon" onclick="toggleTip('tip-art-body', this)">i</span>
       </label>
+      <div class="field-tip" id="tip-art-body">
+        <strong>효과적인 본문 구조</strong>
+        <ul>
+          <li><strong>첫 문단 = 결론</strong> — ALF는 앞부분을 우선 참조해요</li>
+          <li><strong>섹션 분리</strong>: <code>##</code> 헤딩으로 케이스/단계 구분</li>
+          <li><strong>조건 분기 명시</strong>: "경우에 따라" 금지, 케이스별로</li>
+          <li><strong>2,000자 이내</strong>, 초과 시 분리</li>
+          <li>"담당자에게 문의" 단독 사용 금지</li>
+        </ul>
+      </div>
       <textarea class="draft-area" id="editArticleContent" style="min-height:340px"></textarea>
     </div>
 
     <div id="editFaqForm" class="hidden">
       <label style="display:flex;align-items:center;font-size:13px;font-weight:600;margin-bottom:6px">
         대표 질문 (100자)
-        <span class="info-icon">i
-          <span class="tip">
-            <strong>FAQ 대표 질문 작성 팁</strong>
-            <ul>
-              <li>정확한 키워드를 포함한 자연스러운 질문문</li>
-              <li>고객이 ALF에 입력할 법한 표현</li>
-              <li>예) <code>환불은 어떻게 받나요?</code></li>
-            </ul>
-          </span>
-        </span>
+        <span class="info-icon" onclick="toggleTip('tip-faq-q', this)">i</span>
       </label>
+      <div class="field-tip" id="tip-faq-q">
+        <strong>FAQ 대표 질문 작성 팁</strong>
+        <ul>
+          <li>정확한 키워드를 포함한 자연스러운 질문문</li>
+          <li>고객이 ALF에 입력할 법한 표현</li>
+          <li>예) <code>환불은 어떻게 받나요?</code></li>
+        </ul>
+      </div>
       <input type="text" id="editFaqQuestion" class="faq-q-input" maxlength="100" />
 
       <label style="display:flex;align-items:center;font-size:13px;font-weight:600;margin:14px 0 6px">
         변형 질문 <span style="font-weight:400;color:#9ca3af;font-size:12px;margin-left:6px">— 최대 10개</span>
-        <span class="info-icon">i
-          <span class="tip">
-            <strong>변형 질문 작성 팁</strong>
-            <ul>
-              <li>같은 의도, 다른 표현으로 다양하게</li>
-              <li>줄임말·구어체·오타까지 포함 (예: "환불 어케해요?")</li>
-              <li>키워드를 다양하게 변주 ("취소", "해지", "환불")</li>
-              <li>채널톡 공식: 최대 10개까지 등록 가능</li>
-            </ul>
-          </span>
-        </span>
+        <span class="info-icon" onclick="toggleTip('tip-faq-v', this)">i</span>
       </label>
+      <div class="field-tip" id="tip-faq-v">
+        <strong>변형 질문 작성 팁</strong>
+        <ul>
+          <li>같은 의도, 다른 표현으로 다양하게</li>
+          <li>줄임말·구어체·오타까지 포함 (예: "환불 어케해요?")</li>
+          <li>키워드를 다양하게 변주 ("취소", "해지", "환불")</li>
+          <li>채널톡 공식: 최대 10개까지 등록 가능</li>
+        </ul>
+      </div>
       <div class="faq-variations" id="editFaqVariations"></div>
 
       <label style="display:flex;align-items:center;font-size:13px;font-weight:600;margin:14px 0 6px">
         답변 (500자)
-        <span class="info-icon">i
-          <span class="tip">
-            <strong>좋은 FAQ 답변</strong>
-            <ul>
-              <li>결론부터 먼저, 짧고 명확하게</li>
-              <li>조건 분기는 케이스별로 명시</li>
-              <li>"담당자 문의" 단독 사용 금지 — 조건/방법 같이 명시</li>
-              <li>"보통", "일반적으로" 같은 모호한 표현 금지</li>
-            </ul>
-          </span>
-        </span>
+        <span class="info-icon" onclick="toggleTip('tip-faq-a', this)">i</span>
       </label>
+      <div class="field-tip" id="tip-faq-a">
+        <strong>좋은 FAQ 답변</strong>
+        <ul>
+          <li>결론부터 먼저, 짧고 명확하게</li>
+          <li>조건 분기는 케이스별로 명시</li>
+          <li>"담당자 문의" 단독 사용 금지 — 조건/방법 같이 명시</li>
+          <li>"보통", "일반적으로" 같은 모호한 표현 금지</li>
+        </ul>
+      </div>
       <textarea class="faq-answer" id="editFaqAnswer" maxlength="500"></textarea>
       <div style="text-align:right;font-size:12px;color:#9ca3af;margin-top:4px">
         <span id="editFaqAnswerCount">0</span> / 500자
@@ -1130,6 +1126,12 @@ async function executeMerge(draftIds) {
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 function downloadModal() { downloadMd(state.modalContent, state.currentDraftTitle); }
 function openGuide() { switchTab('guide'); window.scrollTo(0, 0); }
+function toggleTip(tipId, iconEl) {
+  const tip = document.getElementById(tipId);
+  if (!tip) return;
+  const isOpen = tip.classList.toggle('show');
+  iconEl.classList.toggle('open', isOpen);
+}
 
 async function loadTags() {
   try {
