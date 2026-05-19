@@ -76,7 +76,7 @@ class handler(_Base):
         status = (params.get("status", [""])[0] or "").strip()
         fmt = (params.get("format", [""])[0] or "").strip()
         url = (f"{SUPABASE_URL}/rest/v1/alf_drafts"
-               f"?select=id,title,cluster_label,format,variations,source_chat_count,created_at,status"
+               f"?select=id,title,subtitle,cluster_label,format,variations,source_chat_count,created_at,status"
                f"&order=created_at.desc")
         if status in ("draft", "applied"):
             url += f"&status=eq.{status}"
@@ -91,7 +91,7 @@ class handler(_Base):
             self._respond(400, {"ok": False, "error": "유효하지 않은 id"})
             return
         url = (f"{SUPABASE_URL}/rest/v1/alf_drafts"
-               f"?id=eq.{did}&select=id,title,content,format,variations,status,cluster_label")
+               f"?id=eq.{did}&select=id,title,subtitle,content,format,variations,status,cluster_label")
         rows = supabase_get(url, SUPABASE_SERVICE_KEY)
         self._respond(200, {"ok": True, "draft": rows[0] if rows else None})
 
@@ -172,7 +172,7 @@ class handler(_Base):
             self._respond(400, {"ok": False, "error": "유효하지 않은 id"})
             return
         # 허용 필드만 통과 (보안)
-        allowed = {"title", "content", "variations"}
+        allowed = {"title", "subtitle", "content", "variations"}
         payload = {k: v for k, v in body.items() if k in allowed}
         if not payload:
             self._respond(400, {"ok": False, "error": "수정할 필드 없음"})

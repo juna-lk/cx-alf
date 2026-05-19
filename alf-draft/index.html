@@ -594,8 +594,26 @@
       <div id="chatList"></div>
     </div>
     <div class="result-card">
-      <h3>생성된 초안 <span style="font-size:12px;color:#9ca3af;font-weight:400">(편집 가능)</span></h3>
+      <h3>생성된 초안 <span style="font-size:12px;color:#9ca3af;font-weight:400">(편집 가능 — 채널톡에 그대로 붙여넣기)</span></h3>
+
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px">
+        제목 <span style="color:#9ca3af;font-weight:400">(채널톡 "제목" 필드)</span>
+        <button type="button" onclick="copyField('draftTitle')" style="float:right;background:none;border:none;cursor:pointer;font-size:11px;color:#4f46e5;padding:0">📋 복사</button>
+      </label>
+      <input type="text" id="draftTitle" class="faq-q-input" style="margin-bottom:10px" />
+
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px">
+        소제목 <span style="color:#9ca3af;font-weight:400">(채널톡 "소제목" 필드)</span>
+        <button type="button" onclick="copyField('draftSubtitle')" style="float:right;background:none;border:none;cursor:pointer;font-size:11px;color:#4f46e5;padding:0">📋 복사</button>
+      </label>
+      <input type="text" id="draftSubtitle" class="faq-q-input" maxlength="80" style="margin-bottom:10px" placeholder="본문 핵심 요약 (선택)" />
+
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px">
+        본문 <span style="color:#9ca3af;font-weight:400">(Markdown — 채널톡 본문 영역)</span>
+        <button type="button" onclick="copyField('draftArea')" style="float:right;background:none;border:none;cursor:pointer;font-size:11px;color:#4f46e5;padding:0">📋 복사</button>
+      </label>
       <textarea class="draft-area" id="draftArea"></textarea>
+
       <div class="draft-actions">
         <button class="btn btn-primary" onclick="saveDraft()">저장</button>
         <button class="btn btn-secondary" onclick="downloadDraft()">↓ .md 다운로드</button>
@@ -1364,6 +1382,20 @@
       <input type="text" id="editArticleTitle" class="faq-q-input" />
 
       <label style="display:flex;align-items:center;font-size:13px;font-weight:600;margin:14px 0 6px">
+        소제목 (한 줄 요약)
+        <span class="info-icon" onclick="toggleTip('tip-art-subtitle', this)">i</span>
+      </label>
+      <div class="field-tip" id="tip-art-subtitle">
+        <strong>채널톡 아티클 "소제목" 필드용</strong>
+        <ul>
+          <li>본문 핵심을 한 줄(50자 이내)로 요약</li>
+          <li>제목에 못 담은 보조 키워드(상황·조건·예시)를 넣으면 ALF 매칭에 도움</li>
+          <li>예) <code>결제 후 7일 이내 전액, 8일 이후 비례 환불 안내</code></li>
+        </ul>
+      </div>
+      <input type="text" id="editArticleSubtitle" class="faq-q-input" maxlength="80" placeholder="본문 핵심 요약 (선택)" />
+
+      <label style="display:flex;align-items:center;font-size:13px;font-weight:600;margin:14px 0 6px">
         본문 (Markdown)
         <span class="info-icon" onclick="toggleTip('tip-art-body', this)">i</span>
       </label>
@@ -1875,6 +1907,8 @@ async function generate(format) {
       document.getElementById('faqCard').classList.remove('hidden');
     } else {
       state.currentDraftTitle = data.title;
+      document.getElementById('draftTitle').value = data.title || '';
+      document.getElementById('draftSubtitle').value = data.subtitle || '';
       document.getElementById('draftArea').value = data.content;
       document.getElementById('chatCount').textContent = cluster.count;
       document.getElementById('chatList').innerHTML =
@@ -1946,17 +1980,37 @@ function downloadFAQ() {
 
 async function saveDraft() {
   if (!state.currentDraftId) { alert('먼저 초안을 생성해주세요'); return; }
+  const title = document.getElementById('draftTitle').value.trim();
+  const subtitle = document.getElementById('draftSubtitle').value.trim();
   const content = document.getElementById('draftArea').value;
   await authFetch(`${API}/api/alf_data`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'save_draft', id: state.currentDraftId, content}),
+    body: JSON.stringify({action: 'save_draft', id: state.currentDraftId, title, subtitle, content}),
   });
   alert('저장됐어요!');
 }
 
 function downloadDraft() {
-  downloadMd(document.getElementById('draftArea').value, state.currentDraftTitle || 'alf-draft');
+  const title = document.getElementById('draftTitle').value.trim() || state.currentDraftTitle || 'alf-draft';
+  const subtitle = document.getElementById('draftSubtitle').value.trim();
+  const content = document.getElementById('draftArea').value;
+  const full = `# ${title}\n${subtitle ? `\n_${subtitle}_\n` : ''}\n${content}`;
+  downloadMd(full, title);
+}
+
+function copyField(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.select();
+  navigator.clipboard.writeText(el.value).then(() => {
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = '✓ 복사됨';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  }).catch(() => {
+    document.execCommand('copy');
+  });
 }
 
 function downloadMd(content, title) {
@@ -2089,6 +2143,7 @@ async function editDraft(id) {
   } else {
     document.getElementById('editModalTitle').textContent = '📄 아티클 편집';
     document.getElementById('editArticleTitle').value = d.title || '';
+    document.getElementById('editArticleSubtitle').value = d.subtitle || '';
     document.getElementById('editArticleContent').value = d.content || '';
     document.getElementById('editArticleForm').classList.remove('hidden');
   }
@@ -2139,6 +2194,7 @@ async function saveEdit() {
   } else {
     payload = {
       title: document.getElementById('editArticleTitle').value.trim(),
+      subtitle: document.getElementById('editArticleSubtitle').value.trim(),
       content: document.getElementById('editArticleContent').value,
     };
   }
