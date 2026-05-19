@@ -37,18 +37,20 @@ SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 
 
 def get_existing_chat_ids() -> set:
-    """이미 수집된 chat_id"""
+    """이미 수집된 chat_id (Supabase 기본 max-rows=1000이라 1000건 단위로 페이지네이션)"""
     existing = set()
     offset = 0
+    PAGE = 1000
     while True:
-        url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=chat_id&limit=10000&offset={offset}"
+        url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=chat_id&limit={PAGE}&offset={offset}"
         rows = supabase_get(url, SUPABASE_SERVICE_KEY)
         if not rows:
             break
         existing.update(r["chat_id"] for r in rows)
-        if len(rows) < 10000:
+        print(f"      ... offset={offset}, 조회 {len(rows)}건 (누적 {len(existing)})")
+        if len(rows) < PAGE:
             break
-        offset += 10000
+        offset += PAGE
     return existing
 
 
