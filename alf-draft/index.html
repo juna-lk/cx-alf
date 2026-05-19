@@ -106,6 +106,55 @@
                                         padding: 10px 14px; text-align: left; }
     .guide-table th { background: #f9fafb; font-weight: 600; }
     .guide-table td.center { text-align: center; }
+
+    /* 파이프라인 다이어그램 */
+    .pipeline { display: flex; flex-direction: column; gap: 12px;
+                margin: 18px 0; }
+    .pipeline-step { display: grid; grid-template-columns: 60px 1fr; gap: 16px;
+                     align-items: stretch; }
+    .pipeline-step-num { background: #f3f4f6; color: #4f46e5;
+                         font-size: 18px; font-weight: 800;
+                         display: flex; align-items: center; justify-content: center;
+                         border-radius: 8px; min-height: 80px; }
+    .pipeline-step-card { padding: 14px 18px; border-radius: 10px;
+                          border: 1px solid #e5e7eb; background: white; }
+    .pipeline-step-card.llm { background: #faf5ff; border-color: #d8b4fe; }
+    .pipeline-step-card.code { background: #eff6ff; border-color: #bfdbfe; }
+    .pipeline-step-card.user { background: #f9fafb; border-color: #d1d5db; }
+    .pipeline-step-card.cron { background: #ecfdf5; border-color: #a7f3d0; }
+    .pipeline-step-title { font-size: 14px; font-weight: 700;
+                           color: #111827; display: flex; align-items: center;
+                           gap: 8px; margin-bottom: 4px; }
+    .pipeline-tag { font-size: 10px; font-weight: 700; padding: 2px 8px;
+                    border-radius: 4px; letter-spacing: 0.3px; }
+    .pipeline-tag.llm { background: #6d28d9; color: white; }
+    .pipeline-tag.code { background: #2563eb; color: white; }
+    .pipeline-tag.user { background: #6b7280; color: white; }
+    .pipeline-tag.cron { background: #059669; color: white; }
+    .pipeline-step-desc { font-size: 13px; color: #4b5563; line-height: 1.55; }
+    .pipeline-step-desc code { background: #fff; padding: 1px 6px;
+                                border-radius: 3px; font-size: 12px;
+                                border: 1px solid #e5e7eb; }
+    .pipeline-arrow { display: flex; justify-content: flex-start;
+                      align-items: center; padding-left: 28px;
+                      font-size: 18px; color: #9ca3af; }
+
+    .stack-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                  gap: 14px; margin: 14px 0; }
+    .stack-card { padding: 14px 16px; background: #f9fafb;
+                  border: 1px solid #e5e7eb; border-radius: 8px; }
+    .stack-card-title { font-size: 12px; font-weight: 700; color: #6b7280;
+                        text-transform: uppercase; letter-spacing: 0.5px;
+                        margin-bottom: 6px; }
+    .stack-card-body { font-size: 13px; color: #111827; font-weight: 500;
+                       line-height: 1.5; }
+    .stack-card-body small { font-size: 11px; color: #6b7280;
+                             display: block; margin-top: 2px; font-weight: 400; }
+
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 6px 0 16px;
+              font-size: 12px; color: #4b5563; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
     .tab-bar { background: white; border-bottom: 1px solid #e5e7eb;
                display: flex; padding: 0 24px; }
     .tab { padding: 14px 20px; cursor: pointer; font-size: 14px;
@@ -557,6 +606,10 @@
           <a href="#section-cs">📞 CS 직접 답변</a>
           <a href="#section-difficult">⚠️ ALF가 못 찾는 형태</a>
         </div>
+        <div class="guide-toc-group">
+          <div class="guide-toc-group-title">시스템</div>
+          <a href="#section-architecture">🔧 작동 방식</a>
+        </div>
       </aside>
       <div class="guide-content">
 
@@ -950,6 +1003,227 @@
         <li><strong>태스크 활용</strong>: 반복 업무는 태스크로 자동화</li>
         <li><strong>정기 업데이트</strong>: 웹사이트 변경 시 2시간 이상 간격으로 "다시 가져오기"</li>
       </ol>
+    </div>
+
+    <div class="guide-section" id="section-architecture">
+      <h3>🔧 ALF Studio 작동 방식</h3>
+      <p>사용자 입력부터 ALF 적용까지 전체 파이프라인을 시각화했어요. 각 단계가 LLM/코드/사용자 중 누구의 책임인지 한 눈에 보여요.</p>
+
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#6d28d9"></span> LLM (AI)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#2563eb"></span> 코드 (규칙 기반)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#059669"></span> Cron (자동 실행)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#6b7280"></span> 사용자 입력</span>
+      </div>
+
+      <h4>🛠 기술 스택</h4>
+      <div class="stack-grid">
+        <div class="stack-card">
+          <div class="stack-card-title">프론트엔드</div>
+          <div class="stack-card-body">HTML / Vanilla JS<br><small>Supabase JS SDK · Canvas API</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">백엔드 (Serverless)</div>
+          <div class="stack-card-body">Vercel Python<br><small>9개 API 엔드포인트</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">데이터베이스 + 스토리지</div>
+          <div class="stack-card-body">Supabase (PostgreSQL)<br><small>cx_full_messages · alf_drafts · alf_rules · Storage</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">LLM</div>
+          <div class="stack-card-body">Groq (llama-3.3-70b-versatile)<br><small>분당 6,000 토큰 / 일일 500,000</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">인증</div>
+          <div class="stack-card-body">Supabase OAuth (Google)<br><small>@liveklass.com 도메인 제한</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">데이터 수집 자동화</div>
+          <div class="stack-card-body">GitHub Actions (cron)<br><small>매일 KST 03:00 / 채널톡 Open API</small></div>
+        </div>
+      </div>
+
+      <h4>📥 데이터 수집 (백그라운드)</h4>
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">A</div>
+          <div class="pipeline-step-card cron">
+            <div class="pipeline-step-title">매일 KST 03:00 자동 실행 <span class="pipeline-tag cron">CRON</span></div>
+            <div class="pipeline-step-desc">GitHub Actions가 <code>run_collect_full.py</code> 실행 → 채널톡 Open API에서 최근 7일치 신규 상담 가져옴.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">B</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">메시지 정제 + 저장 <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc">고객/상담원/봇 역할 분리 → <code>cx_full_messages</code> 테이블에 upsert (중복 chat_id는 갱신).</div>
+          </div>
+        </div>
+      </div>
+
+      <h4>🎯 사용자 워크플로우 (초안 생성)</h4>
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">1</div>
+          <div class="pipeline-step-card user">
+            <div class="pipeline-step-title">태그 + 키워드 입력 <span class="pipeline-tag user">USER</span></div>
+            <div class="pipeline-step-desc">사용자가 "결제 환불" 같은 태그와 (옵션) 키워드 입력. 태그 자동완성으로 오타 방지.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">2</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">태그 기반 후보 추출 <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc">Supabase에서 <code>tags=cs.{태그}</code> 쿼리 → 매칭 상담 최대 200건 추출.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">3</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">키워드 AND 필터링 (선택) <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc">키워드 입력 시 공백 구분된 모든 단어가 메시지에 포함된 상담만 남김.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">4</div>
+          <div class="pipeline-step-card llm">
+            <div class="pipeline-step-title">의미 기반 클러스터링 <span class="pipeline-tag llm">LLM</span></div>
+            <div class="pipeline-step-desc">25건 샘플의 <strong>실제 메시지 내용</strong>을 LLM이 분석 → 2~5개 세부 유형으로 그룹화. 각 그룹별 chat_id 매핑.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">5</div>
+          <div class="pipeline-step-card llm">
+            <div class="pipeline-step-title">포맷 추천 (FAQ vs 아티클) <span class="pipeline-tag llm">LLM</span></div>
+            <div class="pipeline-step-desc">선택된 클러스터의 상담 특성 보고 LLM이 최적 형식 추천 + 이유 제시.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">6</div>
+          <div class="pipeline-step-card user">
+            <div class="pipeline-step-title">형식 선택 + 생성 요청 <span class="pipeline-tag user">USER</span></div>
+            <div class="pipeline-step-desc">"FAQ로 생성" 또는 "아티클로 생성" 선택. 추천을 따르거나 변경 가능.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">7</div>
+          <div class="pipeline-step-card llm">
+            <div class="pipeline-step-title">콘텐츠 생성 <span class="pipeline-tag llm">LLM</span></div>
+            <div class="pipeline-step-desc">15건 상담의 <strong>상담원(사람) 답변</strong>만 추출 → 공통 패턴/단계/문구를 Help Doc 톤으로 정리. ALF/봇 답변은 무시.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">8</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">후처리: 보일러플레이트 제거 <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc">"안녕하세요/감사합니다/○○ 코치 ○○입니다" 같은 1:1 상담 흔적 자동 제거. 정규식 패턴 25+개 기반.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">9</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">후처리: 한자·일본어 변환 <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc">LLM이 섞어 쓴 한자/가타카나를 한글로 자동 치환 (内容→내용, プラン→플랜 등).</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">10</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">자동 검증 (8가지 규칙) <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc">제목/소제목 구조 · 종결형 비율 · 글자수 · 키워드 포함 · 이모지 등 채널톡 가이드라인 자동 체크 → 결과 배너로 표시.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">11</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">DB 저장 <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc"><code>alf_drafts</code> 테이블에 <code>status='draft'</code>로 저장. 사용자에게 결과 표시.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">12</div>
+          <div class="pipeline-step-card user">
+            <div class="pipeline-step-title">검토 + ALF 적용 <span class="pipeline-tag user">USER</span></div>
+            <div class="pipeline-step-desc">사용자가 편집 → "ALF 적용" 클릭 시 <code>status='applied'</code>로 변경 → 채널톡에 직접 옮겨 등록.</div>
+          </div>
+        </div>
+      </div>
+
+      <h4>🖼 이미지 처리 파이프라인 (붙여넣기 시)</h4>
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">a</div>
+          <div class="pipeline-step-card user">
+            <div class="pipeline-step-title">이미지 붙여넣기 + 캡션 입력 <span class="pipeline-tag user">USER</span></div>
+            <div class="pipeline-step-desc">Cmd+V로 클립보드 이미지 붙여넣기. 캡션 입력 prompt (ALF가 이 텍스트를 참조).</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">b</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">Canvas 자동 스타일링 <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc">W 1500px · Corner radius 25 · Drop shadow blur 15 · 검정 1px inside 스트로크 자동 적용.</div>
+          </div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">c</div>
+          <div class="pipeline-step-card code">
+            <div class="pipeline-step-title">Supabase Storage 업로드 <span class="pipeline-tag code">CODE</span></div>
+            <div class="pipeline-step-desc"><code>alf-images</code> 버킷에 PNG 업로드 → public URL 생성 → <code>![캡션](URL)</code> 자동 삽입.</div>
+          </div>
+        </div>
+      </div>
+
+      <h4>📋 9개 API 엔드포인트</h4>
+      <div class="stack-grid">
+        <div class="stack-card">
+          <div class="stack-card-title">데이터</div>
+          <div class="stack-card-body">alf_data<br><small>읽기·쓰기 통합 (드래프트/규칙/태그/통계)</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">검색·분석</div>
+          <div class="stack-card-body">alf_search<br><small>태그·키워드로 상담 검색 + 클러스터링</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">추천</div>
+          <div class="stack-card-body">alf_format_suggest<br><small>FAQ vs 아티클 결정</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">생성</div>
+          <div class="stack-card-body">alf_generate · alf_faq_generate<br><small>아티클·FAQ 본문 생성</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">구조</div>
+          <div class="stack-card-body">alf_structure_suggest<br><small>기존 문서에 추가할지 신규 작성할지 추천</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">병합</div>
+          <div class="stack-card-body">alf_merge_suggest · alf_merge<br><small>적용 가이드 간 병합 분석·실행</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">규칙</div>
+          <div class="stack-card-body">alf_rule_suggest<br><small>적용된 가이드 기반 규칙 추천</small></div>
+        </div>
+        <div class="stack-card">
+          <div class="stack-card-title">수집</div>
+          <div class="stack-card-body">alf_collect<br><small>채널톡 → cx_full_messages 동기화</small></div>
+        </div>
+      </div>
     </div>
       </div><!-- /guide-content -->
     </div><!-- /guide-layout -->
