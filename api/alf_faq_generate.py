@@ -61,7 +61,7 @@ FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF(AI 에이전트)용 FAQ 콘텐츠
 
 def build_faq_prompt(cluster_label: str, chats: list) -> str:
     samples = []
-    for i, c in enumerate(chats[:15]):
+    for i, c in enumerate(chats[:40]):
         msgs = c.get("messages", [])
         # 고객 메시지 (질문 패턴용)
         customer_msgs = [m.get("text", "")[:200] for m in msgs if m.get("role") == "customer"][:2]

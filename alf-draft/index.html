@@ -23,6 +23,23 @@
     .brand-sub { font-size: 12px; color: rgba(255,255,255,0.6);
                  margin-top: 2px; font-weight: 400; }
 
+    .data-status { display: inline-flex; align-items: center; gap: 8px;
+                   background: rgba(255,255,255,0.08);
+                   border: 1px solid rgba(255,255,255,0.12);
+                   color: rgba(255,255,255,0.85);
+                   padding: 7px 12px; border-radius: 8px;
+                   font-size: 12px; font-weight: 500;
+                   cursor: help; transition: background 0.15s;
+                   max-width: 360px; }
+    .data-status:hover { background: rgba(255,255,255,0.15); }
+    .data-status-dot { width: 7px; height: 7px; border-radius: 50%;
+                       background: #34d399; flex-shrink: 0;
+                       box-shadow: 0 0 0 3px rgba(52,211,153,0.18); }
+    .data-status.stale .data-status-dot { background: #f59e0b;
+                       box-shadow: 0 0 0 3px rgba(245,158,11,0.18); }
+    .data-status.error .data-status-dot { background: #ef4444;
+                       box-shadow: 0 0 0 3px rgba(239,68,68,0.18); }
+
     .guide-modal { background: white; border-radius: 12px; padding: 32px;
                    max-width: 800px; width: 92%; max-height: 85vh; overflow-y: auto; }
     .guide-modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px;
@@ -332,6 +349,10 @@
   <div class="brand">
     <h1>ALF Studio</h1>
     <p class="brand-sub">CX 상담 기반 지식 초안 생성</p>
+  </div>
+  <div class="data-status" id="dataStatus" title="">
+    <span class="data-status-dot"></span>
+    <span id="dataStatusText">데이터 불러오는 중...</span>
   </div>
 </div>
 
@@ -1836,6 +1857,39 @@ function toggleTip(tipId, iconEl) {
   iconEl.classList.toggle('open', isOpen);
 }
 
+async function loadDataStatus() {
+  const wrap = document.getElementById('dataStatus');
+  const textEl = document.getElementById('dataStatusText');
+  if (!wrap || !textEl) return;
+  try {
+    const res = await authFetch(`${API}/api/alf_data?type=stats`);
+    const data = await res.json();
+    const s = data.stats || {};
+    if (!s.total) {
+      wrap.classList.add('error');
+      textEl.textContent = '데이터 없음';
+      wrap.title = '수집된 상담 데이터가 없습니다.';
+      return;
+    }
+    const oldest = s.oldest_date || '-';
+    const newest = s.newest_date || '-';
+    const last = s.last_collected_at
+      ? new Date(s.last_collected_at).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+      : '-';
+    // 마지막 업데이트가 48시간 넘으면 stale 상태
+    const hoursAgo = s.last_collected_at
+      ? (Date.now() - new Date(s.last_collected_at).getTime()) / 3.6e6
+      : 999;
+    wrap.classList.toggle('stale', hoursAgo > 48);
+    wrap.classList.remove('error');
+    textEl.textContent = `📊 ${oldest} ~ ${newest} (${s.total.toLocaleString()}건)`;
+    wrap.title = `상담 데이터 수집 현황\n• 최초: ${oldest}\n• 최신: ${newest}\n• 총: ${s.total.toLocaleString()}건\n• 마지막 수집: ${last}`;
+  } catch (e) {
+    wrap.classList.add('error');
+    textEl.textContent = '데이터 상태 조회 실패';
+  }
+}
+
 async function loadTags() {
   try {
     const res = await authFetch(`${API}/api/alf_data?type=tags`);
@@ -1867,11 +1921,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 이미지 캡쳐→붙여넣기 (Canvas 자동 처리 + Supabase Storage 업로드)
   ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer'].forEach(setupImagePaste);
 
-  // 인증 확인 → 통과 시 태그 로드, 실패 시 로그인 화면
-  _checkAuth().then(ok => { if (ok) loadTags(); });
+  // 인증 확인 → 통과 시 태그/데이터 현황 로드
+  _checkAuth().then(ok => { if (ok) { loadTags(); loadDataStatus(); } });
   // OAuth 콜백 후 자동 처리
   _supa.auth.onAuthStateChange((event) => {
-    if (event === 'SIGNED_IN') _checkAuth().then(ok => { if (ok) loadTags(); });
+    if (event === 'SIGNED_IN') _checkAuth().then(ok => { if (ok) { loadTags(); loadDataStatus(); } });
   });
 });
 </script>

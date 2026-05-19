@@ -48,8 +48,10 @@ class handler(_Base):
             self._get_rule(params)
         elif type_ == "tags":
             self._list_tags()
+        elif type_ == "stats":
+            self._collect_stats()
         else:
-            self._respond(400, {"ok": False, "error": "type 필요 (drafts|draft|rules|rule|tags)"})
+            self._respond(400, {"ok": False, "error": "type 필요 (drafts|draft|rules|rule|tags|stats)"})
 
     def do_POST(self):
         if not self._check_auth():
@@ -106,6 +108,49 @@ class handler(_Base):
         url = f"{SUPABASE_URL}/rest/v1/alf_rules?id=eq.{rid}&select=content"
         rows = supabase_get(url, SUPABASE_SERVICE_KEY)
         self._respond(200, {"ok": True, "rule": rows[0] if rows else None})
+
+    def _collect_stats(self):
+        """cx_full_messages 수집 현황 통계 (최초/최신 일자, 총 건수, 마지막 업데이트)."""
+        # 가장 오래된 + 가장 최신 + 총 건수
+        oldest_url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=date,collected_at&order=date.asc&limit=1"
+        newest_url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=date,collected_at&order=date.desc&limit=1"
+        last_updated_url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=collected_at&order=collected_at.desc&limit=1"
+        count_url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=chat_id"
+
+        oldest = supabase_get(oldest_url, SUPABASE_SERVICE_KEY)
+        newest = supabase_get(newest_url, SUPABASE_SERVICE_KEY)
+        last_updated = supabase_get(last_updated_url, SUPABASE_SERVICE_KEY)
+
+        # Count via Prefer header (HEAD-like 카운트는 별도 헤더 필요. 여기선 간단히 limit 으로 추정)
+        # PostgREST의 정확한 카운트를 위해 Prefer: count=exact 사용
+        import urllib.request as _req
+        req = _req.Request(
+            f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=chat_id&limit=1",
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "Prefer": "count=exact",
+                "Range-Unit": "items",
+                "Range": "0-0",
+            },
+        )
+        try:
+            with _req.urlopen(req, timeout=10) as resp:
+                content_range = resp.headers.get("Content-Range", "")
+                # "0-0/1234" 형식 → 1234 추출
+                total = int(content_range.split("/")[-1]) if "/" in content_range else 0
+        except Exception:
+            total = 0
+
+        self._respond(200, {
+            "ok": True,
+            "stats": {
+                "oldest_date": oldest[0].get("date") if oldest else None,
+                "newest_date": newest[0].get("date") if newest else None,
+                "last_collected_at": last_updated[0].get("collected_at") if last_updated else None,
+                "total": total,
+            },
+        })
 
     def _list_tags(self):
         """cx_full_messages에서 태그 목록 + 빈도 추출 (자동완성용)."""

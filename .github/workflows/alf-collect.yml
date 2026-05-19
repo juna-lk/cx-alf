@@ -1,0 +1,34 @@
+name: ALF 상담 데이터 수집
+
+on:
+  schedule:
+    # 매일 KST 03:00 (UTC 18:00 전날)
+    - cron: '0 18 * * *'
+  workflow_dispatch:  # 수동 실행 가능
+    inputs:
+      days:
+        description: '수집 기간(일)'
+        required: false
+        default: '7'
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 신규 상담 수집 (default 7일)
+        env:
+          CHANNELTALK_ACCESS_KEY: ${{ secrets.CHANNELTALK_ACCESS_KEY }}
+          CHANNELTALK_ACCESS_SECRET: ${{ secrets.CHANNELTALK_ACCESS_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          DAYS="${{ inputs.days || '7' }}"
+          echo "[collect] $DAYS 일치 수집 시작"
+          python3 run_collect_full.py "$DAYS"

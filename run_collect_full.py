@@ -19,7 +19,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 ENV_PATH = Path(__file__).parent / ".env"
-for line in ENV_PATH.read_text().splitlines():
+_env_lines = ENV_PATH.read_text().splitlines() if ENV_PATH.exists() else []
+for line in _env_lines:
     if "=" in line and not line.startswith("#"):
         k, _, v = line.partition("=")
         os.environ.setdefault(k.strip(), v.strip())
