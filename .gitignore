@@ -8,3 +8,6 @@ __pycache__/
 
 # Vercel
 .vercel
+
+# 핸드오프 (로컬 컨텍스트 보존용 — push 제외)
+docs/handoff/
