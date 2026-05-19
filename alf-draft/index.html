@@ -63,7 +63,28 @@
     .guide-modal code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px;
                         font-size: 13px; font-family: 'Courier New', monospace; }
 
-    .guide-section { margin-top: 28px; padding-top: 20px; border-top: 1px solid #f3f4f6; }
+    /* 가이드 탭 레이아웃: 사이드바 + 본문 */
+    .guide-layout { display: grid; grid-template-columns: 220px 1fr;
+                    gap: 32px; align-items: start; }
+    @media (max-width: 900px) {
+      .guide-layout { grid-template-columns: 1fr; }
+      .guide-toc { position: static !important; }
+    }
+    .guide-toc { position: sticky; top: 20px; max-height: calc(100vh - 40px);
+                 overflow-y: auto; padding: 8px 0; }
+    .guide-toc-group { margin-bottom: 18px; }
+    .guide-toc-group-title { font-size: 11px; font-weight: 700;
+                             color: #6b7280; text-transform: uppercase;
+                             letter-spacing: 0.5px; padding: 4px 12px; margin-bottom: 4px; }
+    .guide-toc a { display: block; padding: 7px 12px; border-radius: 6px;
+                   font-size: 13px; color: #4b5563; text-decoration: none;
+                   transition: all 0.1s; border-left: 2px solid transparent; }
+    .guide-toc a:hover { background: #f3f4f6; color: #111827; }
+    .guide-toc a.active { background: #eef2ff; color: #4f46e5;
+                          border-left-color: #4f46e5; font-weight: 600; }
+    .guide-content { min-width: 0; }
+    .guide-section { margin-top: 28px; padding-top: 20px; border-top: 1px solid #f3f4f6;
+                     scroll-margin-top: 16px; }
     .guide-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
     .guide-section h3 { font-size: 17px; font-weight: 700; color: #1a1a2e;
                         margin-bottom: 14px; }
@@ -497,7 +518,35 @@
       <a href="https://docs.channel.io/help/ko/articles/태스크-ALF-v2-2a16be8b" target="_blank" style="color:#4f46e5">태스크</a>
     </p>
 
-    <div class="guide-section">
+    <div class="guide-layout">
+      <aside class="guide-toc">
+        <div class="guide-toc-group">
+          <div class="guide-toc-group-title">시작하기</div>
+          <a href="#section-alf">🤖 ALF란?</a>
+          <a href="#section-knowledge">📚 지식 구조</a>
+        </div>
+        <div class="guide-toc-group">
+          <div class="guide-toc-group-title">콘텐츠 작성</div>
+          <a href="#section-faq">💬 FAQ 작성법</a>
+          <a href="#section-article">📄 아티클 작성법</a>
+          <a href="#section-compare">🤔 FAQ vs 아티클</a>
+          <a href="#section-image">🖼 이미지 사용</a>
+        </div>
+        <div class="guide-toc-group">
+          <div class="guide-toc-group-title">운영·관리</div>
+          <a href="#guide-rules">⚙️ 규칙</a>
+          <a href="#section-task">⚡️ 태스크</a>
+          <a href="#section-checklist">✅ 셋팅 체크리스트</a>
+        </div>
+        <div class="guide-toc-group">
+          <div class="guide-toc-group-title">베스트 프랙티스</div>
+          <a href="#section-cs">📞 CS 직접 답변</a>
+          <a href="#section-difficult">⚠️ ALF가 못 찾는 형태</a>
+        </div>
+      </aside>
+      <div class="guide-content">
+
+    <div class="guide-section" id="section-alf">
       <h3>🤖 ALF가 뭐예요?</h3>
       <p>ALF는 단순한 챗봇을 넘어 <strong>"실제 업무까지 처리하는 AI 에이전트"</strong>예요. 2025-11-28부터 v1/v2 통합되어 하나의 ALF로 운영됩니다.</p>
       <h4>핵심 동작 원리 — RAG</h4>
@@ -520,7 +569,7 @@
       </table>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-knowledge">
       <h3>📚 지식 구조 — 폴더와 항목</h3>
       <p>지식은 <strong>폴더(최대 5단계 계층)</strong> 안에 <strong>지식 항목</strong>을 담는 구조예요.</p>
       <h4>폴더 설정 항목</h4>
@@ -539,7 +588,7 @@
       </ul>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-faq">
       <h3>💬 FAQ — 단순·반복 질문에 효과적</h3>
       <h4>형식 규정 (채널톡 공식)</h4>
       <ul>
@@ -561,7 +610,7 @@
       </ul>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-article">
       <h3>📄 아티클 — 복잡·다단계 시나리오에 효과적</h3>
       <h4>아티클이란?</h4>
       <div class="quote">"아티클은 작성자가 작성한 글로 하나의 문서 단위"이며, 여러 블록을 조합해 본문을 구성해요.</div>
@@ -595,7 +644,7 @@
       </ul>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-compare">
       <h3>🤔 FAQ vs 아티클 — 판단 기준</h3>
       <table class="guide-table">
         <tr><th>상황</th><th>FAQ</th><th>아티클</th></tr>
@@ -678,7 +727,7 @@
       </ul>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-task">
       <h3>⚡️ 태스크 (Task) — 실제 업무 자동화</h3>
       <p>태스크는 단순 Q&A를 넘어 <strong>"실제 업무를 자동으로 처리"</strong>하는 기능이에요. 주문 취소, 환불, 예약 변경 등을 ALF가 직접 처리해요.</p>
       <h4>태스크 도입이 좋은 경우</h4>
@@ -690,7 +739,7 @@
       <p style="margin-top:8px;font-size:13px;color:#6b7280">→ 반복 업무는 태스크로, 정보 제공은 FAQ/아티클로 분담해서 운영하면 효율적이에요.</p>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-cs">
       <h3>📞 채널톡 고객지원 직접 답변 (실전 베스트 프랙티스)</h3>
       <p>채널톡 CS팀이 직접 안내한 ALF 운영 가이드입니다. 위 공식 문서와 함께 참고하세요.</p>
 
@@ -741,7 +790,7 @@
       </ul>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-image">
       <h3>🖼 이미지 사용 가이드</h3>
       <h4>이미지 첨부 방법</h4>
       <ol>
@@ -775,7 +824,7 @@
       </ul>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-difficult">
       <h3>⚠️ ALF가 찾기 어려운 문서 형태</h3>
       <p>채널톡 공식 안내. 아래 패턴은 피해주세요.</p>
       <table class="guide-table">
@@ -803,7 +852,7 @@
       </table>
     </div>
 
-    <div class="guide-section">
+    <div class="guide-section" id="section-checklist">
       <h3>✅ ALF 셋팅 체크리스트</h3>
       <ol style="padding-left:22px;line-height:1.9;font-size:14px">
         <li><strong>지식 구조 설계</strong>: 폴더 계층(최대 5단계) 잡고, 각 폴더에 참조 설명 명확히</li>
@@ -816,6 +865,8 @@
         <li><strong>정기 업데이트</strong>: 웹사이트 변경 시 2시간 이상 간격으로 "다시 가져오기"</li>
       </ol>
     </div>
+      </div><!-- /guide-content -->
+    </div><!-- /guide-layout -->
   </div>
 </div>
 
@@ -1931,6 +1982,36 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   // 이미지 캡쳐→붙여넣기 (Canvas 자동 처리 + Supabase Storage 업로드)
   ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer'].forEach(setupImagePaste);
+
+  // 가이드 탭 사이드바: smooth scroll + 현재 섹션 활성 표시
+  const tocLinks = document.querySelectorAll('.guide-toc a');
+  tocLinks.forEach(a => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+  // IntersectionObserver로 현재 보이는 섹션 강조
+  const sections = document.querySelectorAll('.guide-section[id]');
+  if (sections.length && 'IntersectionObserver' in window) {
+    const tocMap = {};
+    tocLinks.forEach(a => { tocMap[a.getAttribute('href').slice(1)] = a; });
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = tocMap[entry.target.id];
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Object.values(tocMap).forEach(l => l.classList.remove('active'));
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    sections.forEach(s => observer.observe(s));
+  }
 
   // 인증 확인 → 통과 시 태그/데이터 현황 로드
   _checkAuth().then(ok => { if (ok) { loadTags(); loadDataStatus(); } });
