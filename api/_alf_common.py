@@ -334,6 +334,15 @@ def make_handler_base():
                 return False
             return True
 
+        def handle_one_request(self):
+            try:
+                super().handle_one_request()
+            except Exception as e:
+                try:
+                    self._respond(500, {"ok": False, "error": str(e)})
+                except Exception:
+                    pass
+
         def do_OPTIONS(self):
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")
