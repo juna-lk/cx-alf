@@ -10,7 +10,7 @@ from _alf_common import call_anthropic, supabase_get, extract_json, make_handler
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 
 def filter_by_keyword(chats: list, keyword: str) -> list:
@@ -30,7 +30,7 @@ def filter_by_keyword(chats: list, keyword: str) -> list:
     return result
 
 
-CLUSTER_SAMPLE_LIMIT = 25
+CLUSTER_SAMPLE_LIMIT = 50
 
 
 def build_cluster_prompt(chats: list, tag: str) -> tuple[str, list[int]]:
@@ -110,7 +110,7 @@ class handler(_Base):
 
         # Claude로 클러스터링
         prompt, _sample_indices = build_cluster_prompt(filtered, tag)
-        raw = call_anthropic(prompt, max_tokens=1024, api_key=GEMINI_API_KEY)
+        raw = call_anthropic(prompt, max_tokens=1024, api_key=OPENAI_API_KEY)
 
         try:
             cluster_data = extract_json(raw)

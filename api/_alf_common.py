@@ -6,7 +6,8 @@ import time
 import urllib.error
 import urllib.request
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_MODEL = "gpt-4o-mini"
 
 # 한자/일본어 자주 혼입되는 단어 → 한글 치환 사전
 CJK_REPLACE = {
@@ -191,34 +192,38 @@ def sanitize_korean(text: str) -> str:
 
 
 def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_key: str = "") -> str:
-    """Gemini API 호출 → 텍스트 응답 반환. 429 시 최대 3회 재시도."""
+    """OpenAI API 호출 → 텍스트 응답 반환. 429 시 최대 3회 재시도."""
     if not api_key:
         raise ValueError("api_key is required")
 
-    payload_dict: dict = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": max_tokens},
-    }
+    messages = []
     if system:
-        payload_dict["systemInstruction"] = {"parts": [{"text": system}]}
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
 
-    payload = json.dumps(payload_dict).encode()
-    url = f"{GEMINI_API_URL}?key={api_key}"
+    payload = json.dumps({
+        "model": OPENAI_MODEL,
+        "max_tokens": max_tokens,
+        "messages": messages,
+    }).encode()
 
     for attempt in range(3):
         req = urllib.request.Request(
-            url,
+            OPENAI_API_URL,
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
         )
         try:
             with urllib.request.urlopen(req, timeout=55) as resp:
                 data = json.loads(resp.read())
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            text = data["choices"][0]["message"]["content"]
             return sanitize_korean(text)
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 2:
-                time.sleep(5 * (attempt + 1))  # 5s → 10s 재시도
+                time.sleep(3 * (attempt + 1))  # 3s → 6s 재시도
                 continue
             raise
 

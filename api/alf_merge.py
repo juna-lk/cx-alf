@@ -8,7 +8,7 @@ from _alf_common import call_anthropic, supabase_get, supabase_post, supabase_de
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 MERGE_WRITE_SYSTEM = """당신은 채널톡 ALF용 지식 아티클을 작성하는 전문가입니다.
 여러 문서를 통합할 때 원칙:
@@ -62,7 +62,7 @@ class handler(_Base):
 
         merged_content = call_anthropic(
             prompt, system=MERGE_WRITE_SYSTEM,
-            max_tokens=2048, api_key=GEMINI_API_KEY,
+            max_tokens=2048, api_key=OPENAI_API_KEY,
         )
         merged_content = strip_article_boilerplate(merged_content)
 

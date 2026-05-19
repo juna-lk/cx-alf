@@ -8,7 +8,7 @@ from _alf_common import call_anthropic, supabase_get, supabase_post, make_handle
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF(AI 에이전트)용 FAQ 콘텐츠 작성 전문가입니다.
 
@@ -65,7 +65,7 @@ FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF(AI 에이전트)용 FAQ 콘텐츠
 
 def build_faq_prompt(cluster_label: str, chats: list) -> str:
     samples = []
-    for i, c in enumerate(chats[:15]):
+    for i, c in enumerate(chats[:50]):
         msgs = c.get("messages", [])
         # 고객 메시지 (질문 패턴용)
         customer_msgs = [m.get("text", "")[:200] for m in msgs if m.get("role") == "customer"][:2]
@@ -74,7 +74,7 @@ def build_faq_prompt(cluster_label: str, chats: list) -> str:
         if not customer_msgs or not agent_msgs:
             continue
         # 상담원 답변은 더 많이, 더 길게 포함 (답변 핵심 자료)
-        agent_full = "\n".join(f"  → {a[:300]}" for a in agent_msgs[:2])
+        agent_full = "\n".join(f"  → {a[:300]}" for a in agent_msgs[:3])
         samples.append(
             f"[상담 {i+1}]\n"
             f"고객: {' / '.join(customer_msgs)}\n"
@@ -134,7 +134,7 @@ class handler(_Base):
         prompt = build_faq_prompt(cluster_label, chats)
         raw = call_anthropic(
             prompt, system=FAQ_SYSTEM_PROMPT,
-            max_tokens=1500, api_key=GEMINI_API_KEY,
+            max_tokens=1500, api_key=OPENAI_API_KEY,
         )
 
         try:

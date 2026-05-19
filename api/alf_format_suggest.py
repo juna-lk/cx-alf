@@ -8,7 +8,7 @@ from _alf_common import call_anthropic, supabase_get, make_handler_base, extract
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 FORMAT_SYSTEM = """당신은 채널톡 ALF 지식 콘텐츠 전략가입니다.
 상담 데이터를 보고 FAQ가 효과적인지, 아티클이 효과적인지 판단합니다.
@@ -22,7 +22,7 @@ FORMAT_SYSTEM = """당신은 채널톡 ALF 지식 콘텐츠 전략가입니다.
 
 def build_format_prompt(cluster_label: str, chats: list) -> str:
     samples = []
-    for i, c in enumerate(chats[:15]):
+    for i, c in enumerate(chats[:50]):
         msgs = c.get("messages", [])
         customer_msgs = [m.get("text", "") for m in msgs if m.get("role") == "customer"][:2]
         agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"][:2]
@@ -65,7 +65,7 @@ class handler(_Base):
         chats = supabase_get(url, SUPABASE_SERVICE_KEY)
 
         prompt = build_format_prompt(cluster_label, chats)
-        raw = call_anthropic(prompt, system=FORMAT_SYSTEM, max_tokens=512, api_key=GEMINI_API_KEY)
+        raw = call_anthropic(prompt, system=FORMAT_SYSTEM, max_tokens=512, api_key=OPENAI_API_KEY)
 
         try:
             result = extract_json(raw)
