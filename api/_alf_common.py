@@ -118,21 +118,23 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
             warnings.append({"rule": "제목", "level": "error",
                              "message": "# 제목이 없어요. ALF는 제목을 우선 검색해요"})
         sub_count = len(re.findall(r"^##\s", fixed, re.MULTILINE))
-        if sub_count == 0:
+        if sub_count == 0 and len(fixed) > 300:
             warnings.append({"rule": "소제목", "level": "warning",
                              "message": "## 소제목이 없어요. 구조화하면 ALF 매칭 정확도가 올라가요"})
 
-    # 3) 잔존 보일러플레이트
-    boilerplate_keywords = [
-        ("안녕하세요", "시작 인사"),
-        ("감사합니다", "마무리 인사"),
-        ("드리겠습니다.", "안내 도입"),
-        ("마무리할게요", "상담 종료 멘트"),
+    # 3) 잔존 보일러플레이트 (줄 단위로만 매칭 — 정상 안내문 오탐 방지)
+    boilerplate_patterns = [
+        (r"(^|\n)[^\n]*안녕하세요[^\n]*", "시작 인사"),
+        (r"(^|\n)[^\n]*감사합니다[^\n]*", "마무리 인사"),
+        (r"(^|\n)[^\n]{0,20}(안내|소개|설명)해?\s*드리겠습니다[^\n]*", "안내 도입"),
+        (r"(^|\n)[^\n]*마무리할게요[^\n]*", "상담 종료 멘트"),
     ]
-    for kw, label in boilerplate_keywords:
-        if kw in fixed:
+    for pattern, label in boilerplate_patterns:
+        if re.search(pattern, fixed):
+            m = re.search(pattern, fixed)
+            snippet = m.group(0).strip()[:30] if m else ""
             warnings.append({"rule": label, "level": "warning",
-                             "message": f'금지 표현 "{kw}" 감지 — Help Doc 톤 위반'})
+                             "message": f'금지 표현 감지 — Help Doc 톤 위반: "{snippet}…"'})
 
     # 4) 친근한 종결형 비율 (헤딩·불릿·번호목록은 제외)
     sentences = [
