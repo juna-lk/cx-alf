@@ -480,7 +480,12 @@
     <div class="input-row">
       <div class="field">
         <label>태그</label>
-        <input type="text" id="inputTag" placeholder="예: 플랜 환불" list="tagList" autocomplete="off" />
+        <div style="position:relative;display:flex;align-items:center;gap:4px">
+          <input type="text" id="inputTag" placeholder="예: 플랜 환불" list="tagList" autocomplete="off"
+            onfocus="this.select()" style="flex:1" />
+          <button type="button" id="btnClearTag" onclick="clearTagAndReset()"
+            style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#9ca3af;line-height:1" title="태그 초기화">×</button>
+        </div>
         <datalist id="tagList"></datalist>
       </div>
       <div class="field">
@@ -1632,6 +1637,19 @@ function setLoading(show, text = '분석 중...') {
   if (show) document.getElementById('loadingText').textContent = text;
 }
 
+function clearTagAndReset() {
+  const input = document.getElementById('inputTag');
+  input.value = '';
+  input.focus();
+  document.getElementById('btnClearTag').style.display = 'none';
+  document.getElementById('clusterCard').style.display = 'none';
+  document.getElementById('resultGrid').classList.add('hidden');
+  document.getElementById('faqCard').classList.add('hidden');
+  document.getElementById('bannerSuggest').style.display = 'none';
+  document.getElementById('bannerFormat').style.display = 'none';
+  document.getElementById('verificationBanner').style.display = 'none';
+}
+
 async function analyze() {
   const tag = document.getElementById('inputTag').value.trim();
   const keyword = document.getElementById('inputKeyword').value.trim();
@@ -2400,6 +2418,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { rootMargin: '-20% 0px -70% 0px' });
     sections.forEach(s => observer.observe(s));
   }
+
+  // 태그 입력 시 × 버튼 표시/숨김
+  document.getElementById('inputTag').addEventListener('input', function() {
+    document.getElementById('btnClearTag').style.display = this.value ? 'block' : 'none';
+  });
 
   // 인증 확인 → 통과 시 태그/데이터 현황 로드
   _checkAuth().then(ok => { if (ok) { loadTags(); loadDataStatus(); } });
