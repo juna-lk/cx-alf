@@ -22,7 +22,7 @@ FORMAT_SYSTEM = """당신은 채널톡 ALF 지식 콘텐츠 전략가입니다.
 
 def build_format_prompt(cluster_label: str, chats: list) -> str:
     samples = []
-    for i, c in enumerate(chats[:40]):
+    for i, c in enumerate(chats[:15]):
         msgs = c.get("messages", [])
         customer_msgs = [m.get("text", "") for m in msgs if m.get("role") == "customer"][:2]
         agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"][:2]

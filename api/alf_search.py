@@ -30,7 +30,7 @@ def filter_by_keyword(chats: list, keyword: str) -> list:
     return result
 
 
-CLUSTER_SAMPLE_LIMIT = 40
+CLUSTER_SAMPLE_LIMIT = 25
 
 
 def build_cluster_prompt(chats: list, tag: str) -> tuple[str, list[int]]:
