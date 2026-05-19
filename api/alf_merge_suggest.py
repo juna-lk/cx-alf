@@ -8,7 +8,7 @@ from _alf_common import call_anthropic, supabase_get, make_handler_base, extract
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 MERGE_SYSTEM = """당신은 ALF 지식 문서 구조 최적화 전문가입니다.
 원칙: "1문서 = 고객의 1가지 완결된 시나리오"
@@ -59,7 +59,7 @@ class handler(_Base):
   ]
 }}"""
 
-        raw = call_anthropic(prompt, system=MERGE_SYSTEM, max_tokens=1024, api_key=GROQ_API_KEY)
+        raw = call_anthropic(prompt, system=MERGE_SYSTEM, max_tokens=1024, api_key=GEMINI_API_KEY)
 
         try:
             result = extract_json(raw)

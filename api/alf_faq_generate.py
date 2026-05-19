@@ -8,7 +8,7 @@ from _alf_common import call_anthropic, supabase_get, supabase_post, make_handle
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF(AI 에이전트)용 FAQ 콘텐츠 작성 전문가입니다.
 
@@ -134,7 +134,7 @@ class handler(_Base):
         prompt = build_faq_prompt(cluster_label, chats)
         raw = call_anthropic(
             prompt, system=FAQ_SYSTEM_PROMPT,
-            max_tokens=1500, api_key=GROQ_API_KEY,
+            max_tokens=1500, api_key=GEMINI_API_KEY,
         )
 
         try:

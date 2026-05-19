@@ -17,7 +17,7 @@ from _alf_common import call_anthropic, supabase_get, supabase_post, make_handle
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 RULE_SYSTEM = """당신은 채널톡 ALF 규칙(Rule) 작성 전문가입니다.
 채널톡 공식 가이드(ALF 문제 해결, 규칙 작성법)를 기반으로 규칙을 추천합니다.
@@ -116,7 +116,7 @@ class handler(_Base):
             return
 
         prompt = build_suggest_prompt(drafts)
-        raw = call_anthropic(prompt, system=RULE_SYSTEM, max_tokens=2048, api_key=GROQ_API_KEY)
+        raw = call_anthropic(prompt, system=RULE_SYSTEM, max_tokens=2048, api_key=GEMINI_API_KEY)
 
         try:
             result = extract_json(raw)

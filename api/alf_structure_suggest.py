@@ -8,7 +8,7 @@ from _alf_common import call_anthropic, supabase_get, make_handler_base, extract
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 
 def build_suggest_prompt(cluster_label: str, tag: str, existing_drafts: list) -> str:
@@ -58,7 +58,7 @@ class handler(_Base):
         existing = supabase_get(url, SUPABASE_SERVICE_KEY)
 
         prompt = build_suggest_prompt(cluster_label, tag, existing)
-        raw = call_anthropic(prompt, max_tokens=512, api_key=GROQ_API_KEY)
+        raw = call_anthropic(prompt, max_tokens=512, api_key=GEMINI_API_KEY)
 
         try:
             result = extract_json(raw)

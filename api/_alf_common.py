@@ -4,8 +4,7 @@ import os
 import re
 import urllib.request
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 # 한자/일본어 자주 혼입되는 단어 → 한글 치환 사전
 CJK_REPLACE = {
@@ -190,33 +189,29 @@ def sanitize_korean(text: str) -> str:
 
 
 def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_key: str = "") -> str:
-    """Groq API 호출 → 텍스트 응답 반환"""
+    """Gemini API 호출 → 텍스트 응답 반환"""
     if not api_key:
         raise ValueError("api_key is required")
 
-    messages = []
+    payload_dict: dict = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"maxOutputTokens": max_tokens},
+    }
     if system:
-        messages.append({"role": "system", "content": system})
-    messages.append({"role": "user", "content": prompt})
+        payload_dict["systemInstruction"] = {"parts": [{"text": system}]}
 
-    payload = json.dumps({
-        "model": GROQ_MODEL,
-        "max_tokens": max_tokens,
-        "messages": messages,
-    }).encode()
+    payload = json.dumps(payload_dict).encode()
+    url = f"{GEMINI_API_URL}?key={api_key}"
 
     req = urllib.request.Request(
-        GROQ_API_URL,
+        url,
         data=payload,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "cx-alf/1.0 (+https://github.com/juna-lk/cx-alf)",
-        },
+        headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=55) as resp:
         data = json.loads(resp.read())
-    return sanitize_korean(data["choices"][0]["message"]["content"])
+    text = data["candidates"][0]["content"]["parts"][0]["text"]
+    return sanitize_korean(text)
 
 
 def get_supabase_headers(service_key: str) -> dict:

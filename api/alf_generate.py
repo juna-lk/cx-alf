@@ -8,7 +8,7 @@ from _alf_common import call_anthropic, supabase_get, supabase_post, make_handle
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 ALF_SYSTEM_PROMPT = """당신은 채널톡 ALF(AI 에이전트)용 지식 아티클을 작성하는 전문가입니다.
 ALF는 RAG로 등록된 지식을 참조해 고객 응대하므로, 잘 정리된 문서일수록 응답 품질이 올라갑니다.
@@ -134,7 +134,7 @@ class handler(_Base):
         prompt = build_generate_prompt(cluster_label, chats)
         draft_content = call_anthropic(
             prompt, system=ALF_SYSTEM_PROMPT,
-            max_tokens=2048, api_key=GROQ_API_KEY,
+            max_tokens=2048, api_key=GEMINI_API_KEY,
         )
         # 인사·자기소개·마무리 인사 제거 + 자동 검증
         draft_content = strip_article_boilerplate(draft_content)
