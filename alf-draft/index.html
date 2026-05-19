@@ -193,6 +193,23 @@
 
     .input-card { background: white; border-radius: 10px; padding: 24px;
                   box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+
+    .welcome-card { background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+                    border: 1px solid #ddd6fe; border-radius: 12px;
+                    padding: 22px 26px; margin-bottom: 20px; }
+    .welcome-title { font-size: 15px; font-weight: 600; color: #4c1d95;
+                     margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+    .welcome-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .welcome-step { background: rgba(255,255,255,0.7); border-radius: 10px;
+                    padding: 14px 16px; }
+    .welcome-step-num { font-size: 20px; font-weight: 700; color: #7c3aed;
+                        margin-bottom: 4px; line-height: 1; }
+    .welcome-step-title { font-size: 14px; font-weight: 600; color: #1f2937;
+                          margin-bottom: 4px; }
+    .welcome-step-desc { font-size: 12.5px; color: #6b7280; line-height: 1.5; }
+    @media (max-width: 700px) {
+      .welcome-steps { grid-template-columns: 1fr; }
+    }
     .input-row { display: flex; gap: 12px; align-items: flex-end; }
     .field { flex: 1; }
     .field label { display: block; font-size: 13px; font-weight: 500;
@@ -497,6 +514,27 @@
         <input type="text" id="inputKeyword" placeholder="예: 무료 변경" />
       </div>
       <button class="btn btn-primary" id="btnAnalyze" onclick="analyze()">분석하기</button>
+    </div>
+  </div>
+
+  <div class="welcome-card" id="welcomeCard">
+    <div class="welcome-title">🚀 ALF 지식 만들기 — 3단계로 끝</div>
+    <div class="welcome-steps">
+      <div class="welcome-step">
+        <div class="welcome-step-num">①</div>
+        <div class="welcome-step-title">태그 입력</div>
+        <div class="welcome-step-desc">CX 상담 태그를 검색하고, 필요하면 키워드로 더 좁혀요.</div>
+      </div>
+      <div class="welcome-step">
+        <div class="welcome-step-num">②</div>
+        <div class="welcome-step-title">AI 분석</div>
+        <div class="welcome-step-desc">최신 상담 50건을 의미별로 2~5개 세부 유형으로 자동 분류해요.</div>
+      </div>
+      <div class="welcome-step">
+        <div class="welcome-step-num">③</div>
+        <div class="welcome-step-title">초안 생성</div>
+        <div class="welcome-step-desc">아티클 또는 FAQ로, 채널톡 Help Doc 톤 초안이 자동으로 만들어져요.</div>
+      </div>
     </div>
   </div>
 
@@ -1105,7 +1143,7 @@
           </div>
           <div class="pipeline-step-card code">
             <div class="step-title">DB 후보 추출 <span class="pipeline-tag code">CODE</span></div>
-            <div class="step-desc">Supabase <code>tags=cs.{태그}</code> 쿼리, 최대 200건</div>
+            <div class="step-desc">Supabase <code>tags=cs.{태그}</code> 쿼리, 최신순 최대 200건</div>
           </div>
           <div class="pipeline-step-card code">
             <div class="step-title">키워드 AND 필터 <span class="pipeline-tag code">CODE</span></div>
@@ -1690,6 +1728,7 @@ async function analyze() {
   }
 
   document.getElementById('btnAnalyze').disabled = true;
+  document.getElementById('welcomeCard').style.display = 'none';
   document.getElementById('clusterCard').style.display = 'none';
   document.getElementById('resultGrid').classList.add('hidden');
   document.getElementById('faqCard').classList.add('hidden');

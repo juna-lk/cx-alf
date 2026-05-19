@@ -99,7 +99,7 @@ class handler(_Base):
         encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
         url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
                f"?select=chat_id,messages,tags,date,assignee_name,csat_score"
-               f"&tags=cs.{encoded_tag}&limit=200")
+               f"&tags=cs.{encoded_tag}&order=date.desc&limit=200")
         chats = supabase_get(url, SUPABASE_SERVICE_KEY)
 
         # 키워드 필터링
