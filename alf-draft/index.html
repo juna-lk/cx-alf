@@ -228,7 +228,11 @@
                               margin-bottom: 3px; }
     .verification-banner li.error { color: #991b1b; }
     .verification-banner li .rule { font-weight: 700; }
-    .banner.loading { background: #faf5ff; border: 1px solid #e9d5ff; color: #6d28d9; }
+    .banner.loading { background: #faf5ff; border: 1px solid #e9d5ff; color: #6d28d9; flex-wrap:wrap; gap:6px; }
+    .step-dot { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;
+                background: #ede9fe; color: #7c3aed; transition: all 0.3s; }
+    .step-dot.active { background: #7c3aed; color: white; }
+    .step-dot.done { background: #d1fae5; color: #065f46; }
 
     .faq-card { background: white; border-radius: 10px; padding: 24px;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 20px; }
@@ -500,7 +504,16 @@
   <div class="banner format" id="bannerFormat"></div>
   <div class="verification-banner" id="verificationBanner" style="display:none"></div>
   <div class="banner loading hidden" id="bannerLoading">
-    <span class="spinner"></span>&nbsp; <span id="loadingText">분석 중...</span>
+    <div id="progressSteps" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="step-dot" id="step1">1 상담 수집</span>
+      <span style="color:#6b7280">›</span>
+      <span class="step-dot" id="step2">2 유형 분류</span>
+      <span style="color:#6b7280">›</span>
+      <span class="step-dot" id="step3">3 구조 분석</span>
+      <span style="color:#6b7280">›</span>
+      <span class="step-dot" id="step4">4 포맷 추천</span>
+    </div>
+    <span class="spinner" style="margin-left:8px"></span>&nbsp;<span id="loadingText">분석 중...</span>
   </div>
 
   <div class="cluster-card" id="clusterCard">
@@ -1637,6 +1650,14 @@ function setLoading(show, text = '분석 중...') {
   if (show) document.getElementById('loadingText').textContent = text;
 }
 
+function setStep(active) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('step' + i);
+    if (!el) continue;
+    el.className = 'step-dot' + (i < active ? ' done' : i === active ? ' active' : '');
+  }
+}
+
 function clearTagAndReset() {
   const input = document.getElementById('inputTag');
   input.value = '';
@@ -1675,7 +1696,7 @@ async function analyze() {
   document.getElementById('bannerSuggest').style.display = 'none';
   document.getElementById('bannerFormat').style.display = 'none';
   document.getElementById('verificationBanner').style.display = 'none';
-  setLoading(true, '관련 상담 수집 중...');
+  setStep(1); setLoading(true, '상담 수집 및 유형 분류 중... (1/4)');
 
   try {
     const res = await authFetch(`${API}/api/alf_search`, {
@@ -1685,6 +1706,8 @@ async function analyze() {
     });
     const data = await res.json();
     if (!data.ok || data.total === 0) { alert('관련 상담을 찾을 수 없습니다.'); return; }
+
+    setStep(2); document.getElementById('loadingText').textContent = '유형 분류 완료 (2/4)';
 
     state.clusters = data.clusters;
     document.getElementById('clusterTitle').textContent =
@@ -1702,8 +1725,11 @@ async function analyze() {
     document.getElementById('clusterCard').style.display = 'block';
 
     if (data.clusters.length > 0) {
-      suggestStructure(tag, data.clusters[0].label);
-      suggestFormat(data.clusters[0].label, data.clusters[0].chat_ids || []);
+      setStep(3); document.getElementById('loadingText').textContent = '구조 분석 중... (3/4)';
+      await suggestStructure(tag, data.clusters[0].label);
+
+      setStep(4); document.getElementById('loadingText').textContent = '포맷 추천 중... (4/4)';
+      await suggestFormat(data.clusters[0].label, data.clusters[0].chat_ids || []);
     }
   } catch(e) {
     alert('오류: ' + e.message);
