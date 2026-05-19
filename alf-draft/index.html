@@ -710,6 +710,34 @@
     </div>
 
     <div class="guide-section">
+      <h3>⚠️ ALF가 찾기 어려운 문서 형태</h3>
+      <p>채널톡 공식 안내. 아래 패턴은 피해주세요.</p>
+      <table class="guide-table">
+        <tr><th>문제 상황</th><th>왜 못 찾는지</th></tr>
+        <tr>
+          <td>제목/소제목 없이 본문에만 키워드</td>
+          <td>ALF는 <strong>제목·소제목 우선 검색</strong>. 본문만 있으면 매칭 실패</td>
+        </tr>
+        <tr>
+          <td>비슷한 표현·중복 내용이 여러 문서에 산재</td>
+          <td>ALF가 <strong>엉뚱한 문서를 참조</strong>할 수 있음</td>
+        </tr>
+        <tr>
+          <td>수정 중(미퍼블리시) 상태 아티클</td>
+          <td>퍼블리시 전 문서는 <strong>참조 안 됨</strong></td>
+        </tr>
+        <tr>
+          <td>이미지에만 정보가 담긴 경우</td>
+          <td>ALF는 이미지가 아닌 <strong>캡션을 참조</strong>. 캡션 상세 작성 필수</td>
+        </tr>
+        <tr>
+          <td>폴더 참조 설명과 안 맞는 내용</td>
+          <td>ALF가 폴더 자체에 진입하지 않아 <strong>내부 아티클 탐색 안 함</strong></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="guide-section">
       <h3>✅ ALF 셋팅 체크리스트</h3>
       <ol style="padding-left:22px;line-height:1.9;font-size:14px">
         <li><strong>지식 구조 설계</strong>: 폴더 계층(최대 5단계) 잡고, 각 폴더에 참조 설명 명확히</li>
