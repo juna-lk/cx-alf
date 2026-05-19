@@ -710,6 +710,40 @@
     </div>
 
     <div class="guide-section">
+      <h3>🖼 이미지 사용 가이드</h3>
+      <h4>이미지 첨부 방법</h4>
+      <ol>
+        <li>캡쳐 툴로 화면 캡쳐 (Cmd+Shift+4 등)</li>
+        <li>아티클/FAQ 본문 편집창에서 <code>Cmd+V</code> 또는 <code>Ctrl+V</code>로 붙여넣기</li>
+        <li>캡션 입력 (ALF가 이 텍스트를 참조해서 답변)</li>
+        <li>자동 처리·업로드 후 마크다운으로 삽입됨</li>
+      </ol>
+      <h4>자동 적용되는 처리 (시스템이 적용)</h4>
+      <ul>
+        <li><strong>가로 폭</strong>: 1500px로 통일 (높이는 비율 유지)</li>
+        <li><strong>모서리</strong>: Corner radius 25</li>
+        <li><strong>그림자</strong>: Drop shadow blur 15</li>
+        <li><strong>외곽선</strong>: 검정 1px inside 스트로크</li>
+      </ul>
+      <h4>강조 영역은 Figma에서 직접 작업</h4>
+      <p>스크린샷에 특정 영역을 강조하고 싶다면 캡쳐 후 Figma 등에서 빨간 박스를 그려주세요.</p>
+      <ul>
+        <li>Rectangle</li>
+        <li>Corner radius <strong>5</strong></li>
+        <li>Stroke <code>#FC1150</code> 100%</li>
+      </ul>
+      <p>그 다음 다시 캡쳐해서 우리 에디터에 붙여넣으면 외곽 효과가 자동 적용돼요.</p>
+      <h4>캡션 작성 팁</h4>
+      <div class="quote">"ALF는 이미지가 아닌 캡션(설명)을 참조합니다. 캡션을 상세히 작성해야 정확도가 올라가요." (채널톡 공식)</div>
+      <ul>
+        <li>❌ "스크린샷"</li>
+        <li>❌ "이미지"</li>
+        <li>✅ "환불 신청 화면: 마이페이지 결제 내역에서 각 결제 건 우측의 [환불 신청] 버튼"</li>
+        <li>✅ "수강생 목록 다운로드 위치: 클래스 설정 페이지 우측 상단 [다운로드] 아이콘"</li>
+      </ul>
+    </div>
+
+    <div class="guide-section">
       <h3>⚠️ ALF가 찾기 어려운 문서 형태</h3>
       <p>채널톡 공식 안내. 아래 패턴은 피해주세요.</p>
       <table class="guide-table">
@@ -976,6 +1010,132 @@ async function _checkAuth() {
   if (!loginTime) localStorage.setItem('alf_login_time', String(Date.now()));
   hideLogin();
   return true;
+}
+
+// ───── 이미지 자동 처리 (Canvas) ─────
+// 규칙: W 1500 / 라운드 25 / 그림자 blur 15 / 검정 1px inside 스트로크
+async function processImage(file) {
+  const TARGET_W = 1500;
+  const RADIUS = 25;
+  const STROKE_W = 1;
+  const STROKE_COLOR = '#000000';
+  const SHADOW_BLUR = 15;
+  const SHADOW_OFFSET_Y = 4;
+  const SHADOW_COLOR = 'rgba(0, 0, 0, 0.18)';
+  const PADDING = SHADOW_BLUR + SHADOW_OFFSET_Y + 6;
+
+  const objUrl = URL.createObjectURL(file);
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error('이미지 로드 실패'));
+    i.src = objUrl;
+  });
+  try { URL.revokeObjectURL(objUrl); } catch (_) {}
+
+  const scale = TARGET_W / img.naturalWidth;
+  const w = Math.round(img.naturalWidth * scale);
+  const h = Math.round(img.naturalHeight * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w + PADDING * 2;
+  canvas.height = h + PADDING * 2;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(PADDING, PADDING);
+
+  // 그림자: 라운드 사각형 그릴 때만 활성
+  ctx.shadowColor = SHADOW_COLOR;
+  ctx.shadowBlur = SHADOW_BLUR;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = SHADOW_OFFSET_Y;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, w, h, RADIUS);
+  ctx.closePath();
+  ctx.fill();
+
+  // 그림자 비활성 후 이미지 클리핑
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(0, 0, w, h, RADIUS);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(img, 0, 0, w, h);
+  ctx.restore();
+
+  // 내부 스트로크 1px
+  ctx.lineWidth = STROKE_W;
+  ctx.strokeStyle = STROKE_COLOR;
+  ctx.beginPath();
+  ctx.roundRect(STROKE_W / 2, STROKE_W / 2, w - STROKE_W, h - STROKE_W, Math.max(0, RADIUS - STROKE_W / 2));
+  ctx.closePath();
+  ctx.stroke();
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('이미지 변환 실패')), 'image/png');
+  });
+}
+
+async function uploadImageToStorage(blob) {
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+  const { error } = await _supa.storage
+    .from('alf-images')
+    .upload(filename, blob, { contentType: 'image/png', upsert: false });
+  if (error) throw error;
+  const { data: { publicUrl } } = _supa.storage
+    .from('alf-images')
+    .getPublicUrl(filename);
+  return publicUrl;
+}
+
+function insertAtCursor(ta, text) {
+  const start = ta.selectionStart ?? ta.value.length;
+  const end = ta.selectionEnd ?? ta.value.length;
+  ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+  const pos = start + text.length;
+  ta.selectionStart = ta.selectionEnd = pos;
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function setupImagePaste(textareaId) {
+  const ta = document.getElementById(textareaId);
+  if (!ta || ta.dataset.pasteReady) return;
+  ta.dataset.pasteReady = '1';
+  ta.addEventListener('paste', async (e) => {
+    const items = e.clipboardData?.items || [];
+    let imageItem = null;
+    for (const item of items) {
+      if (item.type?.startsWith('image/')) { imageItem = item; break; }
+    }
+    if (!imageItem) return;
+
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (!file) return;
+
+    const caption = (prompt('이미지 캡션 (ALF가 이 텍스트를 참조해서 답변해요):') || '').trim();
+    if (!caption) {
+      alert('캡션을 입력해주세요. ALF는 이미지가 아닌 캡션 텍스트를 읽어서 답변에 활용합니다.');
+      return;
+    }
+
+    const placeholder = `\n\n![${caption}](업로드 중...)\n\n`;
+    insertAtCursor(ta, placeholder);
+
+    try {
+      const processed = await processImage(file);
+      const url = await uploadImageToStorage(processed);
+      ta.value = ta.value.replace(`![${caption}](업로드 중...)`, `![${caption}](${url})`);
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (err) {
+      console.error('이미지 업로드 실패', err);
+      alert('이미지 업로드 실패: ' + (err.message || err));
+      ta.value = ta.value.replace(placeholder, '');
+    }
+  });
 }
 
 // XSS 방어: HTML 특수문자 이스케이프
@@ -1704,6 +1864,9 @@ document.addEventListener('DOMContentLoaded', () => {
       editFaqCount.textContent = editFaqAnswer.value.length;
     });
   }
+  // 이미지 캡쳐→붙여넣기 (Canvas 자동 처리 + Supabase Storage 업로드)
+  ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer'].forEach(setupImagePaste);
+
   // 인증 확인 → 통과 시 태그 로드, 실패 시 로그인 화면
   _checkAuth().then(ok => { if (ok) loadTags(); });
   // OAuth 콜백 후 자동 처리
