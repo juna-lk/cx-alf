@@ -2,6 +2,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
+import urllib.error
 import urllib.request
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
@@ -189,7 +191,7 @@ def sanitize_korean(text: str) -> str:
 
 
 def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_key: str = "") -> str:
-    """Gemini API 호출 → 텍스트 응답 반환"""
+    """Gemini API 호출 → 텍스트 응답 반환. 429 시 최대 3회 재시도."""
     if not api_key:
         raise ValueError("api_key is required")
 
@@ -203,15 +205,22 @@ def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_ke
     payload = json.dumps(payload_dict).encode()
     url = f"{GEMINI_API_URL}?key={api_key}"
 
-    req = urllib.request.Request(
-        url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=55) as resp:
-        data = json.loads(resp.read())
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    return sanitize_korean(text)
+    for attempt in range(3):
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=55) as resp:
+                data = json.loads(resp.read())
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            return sanitize_korean(text)
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 2:
+                time.sleep(5 * (attempt + 1))  # 5s → 10s 재시도
+                continue
+            raise
 
 
 def get_supabase_headers(service_key: str) -> dict:
