@@ -63,9 +63,10 @@
     .guide-modal code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px;
                         font-size: 13px; font-family: 'Courier New', monospace; }
 
-    /* 가이드 탭 레이아웃: 사이드바 + 본문 */
-    .guide-layout { display: grid; grid-template-columns: 220px 1fr;
-                    gap: 32px; align-items: start; }
+    /* 가이드 탭은 더 넓게 (사이드바 + 본문 충분히) */
+    #tab-guide.page { max-width: 1500px; }
+    .guide-layout { display: grid; grid-template-columns: 240px 1fr;
+                    gap: 40px; align-items: start; }
     @media (max-width: 900px) {
       .guide-layout { grid-template-columns: 1fr; }
       .guide-toc { position: static !important; }
