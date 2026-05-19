@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -137,7 +137,7 @@ class handler(_Base):
             faq = extract_json(raw)
             question = faq.get("question", cluster_label)
             variations = faq.get("variations", [])
-            answer = faq.get("answer", "")
+            answer = strip_article_boilerplate(faq.get("answer", ""))
         except Exception as e:
             print(f"[alf_faq_generate] 파싱 실패: {e}; raw[:200]={raw[:200]!r}")
             self._respond(500, {"ok": False, "error": "FAQ 생성에 실패했어요. 잠시 후 다시 시도해주세요."})

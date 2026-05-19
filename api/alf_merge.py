@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, supabase_delete, make_handler_base
+from _alf_common import call_anthropic, supabase_get, supabase_post, supabase_delete, make_handler_base, strip_article_boilerplate
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -64,6 +64,7 @@ class handler(_Base):
             prompt, system=MERGE_WRITE_SYSTEM,
             max_tokens=2048, api_key=GROQ_API_KEY,
         )
+        merged_content = strip_article_boilerplate(merged_content)
 
         # 제목 추출
         merged_title = titles

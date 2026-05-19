@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -132,6 +132,8 @@ class handler(_Base):
             prompt, system=ALF_SYSTEM_PROMPT,
             max_tokens=2048, api_key=GROQ_API_KEY,
         )
+        # 인사·자기소개·마무리 인사 제거 (LLM이 프롬프트 무시하고 넣는 경우 대비)
+        draft_content = strip_article_boilerplate(draft_content)
 
         # 제목 추출 (첫 번째 # 줄)
         title = cluster_label

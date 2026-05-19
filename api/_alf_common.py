@@ -40,6 +40,53 @@ CJK_REPLACE = {
 }
 
 
+# 아티클/FAQ에 들어가면 안 되는 보일러플레이트 패턴 (line 단위 매칭)
+_BOILERPLATE_PATTERNS = [
+    # ──── 시작 인사 ────
+    re.compile(r'^안녕하세요[,\.\s].*'),
+    re.compile(r'^반갑습니다[,\.\s].*'),
+    re.compile(r'^라이브클래스를?\s*이용.*'),
+    re.compile(r'^.{0,40}안내를?\s*드리겠습니다\.?\s*$'),
+    re.compile(r'^.{0,40}안내해?\s*드리겠습니다\.?\s*$'),
+    re.compile(r'^.{0,40}안내드립니다\.?\s*$'),
+    re.compile(r'^.{0,40}소개해?\s*드리겠습니다\.?\s*$'),
+    re.compile(r'^.{0,40}말씀드리겠습니다\.?\s*$'),
+    # ──── 마무리 인사 ────
+    re.compile(r'^.*감사합니다[\.\!\s🙏]*$'),
+    re.compile(r'^.*고맙습니다[\.\!\s🙏]*$'),
+    re.compile(r'^.*노력하겠습니다.*$'),
+    re.compile(r'^.*마무리할게요.*$'),
+    re.compile(r'^.*마무리하겠습니다.*$'),
+    re.compile(r'^.*도움이?\s*되었?기?를?\s*바랍니다.*$'),
+    re.compile(r'^.*궁금하신\s*점.*편하게\s*메시지\s*주세요.*$'),
+    re.compile(r'^.*언제든.*편하게\s*문의.*$'),
+    # ──── 자기소개 ────
+    re.compile(r'^.{0,60}코치\s+[가-힣]{2,4}(\(.+\))?\s*입니다.*'),
+    re.compile(r'^.{0,60}매니저\s+[가-힣]{2,4}(\(.+\))?\s*입니다.*'),
+    re.compile(r'^.{0,60}담당자\s+[가-힣]{2,4}(\(.+\))?\s*입니다.*'),
+    re.compile(r'^.{0,60}고객\s*성공.*입니다.*'),
+    # ──── 1:1 응답 표현 ────
+    re.compile(r'^.*혹시\s+.*도움이?\s*필요.*\?.*$'),
+    re.compile(r'^.*혹시\s+.*궁금.*\?.*$'),
+]
+
+
+def strip_article_boilerplate(text: str) -> str:
+    """아티클/FAQ 본문에서 인사·자기소개·마무리 인사·1:1 응답 패턴을 제거."""
+    if not text:
+        return text
+    out_lines = []
+    for line in text.split('\n'):
+        stripped = line.strip()
+        if stripped and any(p.match(stripped) for p in _BOILERPLATE_PATTERNS):
+            continue
+        out_lines.append(line)
+    # 연속 빈 줄 2개로 압축
+    result = '\n'.join(out_lines)
+    result = re.sub(r'\n{3,}', '\n\n', result)
+    return result.strip()
+
+
 def sanitize_korean(text: str) -> str:
     """LLM 출력에서 한자/일본어 단어를 한글로 치환.
     사전에 없는 한자/가타카나가 남아있으면 제거(공백으로) 처리.
