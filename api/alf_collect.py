@@ -46,8 +46,9 @@ def build_row(chat: dict, messages: list) -> dict:
     """채팅 데이터 + 메시지 → cx_full_messages row"""
     created_ms = chat.get("createdAt") or 0
     dt = datetime.fromtimestamp(created_ms / 1000, tz=KST)
+    chat_id = chat["id"]
     return {
-        "chat_id": chat["id"],
+        "chat_id": chat_id,
         "date": dt.strftime("%Y-%m-%d"),
         "tags": chat.get("tags") or [],
         "messages": messages,
@@ -57,6 +58,7 @@ def build_row(chat: dict, messages: list) -> dict:
         "alf_tried": any(m["role"] == "alf" for m in messages),
         "assignee_id": str(chat.get("assigneeId") or ""),
         "assignee_name": chat.get("assigneeName") or "",
+        "url": f"https://desk.channel.io/liveklass/user-chats/{chat_id}",
     }
 
 

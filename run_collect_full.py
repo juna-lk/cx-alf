@@ -1,10 +1,8 @@
-"""견고한 백필 — 모든 페이지 끝까지 페이지네이션하면서 날짜 범위 내 chat만 수집.
-
-기존 alf_collect는 첫 페이지에 out-of-range가 일부 있으면 break해서
-오래된 데이터가 누락됨. 이 스크립트는 끝까지 페이지네이션.
+"""견고한 백필 — 모든 페이지 끝까지 페이지네이션하면서 chat 수집.
 
 사용:
-    python3 run_collect_full.py 138    # 138일치 (2026-01-01부터)
+    python3 run_collect_full.py --all  # 전체 데이터 (날짜 제한 없음)
+    python3 run_collect_full.py 138    # 138일치
     python3 run_collect_full.py        # 기본 138일
 """
 from __future__ import annotations
@@ -54,15 +52,16 @@ def get_existing_chat_ids() -> set:
     return existing
 
 
-def fetch_chats_full(state: str, since_ts: float) -> list:
+def fetch_chats_full(state: str, since_ts: float = 0) -> list:
     """state별 모든 페이지를 끝까지 가져온 후 date 필터링.
 
-    안전장치: 100페이지(=50,000건)를 초과하면 중단.
+    since_ts=0 이면 날짜 제한 없이 전체 수집.
+    안전장치: 200페이지(=100,000건)를 초과하면 중단.
     """
     all_chats = []
     cursor = None
     page = 0
-    while page < 100:
+    while page < 200:
         page += 1
         params = f"limit=500&sortOrder=desc&state={state}"
         if cursor:
@@ -78,15 +77,18 @@ def fetch_chats_full(state: str, since_ts: float) -> list:
             print(f"      [{state}] page{page} 실패: {e}")
             break
         batch = data.get("userChats", [])
-        in_range = [c for c in batch if c.get("createdAt", 0) / 1000 >= since_ts]
+        if since_ts > 0:
+            in_range = [c for c in batch if c.get("createdAt", 0) / 1000 >= since_ts]
+        else:
+            in_range = batch
         all_chats.extend(in_range)
         oldest = min((c.get("createdAt", 0) for c in batch), default=0) / 1000 if batch else 0
-        print(f"      [{state}] page{page}: batch={len(batch)}, in_range={len(in_range)}, oldest={datetime.fromtimestamp(oldest) if oldest else 'N/A'}")
+        print(f"      [{state}] page{page}: batch={len(batch)}, collected={len(in_range)}, oldest={datetime.fromtimestamp(oldest).strftime('%Y-%m-%d') if oldest else 'N/A'}")
         next_cursor = data.get("next")
         if not next_cursor or not batch:
             break
-        # 가장 오래된 chat이 cutoff보다 1주 이상 오래되었으면 그 다음 페이지도 다 out-of-range
-        if oldest > 0 and oldest < since_ts - (7 * 86400):
+        # 날짜 필터 있을 때만 cutoff 체크
+        if since_ts > 0 and oldest > 0 and oldest < since_ts - (7 * 86400):
             print(f"      [{state}] cutoff 도달 — 페이지네이션 종료")
             break
         cursor = next_cursor
@@ -95,9 +97,15 @@ def fetch_chats_full(state: str, since_ts: float) -> list:
 
 
 if __name__ == "__main__":
-    days = int(sys.argv[1]) if len(sys.argv) > 1 else 138
-    since = datetime.now(timezone.utc) - timedelta(days=days)
-    print(f"[start] {days}일치 수집 (since {since.date()})")
+    all_mode = len(sys.argv) > 1 and sys.argv[1] == "--all"
+    if all_mode:
+        since_ts_val = 0.0
+        print("[start] 전체 데이터 수집 (날짜 제한 없음)")
+    else:
+        days = int(sys.argv[1]) if len(sys.argv) > 1 else 138
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since_ts_val = since.timestamp()
+        print(f"[start] {days}일치 수집 (since {since.date()})")
     print()
 
     print("[1/4] 기존 chat_id 조회...")
@@ -108,7 +116,7 @@ if __name__ == "__main__":
     print("[2/4] 채널톡 채팅 목록 수집 (state별 끝까지 페이지네이션)...")
     all_chats = []
     for state in ("closed", "opened", "snoozed", "initial", "missed"):
-        chats = fetch_chats_full(state, since.timestamp())
+        chats = fetch_chats_full(state, since_ts_val)
         all_chats.extend(chats)
         print(f"   {state}: {len(chats)}건 누적")
     print(f"      총 {len(all_chats)}건 (중복 포함)")
