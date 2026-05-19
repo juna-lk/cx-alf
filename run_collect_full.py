@@ -129,45 +129,72 @@ if __name__ == "__main__":
     print(f"      신규: {len(new_chats)}건")
     print()
 
-    print("[4/4] 각 신규 chat 메시지 수집...")
-    new_rows = []
+    def upsert_chunk(chunk: list, chunk_idx: int) -> bool:
+        """chunk를 Supabase에 upsert. timeout/network 에러 3회 재시도. 성공 여부 반환."""
+        payload = json.dumps(chunk).encode()
+        for attempt in range(3):
+            req = urllib.request.Request(
+                f"{SUPABASE_URL}/rest/v1/cx_full_messages?on_conflict=chat_id",
+                data=payload,
+                headers={
+                    "apikey": SUPABASE_SERVICE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                },
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    resp.read()
+                return True
+            except urllib.error.HTTPError as e:
+                body = e.read().decode()[:200] if hasattr(e, "read") else ""
+                print(f"      [warn] chunk {chunk_idx} HTTP {e.code} (attempt {attempt+1}/3): {body}")
+                if attempt < 2:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                return False
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                print(f"      [warn] chunk {chunk_idx} network (attempt {attempt+1}/3): {e}")
+                if attempt < 2:
+                    time.sleep(10 * (attempt + 1))
+                    continue
+                return False
+        return False
+
+    print("[4/4] 메시지 수집 + 즉시 저장 (chunk 단위)...")
+    buffer = []
     errors = 0
+    stored = 0
+    chunk_idx = 0
+    total = len(new_chats)
+    CHUNK_SIZE = 100
+
     for i, (cid, chat) in enumerate(new_chats.items()):
         try:
             raw = fetch_messages_for_chat(cid)
             messages = parse_messages(raw)
-            new_rows.append(build_row(chat, messages))
+            buffer.append(build_row(chat, messages))
             time.sleep(0.12)
         except Exception as e:
             errors += 1
             if errors <= 5:
                 print(f"      [warn] {cid}: {e}")
-        if (i + 1) % 50 == 0:
-            print(f"      ... {i + 1}/{len(new_chats)} (실패 {errors})")
-    print()
 
-    print("[저장] Supabase 업로드 (upsert)...")
-    stored = 0
-    for i in range(0, len(new_rows), 100):
-        chunk = new_rows[i:i + 100]
-        # 중복 처리: on_conflict로 upsert
-        payload = json.dumps(chunk).encode()
-        req = urllib.request.Request(
-            f"{SUPABASE_URL}/rest/v1/cx_full_messages?on_conflict=chat_id",
-            data=payload,
-            headers={
-                "apikey": SUPABASE_SERVICE_KEY,
-                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-                "Content-Type": "application/json",
-                "Prefer": "resolution=merge-duplicates,return=minimal",
-            },
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                resp.read()
-            stored += len(chunk)
-            print(f"      {stored}/{len(new_rows)} 저장됨")
-        except urllib.error.HTTPError as e:
-            print(f"      [warn] chunk {i//100} 실패: {e.code} {e.read().decode()[:200]}")
+        # 100건 모이면 즉시 저장
+        if len(buffer) >= CHUNK_SIZE:
+            if upsert_chunk(buffer, chunk_idx):
+                stored += len(buffer)
+            chunk_idx += 1
+            buffer = []
+            print(f"      ... {i + 1}/{total} 수집, {stored}건 저장됨 (실패 {errors})")
+        elif (i + 1) % 50 == 0:
+            print(f"      ... {i + 1}/{total} 수집 중 (실패 {errors})")
 
-    print(f"\n[완료] 신규 {stored}건, 실패 {errors}건")
+    # 남은 buffer 저장
+    if buffer:
+        if upsert_chunk(buffer, chunk_idx):
+            stored += len(buffer)
+        print(f"      ... 최종 {total}/{total} 수집, {stored}건 저장됨")
+
+    print(f"\n[완료] 신규 {stored}건 저장, 메시지 수집 실패 {errors}건")
