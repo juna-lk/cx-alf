@@ -134,8 +134,12 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
             warnings.append({"rule": label, "level": "warning",
                              "message": f'금지 표현 "{kw}" 감지 — Help Doc 톤 위반'})
 
-    # 4) 친근한 종결형 비율
-    sentences = [s for s in re.split(r"[.\n!?]", fixed) if len(s.strip()) > 8]
+    # 4) 친근한 종결형 비율 (헤딩·불릿·번호목록은 제외)
+    sentences = [
+        s for s in re.split(r"[.\n!?]", fixed)
+        if len(s.strip()) > 8
+        and not re.match(r"^\s*(#{1,6}|-|\*|\d+\.|\|)", s.strip())
+    ]
     if sentences:
         friendly = sum(1 for s in sentences
                        if re.search(r"(어요|습니다|예요|에요|드려요|돼요)\s*$", s.strip()))
