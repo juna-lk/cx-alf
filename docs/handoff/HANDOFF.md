@@ -209,3 +209,89 @@ ALF Studio (cx-alf) 기능 개선 작업 완료. 계정 전환 전 저장 요청
 **듀얼 push:** `git push origin main` 한 번으로 양쪽 자동 push
 
 ---
+
+## Handoff: 2026-05-19T08:21:45Z
+
+### Current Task State
+ALF Studio (cx-alf) 메인 페이지(초안 생성 탭) UX 개선 작업 진행 중. 빈 상태 안내까지 구현 + push 완료. **입력 카드 시각적 풍성함 작업은 옵션 결정만 끝낸 채 구현 시작 전 중단**.
+
+### Key Decisions
+- **빈 상태 안내**: 4개 옵션 비교 후 "사용 흐름 3단계 카드" 선택 → 입력 카드 아래 보라색 그라데이션(welcome-card), 분석 시작 시 자동 숨김
+- **상담 정렬**: `cx_full_messages` 태그 쿼리에 `order=date.desc` 적용 — 최신 변경/정책 반영된 상담 50건이 우선 분석되도록 (사용자 결정)
+- **다음 작업 방향**: 입력 카드 개선 4개 옵션 중 **B안 "시각적 풍성함 (아이콘 + 설명 + 고급 옵션)" 선택됨** — 카드 제목 + 각 입력란 아이콘 + Help 툴팁 + 고급 옵션 펼치기
+- **자동화 규칙 정식화**: cx-alf 작업 완료 시 확인 없이 commit+듀얼 push 규칙을 메모리에 추가 ([[feedback_cx_alf_dual_push]])
+
+### Modified Files (이번 세션, 모두 commit+push 완료)
+- `api/alf_search.py:102` — `order=date.desc` 추가 (최신순 200건 → 상위 50건 LLM)
+- `alf-draft/index.html`:
+  - line 70 `#tab-guide.page max-width: 1500px` (유지)
+  - line 191 `.page max-width: 1100px` (유지 — 1280px 변경은 보류됨)
+  - line 1081 LLM 카드: Groq → OpenAI gpt-4o-mini
+  - line 1108 "최신순 최대 200건" 설명 추가
+  - line 1124 "50건 샘플 메시지" 업데이트
+  - line 198~ welcome-card CSS 블록 추가 (linear-gradient 보라색)
+  - line 520~ `#welcomeCard` HTML (3단계: 태그 입력 → AI 분석 → 초안 생성)
+  - line 1735 analyze() 시작 시 welcomeCard hide
+- `~/.claude/projects/-Users-juna-Downloads-lk-ai-camp2-biz-showcase---/memory/feedback_cx_alf_dual_push.md` — description/본문 업데이트 (자동 commit+push 규칙 추가)
+- `~/.claude/projects/.../memory/MEMORY.md` — 인덱스 description 업데이트
+
+### Blockers / Open Questions
+- **입력 카드 개선 (B안 시각적 풍성함) 구현 시작 전 중단** — mockup만 확인됨, 코드 변경 없음
+- 페이지 가로값 1100→1280px 조정 — 사용자가 명시적으로 yes/no 안 함, 보류
+- 추가 메인 영역 채우기 (자주 쓰는 태그·데이터 현황·최근 초안 등) — 사용자가 "입력 카드부터" 선택해서 후순위로 미뤄둠
+- 채널톡 백필 `run_collect_full.py --all` 11,800/26,282 진행 후 사용자 전원 끔 → 내일 재실행 필요
+
+### Next Steps
+1. **입력 카드 B안 구현** (시각적 풍성함 — 사용자 이미 선택)
+   - 카드 상단에 짧은 제목/안내 한 줄 ("🔍 분석 조건 설정")
+   - 각 입력란 좌측 아이콘 (🏷️ 태그 / 🔎 키워드)
+   - 키워드 옆 ⓘ 툴팁 ("공백으로 여러 단어 AND")
+   - "▼ 고급 옵션" 펼치기 영역 (분석 건수·정렬 기준 등 — 현재는 placeholder 가능)
+2. **사용자 본인 계정 로그인 후 진행** — 현재 공용 계정이라 다음 세션에서 본인 계정 확인 필요 (shared-account-guard 동작)
+3. 채널톡 백필 재개: `python3 run_collect_full.py --all` (자동으로 기존 11,800건 skip)
+4. (선택) 메인 페이지 빈 영역 추가 위젯 — 자주 쓰는 태그 칩 / 데이터 현황 / 최근 초안
+
+### Critical Context
+- **자동 commit+듀얼 push 규칙 활성됨**: cx-alf 작업 완료 시 사용자 확인 없이 즉시 `git add → commit → push origin main` 진행. push는 juna-lk + futureschole-ai-all 자동 동기화 (origin이 듀얼 URL).
+- **shared-account-guard**: 사용자가 다른 계정으로 로그인 예정 → 다음 세션 시작 시 PreToolUse hook이 MCP 커넥터 소유자 검증 수행. teamproduct@liveklass.com에서 본인 계정으로 전환 시 재인증 필요할 수 있음.
+- **welcome-card 동작**: 분석 시작하면 hide, **다시 안 보임**(같은 세션). 페이지 새로고침해야 다시 보임. clearTagAndReset()에서는 일부러 다시 안 보여줌 (한번 본 사용자에게 노이즈 방지).
+- **CSS 보라색 톤**: `#4c1d95` (title), `#7c3aed` (번호), gradient `#f5f3ff → #ede9fe`. 추가 시각 요소는 이 톤과 맞추는 것 권장.
+- 입력 카드 현재 구조: `.input-card > .input-row > [field, field, button]` flex 1줄 레이아웃. B안 구현 시 row가 길어지면 wrap 필요할 수 있음.
+
+### Model Summary
+- cx-alf 메인 페이지 UX 개선 세션, commit `87c08e6`까지 완료(듀얼 push)
+- **3단계 사용 흐름 welcome 카드** 추가 (보라색 그라데이션, 분석 시작 시 자동 숨김)
+- 상담 정렬 **최신순 적용** (`order=date.desc`) → 최근 정책 변경 반영된 상담 우선 분석
+- 작동 방식 페이지 LLM/샘플 수치 최신화 (gpt-4o-mini, 50건, 최신순 200건)
+- **B안 "시각적 풍성함" 선택됨** — 구현 직전 사용자 계정 전환 위해 중단
+- 사용자 디스플레이: 16" 맥북 + 27" 외장 모니터 → 1500px 가이드 탭은 OK, 1100px 일반은 1280px 검토 보류
+- cx-alf 자동 commit+듀얼 push 규칙을 메모리에 정식 저장
+- 채널톡 백필 11,800/26,282 진행 중 노트북 전원 끔 → 내일 재실행 필요 (기존 데이터 skip됨)
+- 다음 세션은 본인 계정 로그인 후 진행 (shared-account-guard 재검증 예상)
+
+### Handoff Context (paste into next session)
+**CWD:** `/Users/juna/cx-alf`
+
+**최신 커밋:** `87c08e6 feat: 초안 생성 탭 빈 상태 안내 + 최신순 상담 정렬` (듀얼 push 완료)
+
+**즉시 시작할 작업: 입력 카드 B안 "시각적 풍성함" 구현**
+- 위치: `alf-draft/index.html` line 483~501 `.input-card` 블록
+- 적용: 카드 제목 1줄 + 각 입력란 아이콘 + ⓘ 툴팁 + "고급 옵션 펼치기"
+- 보라색 톤 유지 (`#4c1d95`, `#7c3aed`) — welcome-card와 일관
+
+**작업 시작 전:**
+1. 본인 계정 로그인 확인 (shared-account-guard hook 차단 시 검증 절차)
+2. `git status` — uncommitted 없는지 (.omc/만 untracked일 것)
+3. 채널톡 백필 재개: `python3 run_collect_full.py --all` (별도 터미널)
+
+**자동화 규칙 활성:**
+- cx-alf 작업 완료하면 확인 없이 commit+push 진행 (이미 [[feedback_cx_alf_dual_push]] 메모리에 있음)
+- 비밀 키 push 금지 ([[feedback_no_secrets_in_chat]])
+
+**보류된 항목 (사용자 결정 대기):**
+- 일반 페이지 max-width 1100→1280px
+- 메인 추가 위젯 (자주 쓰는 태그·데이터 현황·최근 초안)
+- 포맷 가이드 카드 접기 토글
+- 분석 완료 후 자동 스크롤
+
+---
