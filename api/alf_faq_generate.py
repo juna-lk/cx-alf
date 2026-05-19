@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -22,7 +22,9 @@ FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF(AI 에이전트)용 FAQ 콘텐츠
 - 답변에서도 **불릿(`-`)/번호(`1.`) 목록** 활용 → 정보 선후 관계를 ALF가 정확히 파악
 - 이미지가 필요하면 **이미지 위아래에 설명 텍스트 추가** (이미지만으로는 ALF가 못 봄)
 - 모호한/중복된 표현 지양 → ALF가 엉뚱한 문서 참조 가능
+- **중복 내용 정리**: 비슷한 FAQ가 여러 개면 일관성·정확도 저하 → 한 FAQ로 통합
 - 퍼블리시 상태로 발행해야 참조 가능 (수정 중 상태는 미참조)
+- 제목(질문)과 동일한 키워드를 폴더 참조 설명에도 일치시키기
 
 【톤·문체 — 채널톡 Help Doc 표준 그대로】
 - 친근한 존댓말 + `-어요`/`-습니다` 종결형
@@ -140,6 +142,8 @@ class handler(_Base):
             question = faq.get("question", cluster_label)
             variations = faq.get("variations", [])
             answer = strip_article_boilerplate(faq.get("answer", ""))
+            verification = verify_draft(answer, "faq", cluster_label)
+            answer = verification["fixed"]
         except Exception as e:
             print(f"[alf_faq_generate] 파싱 실패: {e}; raw[:200]={raw[:200]!r}")
             self._respond(500, {"ok": False, "error": "FAQ 생성에 실패했어요. 잠시 후 다시 시도해주세요."})
@@ -163,4 +167,5 @@ class handler(_Base):
             "question": question,
             "variations": variations,
             "answer": answer,
+            "warnings": verification["warnings"],
         })

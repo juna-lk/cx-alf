@@ -139,6 +139,18 @@
               font-size: 14px; display: none; }
     .banner.info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
     .banner.format { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+
+    .verification-banner { border-radius: 10px; padding: 14px 18px; margin: 12px 0;
+                            background: #fffbeb; border: 1px solid #fde68a; }
+    .verification-banner.pass { background: #ecfdf5; border-color: #a7f3d0; }
+    .verification-banner h4 { font-size: 13px; font-weight: 700; color: #92400e;
+                              margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .verification-banner.pass h4 { color: #065f46; }
+    .verification-banner ul { margin: 4px 0 0; padding-left: 22px; }
+    .verification-banner li { font-size: 12px; line-height: 1.6; color: #78350f;
+                              margin-bottom: 3px; }
+    .verification-banner li.error { color: #991b1b; }
+    .verification-banner li .rule { font-weight: 700; }
     .banner.loading { background: #faf5ff; border: 1px solid #e9d5ff; color: #6d28d9; }
 
     .faq-card { background: white; border-radius: 10px; padding: 24px;
@@ -404,6 +416,7 @@
 
   <div class="banner info" id="bannerSuggest"></div>
   <div class="banner format" id="bannerFormat"></div>
+  <div class="verification-banner" id="verificationBanner" style="display:none"></div>
   <div class="banner loading hidden" id="bannerLoading">
     <span class="spinner"></span>&nbsp; <span id="loadingText">분석 중...</span>
   </div>
@@ -568,6 +581,50 @@
         <tr><td>엑셀</td><td class="center">❌</td><td class="center">✅</td></tr>
         <tr><td>PDF</td><td class="center">❌</td><td class="center">✅</td></tr>
       </table>
+    </div>
+
+    <div class="guide-section" id="section-applied-rules">
+      <h3>🛠 ALF Studio가 자동으로 적용하는 작성 기준</h3>
+      <p>채널톡 공식·CS 답변 기준 중 <strong>ALF Studio가 자동으로 따르는 항목</strong>과 <strong>사용자가 직접 처리해야 하는 항목</strong>을 정리했어요.</p>
+
+      <table class="guide-table">
+        <tr>
+          <th style="width:50%">기준</th>
+          <th style="width:25%">ALF Studio</th>
+          <th style="width:25%">사용자 작업</th>
+        </tr>
+        <tr><td>제목·소제목에 핵심 키워드 포함</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td><code>##</code>, <code>###</code> 소제목 구조화</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>친근한 종결형(`-어요/-습니다`)</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>완성된 문장 (끊김 없는 형태)</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>불릿/번호 목록으로 선후 관계</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>모호·중복된 표현 지양</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>인사·자기소개·마무리 인사 제거</td><td>✅ 후처리</td><td>—</td></tr>
+        <tr><td>한자·일본어 단어 한글 변환</td><td>✅ 후처리</td><td>—</td></tr>
+        <tr><td>이미지 캡션 상세 작성 강제</td><td>✅ 붙여넣기 시 prompt</td><td>—</td></tr>
+        <tr><td>이미지 자동 스타일 (라운드/그림자/스트로크)</td><td>✅ Canvas 처리</td><td>—</td></tr>
+        <tr><td>관련 페이지 링크 본문 포함</td><td>✅ 프롬프트에 명시</td><td>상담 데이터에 있을 때만</td></tr>
+        <tr><td>1:1 응답 어투 → 일반 안내 어투 변환</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>1문서 = 1시나리오 원칙</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>FAQ 500자 / 변형질문 10개 / 질문 100자 제한</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>아티클 2,000자 이내</td><td>✅ 자동</td><td>—</td></tr>
+        <tr><td>FAQ vs 아티클 형식 추천</td><td>✅ AI 추천</td><td>최종 선택</td></tr>
+        <tr><td>이미지 위아래 설명 텍스트 추가</td><td>⚙️ 프롬프트 가이드</td><td>붙여넣기 후 본문 확인</td></tr>
+        <tr><td>폴더 계층 구조 (최대 5단계)</td><td>—</td><td>📌 채널톡에서 작성자가 배치</td></tr>
+        <tr><td>폴더 참조 설명 작성</td><td>—</td><td>📌 채널톡에서 작성</td></tr>
+        <tr><td>퍼블리시 상태 관리</td><td>—</td><td>📌 채널톡에서 발행</td></tr>
+        <tr><td>중복 문서 검토·통합</td><td>✅ 병합 분석 기능 제공</td><td>실행 결정</td></tr>
+        <tr><td>강조 영역(빨간 박스) 표시</td><td>—</td><td>📌 Figma에서 #FC1150 박스</td></tr>
+      </table>
+
+      <h4>📌 사용자가 채널톡에서 직접 해야 하는 것</h4>
+      <ul>
+        <li>생성된 초안을 채널톡 도큐먼트로 옮기기</li>
+        <li>폴더 구조 설계 + 폴더 참조 설명 작성</li>
+        <li>퍼블리시 상태 변경</li>
+        <li>필요 시 이미지 첨부 위치 확인 + 캡션 검토</li>
+        <li>병합 분석 결과 검토 후 실제 병합 진행</li>
+      </ul>
     </div>
 
     <div class="guide-section" id="section-knowledge">
@@ -1321,6 +1378,7 @@ async function analyze() {
   document.getElementById('faqCard').classList.add('hidden');
   document.getElementById('bannerSuggest').style.display = 'none';
   document.getElementById('bannerFormat').style.display = 'none';
+  document.getElementById('verificationBanner').style.display = 'none';
   setLoading(true, '관련 상담 수집 중...');
 
   try {
@@ -1403,6 +1461,27 @@ function toggleCluster(i) {
   cb.checked = !cb.checked;
 }
 
+function renderVerification(warnings) {
+  const banner = document.getElementById('verificationBanner');
+  if (!banner) return;
+  if (!warnings || !warnings.length) {
+    banner.classList.add('pass');
+    banner.innerHTML = `<h4>✅ 채널톡 ALF 가이드라인 검증 통과</h4>
+      <p style="font-size:12px;color:#065f46;margin:0">제목·소제목 구조, 톤, 글자수, 보일러플레이트 등 모든 규칙을 만족해요.</p>`;
+    banner.style.display = 'block';
+    return;
+  }
+  banner.classList.remove('pass');
+  const items = warnings.map(w => {
+    const icon = w.level === 'error' ? '❌' : w.level === 'warning' ? '⚠️' : 'ℹ️';
+    const cls = w.level === 'error' ? 'error' : '';
+    return `<li class="${cls}">${icon} <span class="rule">${escapeHtml(w.rule)}</span>: ${escapeHtml(w.message)}</li>`;
+  }).join('');
+  banner.innerHTML = `<h4>⚠️ 자동 검증에서 ${warnings.length}개 이슈 발견</h4>
+    <ul>${items}</ul>`;
+  banner.style.display = 'block';
+}
+
 async function generate(format) {
   const selected = state.clusters.filter((_, i) => document.getElementById('cl' + i)?.checked);
   if (selected.length === 0) { alert('유형을 하나 이상 선택해주세요'); return; }
@@ -1443,6 +1522,8 @@ async function generate(format) {
         ).join('');
       document.getElementById('resultGrid').classList.remove('hidden');
     }
+    // 채널톡 가이드라인 자동 검증 결과 표시
+    renderVerification(data.warnings || []);
   } catch(e) {
     alert('오류: ' + e.message);
   } finally {

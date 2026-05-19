@@ -87,6 +87,90 @@ def strip_article_boilerplate(text: str) -> str:
     return result.strip()
 
 
+def verify_draft(content: str, format_type: str = "article", cluster_label: str = "") -> dict:
+    """채널톡 ALF 가이드라인 기준으로 초안 자동 검증.
+
+    반환: {
+      'warnings': [{'rule': '...', 'level': 'warning'|'error', 'message': '...'}],
+      'fixed': str  # 자동 수정된 콘텐츠 (이모지 제거 등)
+    }
+    """
+    warnings: list[dict] = []
+    fixed = content
+
+    # 1) 이모지 자동 제거 (마케팅톤 방지)
+    emoji_pattern = re.compile(
+        r"[\U0001F300-\U0001F5FF\U0001F600-\U0001F64F\U0001F680-\U0001F6FF"
+        r"\U0001F700-\U0001F77F\U0001F780-\U0001F7FF\U0001F800-\U0001F8FF"
+        r"\U0001F900-\U0001F9FF\U0001FA00-\U0001FA6F\U0001FA70-\U0001FAFF"
+        r"☀-⛿✀-➿]+"
+    )
+    if emoji_pattern.search(fixed):
+        warnings.append({"rule": "이모지", "level": "warning",
+                         "message": "이모지를 자동 제거했어요 (Help Doc 톤 유지)"})
+        fixed = emoji_pattern.sub("", fixed)
+
+    # 2) 헤딩 구조 (article)
+    if format_type == "article":
+        if not re.search(r"^#\s", fixed, re.MULTILINE):
+            warnings.append({"rule": "제목", "level": "error",
+                             "message": "# 제목이 없어요. ALF는 제목을 우선 검색해요"})
+        sub_count = len(re.findall(r"^##\s", fixed, re.MULTILINE))
+        if sub_count == 0:
+            warnings.append({"rule": "소제목", "level": "warning",
+                             "message": "## 소제목이 없어요. 구조화하면 ALF 매칭 정확도가 올라가요"})
+
+    # 3) 잔존 보일러플레이트
+    boilerplate_keywords = [
+        ("안녕하세요", "시작 인사"),
+        ("감사합니다", "마무리 인사"),
+        ("드리겠습니다.", "안내 도입"),
+        ("마무리할게요", "상담 종료 멘트"),
+    ]
+    for kw, label in boilerplate_keywords:
+        if kw in fixed:
+            warnings.append({"rule": label, "level": "warning",
+                             "message": f'금지 표현 "{kw}" 감지 — Help Doc 톤 위반'})
+
+    # 4) 친근한 종결형 비율
+    sentences = [s for s in re.split(r"[.\n!?]", fixed) if len(s.strip()) > 8]
+    if sentences:
+        friendly = sum(1 for s in sentences
+                       if re.search(r"(어요|습니다|예요|에요|드려요|돼요)\s*$", s.strip()))
+        ratio = friendly / len(sentences)
+        if ratio < 0.25:
+            warnings.append({"rule": "종결형", "level": "warning",
+                             "message": f"친근한 종결형(-어요/-습니다) 비율이 낮음 ({int(ratio*100)}%) — 권장 30% 이상"})
+
+    # 5) 글자수
+    length = len(fixed)
+    if format_type == "article" and length > 2000:
+        warnings.append({"rule": "글자수", "level": "warning",
+                         "message": f"{length}자 — 2,000자 초과. 별도 아티클 분리 권장"})
+    elif format_type == "faq" and length > 500:
+        warnings.append({"rule": "글자수", "level": "error",
+                         "message": f"{length}자 — 채널톡 FAQ 답변 한도 500자 초과"})
+
+    # 6) 불릿·번호 목록 존재
+    has_list = bool(re.search(r"^\s*[-*]\s|^\s*\d+\.\s", fixed, re.MULTILINE))
+    if format_type == "article" and not has_list and length > 200:
+        warnings.append({"rule": "목록", "level": "info",
+                         "message": "불릿/번호 목록이 없어요. 단계·조건은 목록으로 정리하면 ALF가 선후 관계 파악 쉬워요"})
+
+    # 7) 제목에 클러스터 키워드 포함
+    if format_type == "article" and cluster_label:
+        m = re.search(r"^#\s+(.+)$", fixed, re.MULTILINE)
+        if m:
+            title = m.group(1)
+            # 클러스터 라벨의 주요 단어 (2자 이상) 중 하나라도 제목에 있는지
+            kw_tokens = [t for t in re.split(r"[\s,/·]+", cluster_label) if len(t) >= 2]
+            if kw_tokens and not any(t in title for t in kw_tokens):
+                warnings.append({"rule": "제목 키워드", "level": "warning",
+                                 "message": f'제목에 핵심 키워드({", ".join(kw_tokens[:3])}) 미포함'})
+
+    return {"warnings": warnings, "fixed": fixed}
+
+
 def sanitize_korean(text: str) -> str:
     """LLM 출력에서 한자/일본어 단어를 한글로 치환.
     사전에 없는 한자/가타카나가 남아있으면 제거(공백으로) 처리.
