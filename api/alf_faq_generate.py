@@ -48,10 +48,16 @@ FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF(AI 에이전트)용 FAQ 콘텐츠
 2. 변형 질문(variations): 실제 고객이 쓴 표현 5~10개
    - 줄임말/구어체/오타 포함 (예: "환불 어케해요?")
    - 동의어 변주 ("취소", "해지", "환불")
-3. 답변(answer): 500자 이내, 친근한 Help Doc 톤 + Markdown 가능
+3. 답변(answer): 500자 이내, 친근한 Help Doc 톤. **순수 텍스트(plain text)로만 작성**
    - 결론부터, 조건 분기 명확히
    - 관련 페이지 링크가 있다면 답변에 포함
    - 1:1 상담 어투를 **일반 안내 어투로 변환** ("~조치하였습니다" → "~할 수 있어요")
+   - **Markdown 금지**: 채널톡 FAQ가 코드 블록으로 인식하므로 다음 금지
+     · 코드 펜스 (``` 또는 ~~~)
+     · 백틱 (`) — 메뉴명·버튼명도 따옴표 없이 그냥 텍스트로
+     · 줄 시작 들여쓰기 4칸 이상 (코드 블록 인식)
+     · ## 같은 헤딩 마커 (단, 1., 2. 번호 목록은 OK)
+   - 메뉴 경로 표기: 사이트 관리 > 사이트 디자인 (한 줄, 백틱 없이)
 4. ALF는 고객/상담 태그·설명은 참조하지 않으므로, 답변에 필요한 모든 정보 포함
 
 【상담 데이터 활용】
@@ -107,7 +113,7 @@ def build_faq_prompt(cluster_label: str, chats: list) -> str:
 {{
   "question": "대표 질문 (100자 이내, 핵심 키워드 포함)",
   "variations": ["변형 질문 1", "변형 질문 2", "..."],
-  "answer": "답변 본문 (500자 이내, Help Doc 톤, Markdown 가능)"
+  "answer": "답변 본문 (500자 이내, Help Doc 톤, plain text만 — 코드펜스/백틱/들여쓰기 금지)"
 }}"""
 
 
@@ -207,10 +213,16 @@ class handler(_Base):
         )
 
         try:
+            import re as _re
             faq = extract_json(raw)
             question = faq.get("question", cluster_label)
             variations = faq.get("variations", [])
             answer = strip_article_boilerplate(faq.get("answer", ""))
+            # FAQ는 plain text — 코드 펜스/백틱/들여쓰기 자동 제거 (채널톡 코드블록 인식 방지)
+            answer = _re.sub(r"```\w*\s*\n?", "", answer)
+            answer = answer.replace("```", "").replace("`", "")
+            answer = _re.sub(r"^[ \t]{4,}", "", answer, flags=_re.MULTILINE)
+            answer = _re.sub(r"^#{1,6}\s+", "", answer, flags=_re.MULTILINE)
             verification = verify_draft(answer, "faq", cluster_label)
             answer = verification["fixed"]
         except Exception as e:
