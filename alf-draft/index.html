@@ -574,6 +574,7 @@
             질문 100자 + 추가 질문 최대 10개 + 답변 500자.
             관련도 높은 문의에 ALF가 자동 매칭해요.
             <br><em>예) 환불 처리 기간, 영수증 발급, 비밀번호 찾기</em>
+            <br><strong style="color:#dc2626">⚠️ 한 번에 하나의 주제만 생성 가능</strong> (다중 선택 시 첫 번째만 처리)
           </div>
         </div>
       </div>
@@ -1909,13 +1910,24 @@ async function generate(format) {
   const selected = state.clusters.filter((_, i) => document.getElementById('cl' + i)?.checked);
   if (selected.length === 0) { alert('유형을 하나 이상 선택해주세요'); return; }
 
-  // 다중 선택 + 아티클이면 모드 선택 모달 표시 (FAQ는 항상 단일)
+  // 다중 선택 + 아티클이면 모드 선택 모달 표시
   if (selected.length > 1 && format === 'article') {
     state.pendingMultiSelection = selected;
     document.getElementById('multiModeCount').textContent = selected.length;
     document.getElementById('multiModeIndividualCount').textContent = selected.length;
     document.getElementById('multiModeOverlay').classList.add('open');
     return;
+  }
+
+  // FAQ는 단일 주제 원칙 — 다중 선택 시 안내
+  if (selected.length > 1 && format === 'faq') {
+    const proceed = confirm(
+      `💬 FAQ는 한 번에 하나의 주제만 만들 수 있어요.\n` +
+      `(채널톡 FAQ 규격: 대표 질문 1개 + 변형 질문 10개 + 답변 1개)\n\n` +
+      `"${selected[0].label}"만 처리할까요?\n\n` +
+      `여러 유형을 한 번에 처리하려면 [📄 아티클로 생성]을 사용하세요.`
+    );
+    if (!proceed) return;
   }
 
   return runSingleGenerate(format, selected[0]);
