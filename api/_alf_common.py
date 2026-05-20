@@ -112,6 +112,12 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
                          "message": "이모지를 자동 제거했어요 (Help Doc 톤 유지)"})
         fixed = emoji_pattern.sub("", fixed)
 
+    # 1.5) Markdown 헤딩 공백 자동 보장 (##제목 → ## 제목)
+    # 채널톡 에디터가 markdown 헤딩으로 인식하려면 # 다음 공백 1칸 필수
+    fixed = re.sub(r"^(#{1,6})(\S)", r"\1 \2", fixed, flags=re.MULTILINE)
+    # 불릿/번호 목록 공백도 보장 (-항목 → - 항목)
+    fixed = re.sub(r"^([-*])(\S)", r"\1 \2", fixed, flags=re.MULTILINE)
+
     # 2) 헤딩 구조 (article) — 새 구조: 제목/소제목은 별도 필드, content는 ## 섹션부터 시작
     if format_type == "article":
         sub_count = len(re.findall(r"^##\s", fixed, re.MULTILINE))
