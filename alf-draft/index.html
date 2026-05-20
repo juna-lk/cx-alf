@@ -1392,6 +1392,19 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="chatModalOverlay">
+  <div class="modal" style="max-width:820px;max-height:85vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 id="chatModalTitle" style="margin:0">💬 상담 목록</h2>
+      <button onclick="closeChatModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
+    </div>
+    <p id="chatModalHint" style="font-size:12.5px;color:#6b7280;margin-bottom:12px"></p>
+    <div id="chatModalBody" style="overflow-y:auto;flex:1;padding-right:6px">
+      <div style="text-align:center;padding:40px 0;color:#9ca3af">불러오는 중...</div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="editOverlay">
   <div class="modal" style="max-width:760px">
     <h2 id="editModalTitle">초안 편집</h2>
@@ -1726,6 +1739,7 @@ let state = {
   currentVariations: [],
   modalContent: '',
   pendingMultiSelection: null,
+  unclusteredIds: [],
   allDrafts: [],
   allTags: [],
   editingDraft: null,
@@ -1812,18 +1826,42 @@ async function analyze() {
     setStep(2); document.getElementById('loadingText').textContent = '유형 분류 완료 (2/4)';
 
     state.clusters = data.clusters;
+    state.unclusteredIds = data.unclustered_ids || [];
     document.getElementById('clusterTitle').textContent =
       `관련 상담 ${data.total}건 발견 — 세부 유형 ${data.clusters.length}개`;
-    document.getElementById('clusterList').innerHTML = data.clusters.map((cl, i) => `
+
+    const clusterRows = data.clusters.map((cl, i) => `
       <div class="cluster-item" onclick="toggleCluster(${i})">
         <input type="checkbox" id="cl${i}" checked>
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="cluster-label">${escapeHtml(cl.label)}</div>
           <div class="cluster-desc">${escapeHtml(cl.description || '')}</div>
         </div>
+        <button type="button" onclick="event.stopPropagation();openChatModal('cluster', ${i})"
+          style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:#4f46e5;font-weight:500">
+          💬 상담 보기
+        </button>
         <div class="cluster-count">${Number(cl.count) || 0}건</div>
       </div>
     `).join('');
+
+    const unclusteredRow = state.unclusteredIds.length > 0 ? `
+      <div class="cluster-item" style="border-style:dashed;background:#fffbeb"
+        title="원하는 유형이 안 보이면 여기서 직접 확인해 보세요">
+        <div style="width:18px;display:flex;align-items:center;justify-content:center;color:#d97706;font-size:14px">⚠</div>
+        <div style="flex:1;min-width:0">
+          <div class="cluster-label" style="color:#92400e">분류되지 않은 상담</div>
+          <div class="cluster-desc">주요 패턴에 속하지 않거나 50건 분석 범위 밖의 상담들. 원하는 유형이 안 보이면 여기서 확인하세요.</div>
+        </div>
+        <button type="button" onclick="openChatModal('unclustered', -1)"
+          style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:#92400e;font-weight:500">
+          💬 상담 보기
+        </button>
+        <div class="cluster-count">${state.unclusteredIds.length}건</div>
+      </div>
+    ` : '';
+
+    document.getElementById('clusterList').innerHTML = clusterRows + unclusteredRow;
     document.getElementById('clusterCard').style.display = 'block';
 
     if (data.clusters.length > 0) {
@@ -1987,7 +2025,12 @@ async function executeGenerate(mode) {
   document.getElementById('chatCount').textContent = lastCluster.count;
   document.getElementById('chatList').innerHTML =
     (lastCluster.chat_ids || []).slice(0, 8).map(id =>
-      `<div class="chat-item"><div style="font-size:12px;color:#6b7280">${escapeHtml(String(id).slice(0,12))}...</div></div>`
+      `<div class="chat-item">
+         <a href="https://desk.channel.io/liveklass/user-chats/${escapeHtml(id)}" target="_blank" rel="noopener"
+            style="font-size:12px;color:#4f46e5;text-decoration:none">
+           💬 ${escapeHtml(String(id).slice(0,12))}... ↗
+         </a>
+       </div>`
     ).join('');
   document.getElementById('resultGrid').classList.remove('hidden');
   renderVerification(lastData.warnings || []);
@@ -2028,7 +2071,12 @@ async function runSingleGenerate(format, cluster) {
       document.getElementById('chatCount').textContent = cluster.count;
       document.getElementById('chatList').innerHTML =
         (cluster.chat_ids || []).slice(0, 8).map(id =>
-          `<div class="chat-item"><div style="font-size:12px;color:#6b7280">${escapeHtml(String(id).slice(0,12))}...</div></div>`
+          `<div class="chat-item">
+             <a href="https://desk.channel.io/liveklass/user-chats/${escapeHtml(id)}" target="_blank" rel="noopener"
+                style="font-size:12px;color:#4f46e5;text-decoration:none">
+               💬 ${escapeHtml(String(id).slice(0,12))}... ↗
+             </a>
+           </div>`
         ).join('');
       document.getElementById('resultGrid').classList.remove('hidden');
     }
@@ -2112,6 +2160,76 @@ function downloadDraft() {
   const content = document.getElementById('draftArea').value;
   const full = `# ${title}\n${subtitle ? `\n_${subtitle}_\n` : ''}\n${content}`;
   downloadMd(full, title);
+}
+
+async function openChatModal(source, idx) {
+  let chatIds = [];
+  let titleText = '';
+  let hintText = '';
+  if (source === 'cluster') {
+    const cl = state.clusters[idx];
+    if (!cl) return;
+    chatIds = cl.chat_ids || [];
+    titleText = `💬 "${cl.label}" 상담 ${chatIds.length}건`;
+    hintText = '아래에서 실제 상담 내용을 확인할 수 있어요. chat_id를 클릭하면 채널톡 데스크에서 열려요.';
+  } else if (source === 'unclustered') {
+    chatIds = state.unclusteredIds || [];
+    titleText = `⚠ 분류되지 않은 상담 ${chatIds.length}건`;
+    hintText = '주요 클러스터에 안 들어간 상담들이에요. 원하는 유형을 여기서 찾으면, 별도 키워드로 다시 분석하거나 직접 아티클을 만드세요.';
+  }
+  document.getElementById('chatModalTitle').textContent = titleText;
+  document.getElementById('chatModalHint').textContent = hintText;
+  document.getElementById('chatModalBody').innerHTML = '<div style="text-align:center;padding:40px 0;color:#9ca3af">불러오는 중...</div>';
+  document.getElementById('chatModalOverlay').classList.add('open');
+
+  if (chatIds.length === 0) {
+    document.getElementById('chatModalBody').innerHTML = '<div style="text-align:center;padding:40px 0;color:#9ca3af">표시할 상담이 없어요.</div>';
+    return;
+  }
+
+  try {
+    const ids = chatIds.slice(0, 50).join(',');
+    const res = await authFetch(`${API}/api/alf_data?type=chats&ids=${encodeURIComponent(ids)}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '');
+    renderChatPreviews(data.chats || []);
+  } catch(e) {
+    document.getElementById('chatModalBody').innerHTML =
+      `<div style="text-align:center;padding:40px 0;color:#dc2626">불러오기 실패: ${escapeHtml(e.message || '')}</div>`;
+  }
+}
+
+function closeChatModal() {
+  document.getElementById('chatModalOverlay').classList.remove('open');
+}
+
+function renderChatPreviews(chats) {
+  if (chats.length === 0) {
+    document.getElementById('chatModalBody').innerHTML = '<div style="text-align:center;padding:40px 0;color:#9ca3af">상담을 찾을 수 없어요.</div>';
+    return;
+  }
+  document.getElementById('chatModalBody').innerHTML = chats.map(c => `
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:8px;background:white">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:12px;color:#6b7280">
+          📅 ${escapeHtml(c.date || '-')}
+          ${c.assignee_name ? ` · 👤 ${escapeHtml(c.assignee_name)}` : ''}
+          ${c.csat_score != null ? ` · ⭐ ${c.csat_score}` : ''}
+          · ${c.message_count} 메시지
+        </div>
+        <a href="${escapeHtml(c.url)}" target="_blank" rel="noopener"
+          style="font-size:12px;color:#4f46e5;text-decoration:none;font-weight:500">
+          채널톡에서 열기 ↗
+        </a>
+      </div>
+      ${c.first_customer ? `<div style="font-size:13px;background:#f3f4f6;padding:8px 10px;border-radius:6px;margin-bottom:6px;line-height:1.5">
+        <strong style="color:#374151">고객:</strong> ${escapeHtml(c.first_customer)}${c.first_customer.length >= 150 ? '...' : ''}
+      </div>` : ''}
+      ${c.first_agent ? `<div style="font-size:13px;background:#eef2ff;padding:8px 10px;border-radius:6px;line-height:1.5">
+        <strong style="color:#4338ca">상담원:</strong> ${escapeHtml(c.first_agent)}${c.first_agent.length >= 150 ? '...' : ''}
+      </div>` : ''}
+    </div>
+  `).join('');
 }
 
 function copyField(elementId) {

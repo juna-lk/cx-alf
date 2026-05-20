@@ -56,11 +56,13 @@ def build_cluster_prompt(chats: list, tag: str) -> tuple[str, list[int]]:
 
 {chr(10).join(samples)}
 
-위 상담들을 고객이 처한 **구체적인 상황**을 기준으로 2~5개 그룹으로 분류해주세요.
+위 상담들을 고객이 처한 **구체적인 상황**을 기준으로 **2~8개 그룹**으로 분류해주세요.
 각 그룹은 ALF 지식 아티클 1개로 만들 수 있는 단위여야 합니다.
+큰 카테고리로 뭉뚱그리지 말고, 가능하면 **세분화**해서 작은 패턴도 별도 클러스터로 잡아주세요.
 
 **중요**: 각 클러스터에 어떤 상담들이 속하는지 위 "[상담 N]" 번호(N)로 알려주세요.
 하나의 상담은 하나의 클러스터에만 속해야 합니다.
+주요 패턴에서 벗어난 1~2건의 outlier 상담은 굳이 작은 클러스터로 만들지 말고 분류에서 제외해도 됩니다.
 
 **언어 규칙: 모든 텍스트는 반드시 한국어로만 작성하세요. 일본어/한자/영어 금지.**
 
@@ -146,11 +148,18 @@ class handler(_Base):
             cl["count"] = len(chat_ids)
             cl.pop("chat_indices", None)
 
-        # 어느 클러스터에도 안 들어간 chat이 있으면 첫 클러스터에 추가
+        # 어느 클러스터에도 안 들어간 chat은 별도 unclustered로 노출 (사용자 직접 확인용)
         unassigned = [i for i in range(min(n, CLUSTER_SAMPLE_LIMIT)) if i not in assigned]
-        if unassigned and clusters:
-            for i in unassigned:
-                clusters[0]["chat_ids"].append(filtered[i]["chat_id"])
-            clusters[0]["count"] = len(clusters[0]["chat_ids"])
+        unclustered_ids = [filtered[i]["chat_id"] for i in unassigned]
 
-        self._respond(200, {"ok": True, "total": len(filtered), "clusters": clusters})
+        # 50건 초과 상담도 분석 대상이 아니므로 unclustered에 포함 (사용자가 직접 검토 가능)
+        if n > CLUSTER_SAMPLE_LIMIT:
+            unclustered_ids.extend(c["chat_id"] for c in filtered[CLUSTER_SAMPLE_LIMIT:])
+
+        self._respond(200, {
+            "ok": True,
+            "total": len(filtered),
+            "clusters": clusters,
+            "unclustered_ids": unclustered_ids,
+            "unclustered_count": len(unclustered_ids),
+        })

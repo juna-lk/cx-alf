@@ -50,8 +50,12 @@ class handler(_Base):
             self._list_tags()
         elif type_ == "stats":
             self._collect_stats()
+        elif type_ == "chat":
+            self._get_chat(params)
+        elif type_ == "chats":
+            self._get_chats(params)
         else:
-            self._respond(400, {"ok": False, "error": "type 필요 (drafts|draft|rules|rule|tags|stats)"})
+            self._respond(400, {"ok": False, "error": "type 필요 (drafts|draft|rules|rule|tags|stats|chat|chats)"})
 
     def do_POST(self):
         if not self._check_auth():
@@ -94,6 +98,51 @@ class handler(_Base):
                f"?id=eq.{did}&select=id,title,subtitle,content,format,variations,status,cluster_label")
         rows = supabase_get(url, SUPABASE_SERVICE_KEY)
         self._respond(200, {"ok": True, "draft": rows[0] if rows else None})
+
+    def _get_chat(self, params: dict):
+        """단일 chat 상세 (messages 전체)"""
+        import re
+        cid = (params.get("id", [""])[0] or "").strip()
+        if not re.match(r"^[A-Za-z0-9_-]{1,64}$", cid):
+            self._respond(400, {"ok": False, "error": "유효하지 않은 chat_id"})
+            return
+        url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+               f"?chat_id=eq.{cid}&select=chat_id,date,tags,messages,url,assignee_name,csat_score,handling_type")
+        rows = supabase_get(url, SUPABASE_SERVICE_KEY)
+        self._respond(200, {"ok": True, "chat": rows[0] if rows else None})
+
+    def _get_chats(self, params: dict):
+        """여러 chat의 미리보기 (첫 customer/agent 메시지 + 메타)"""
+        import re
+        ids_raw = (params.get("ids", [""])[0] or "").strip()
+        ids = [i for i in ids_raw.split(",") if re.match(r"^[A-Za-z0-9_-]{1,64}$", i)]
+        if not ids:
+            self._respond(400, {"ok": False, "error": "ids 필요"})
+            return
+        ids = ids[:50]  # 한 번에 최대 50건
+        ids_param = ",".join(f'"{i}"' for i in ids)
+        url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+               f"?chat_id=in.({ids_param})"
+               f"&select=chat_id,date,messages,url,assignee_name,csat_score"
+               f"&order=date.desc")
+        rows = supabase_get(url, SUPABASE_SERVICE_KEY)
+        # 미리보기용으로 메시지 압축 (첫 고객·상담원 메시지 + 메시지 수)
+        previews = []
+        for r in rows:
+            msgs = r.get("messages") or []
+            first_customer = next((m.get("text", "") for m in msgs if m.get("role") == "customer"), "")
+            first_agent = next((m.get("text", "") for m in msgs if m.get("role") == "agent"), "")
+            previews.append({
+                "chat_id": r["chat_id"],
+                "date": r.get("date"),
+                "url": r.get("url") or f"https://desk.channel.io/liveklass/user-chats/{r['chat_id']}",
+                "assignee_name": r.get("assignee_name") or "",
+                "csat_score": r.get("csat_score"),
+                "message_count": len(msgs),
+                "first_customer": first_customer[:150],
+                "first_agent": first_agent[:150],
+            })
+        self._respond(200, {"ok": True, "chats": previews})
 
     def _list_rules(self):
         url = f"{SUPABASE_URL}/rest/v1/alf_rules?select=*&order=created_at.desc"
