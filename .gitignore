@@ -11,3 +11,6 @@ __pycache__/
 
 # 핸드오프 (로컬 컨텍스트 보존용 — push 제외)
 docs/handoff/
+
+# OMC 세션 상태 (로컬)
+.omc/

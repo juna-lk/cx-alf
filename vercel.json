@@ -1,6 +1,7 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/alf-draft/index.html" }
+    { "source": "/", "destination": "/alf-draft/index.html" },
+    { "source": "/landing", "destination": "/alf-draft/landing.html" }
   ],
   "functions": {
     "api/alf_search.py":             { "maxDuration": 30 },

@@ -2309,11 +2309,11 @@ function renderChatPreviews(chats) {
           </a>
         </div>
       </div>
-      ${c.first_customer ? `<div style="font-size:13px;background:#f3f4f6;padding:8px 10px;border-radius:6px;margin-bottom:6px;line-height:1.5">
-        <strong style="color:#374151">고객:</strong> ${escapeHtml(c.first_customer)}${c.first_customer.length >= 150 ? '...' : ''}
+      ${c.first_customer ? `<div style="font-size:13px;background:#dbeafe;border-left:4px solid #2563eb;padding:8px 10px 8px 12px;border-radius:6px;margin-bottom:6px;line-height:1.55;color:#111827">
+        <strong style="color:#1e3a8a">고객:</strong> ${escapeHtml(c.first_customer)}${c.first_customer.length >= 150 ? '...' : ''}
       </div>` : ''}
-      ${c.first_agent ? `<div style="font-size:13px;background:#eef2ff;padding:8px 10px;border-radius:6px;line-height:1.5">
-        <strong style="color:#4338ca">매니저:</strong> ${escapeHtml(c.first_agent)}${c.first_agent.length >= 150 ? '...' : ''}
+      ${c.first_agent ? `<div style="font-size:13px;background:#ede9fe;border-left:4px solid #7c3aed;padding:8px 10px 8px 12px;border-radius:6px;line-height:1.55;color:#111827">
+        <strong style="color:#5b21b6">매니저:</strong> ${escapeHtml(c.first_agent)}${c.first_agent.length >= 150 ? '...' : ''}
       </div>` : ''}
       <div id="chatDetail-${idx}" class="hidden" style="margin-top:10px;border-top:1px dashed #e5e7eb;padding-top:10px"></div>
     </div>
@@ -2347,27 +2347,30 @@ async function toggleChatDetail(chatId, idx) {
     }
     detail.innerHTML = msgs.map(m => {
       const role = m.role || 'system';
+      // 4역할 색상 매핑 — 좌측 4px border로 즉시 구분, 본문 텍스트는 #111827로 가독성 확보
       const baseColors = {
-        customer: {bg: '#f3f4f6', label: '고객', color: '#374151'},
-        agent: {bg: '#eef2ff', label: '매니저', color: '#4338ca'},
-        alf: {bg: '#fef3c7', label: 'ALF (bot)', color: '#92400e'},
-        system: {bg: '#f9fafb', label: '시스템', color: '#6b7280'},
+        customer: {bg: '#dbeafe', label: '고객',      color: '#1e3a8a', accent: '#2563eb'},
+        agent:    {bg: '#ede9fe', label: '매니저',    color: '#5b21b6', accent: '#7c3aed'},
+        alf:      {bg: '#fef3c7', label: 'ALF (bot)', color: '#92400e', accent: '#d97706'},
+        system:   {bg: '#f9fafb', label: '시스템',    color: '#6b7280', accent: '#9ca3af'},
       };
       let c = baseColors[role] || baseColors.system;
       let labelText = c.label;
-      // 내부 메모는 별도 색상 + 라벨
+      let borderStyle = 'solid';
+      // 내부 메모는 별도 색상 (핑크) + 점선 border + 🔒 라벨
       if (m.private) {
-        c = {bg: '#fee2e2', color: '#991b1b'};
-        labelText = m.manager ? `[내부] ${escapeHtml(m.manager)} (매니저)` : '[내부]';
+        c = {bg: '#fce7f3', color: '#9d174d', accent: '#db2777'};
+        labelText = m.manager ? `🔒 [내부] ${escapeHtml(m.manager)} (매니저)` : '🔒 [내부]';
+        borderStyle = 'dashed';
       } else if (role === 'agent' && m.manager) {
         labelText = `${escapeHtml(m.manager)} (매니저)`;
       }
       const timeHtml = m.time
-        ? `<span style="color:#9ca3af;font-size:11px;margin-right:8px;font-variant-numeric:tabular-nums">${escapeHtml(m.time)}</span>`
+        ? `<span style="color:#6b7280;font-size:11px;margin-right:8px;font-variant-numeric:tabular-nums">${escapeHtml(m.time)}</span>`
         : '';
-      return `<div style="font-size:12.5px;background:${c.bg};padding:7px 10px;border-radius:6px;margin-bottom:4px;line-height:1.5;display:flex;align-items:flex-start;gap:4px;flex-wrap:wrap">
+      return `<div style="font-size:12.5px;background:${c.bg};padding:8px 10px 8px 12px;border-radius:6px;margin-bottom:4px;line-height:1.55;display:flex;align-items:flex-start;gap:4px;flex-wrap:wrap;border-left:4px ${borderStyle} ${c.accent}">
         ${timeHtml}<strong style="color:${c.color};white-space:nowrap">${labelText}:</strong>
-        <span style="flex:1;min-width:200px">${escapeHtml(m.text || '')}</span>
+        <span style="flex:1;min-width:200px;color:#111827">${escapeHtml(m.text || '')}</span>
       </div>`;
     }).join('');
     detail.dataset.loaded = 'true';
