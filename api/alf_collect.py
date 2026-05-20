@@ -82,6 +82,8 @@ def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
             "manager": manager_name,
             "private": is_private,
         })
+    # 시간순 정렬 (채널톡 API가 최신순으로 반환하므로 시작→끝 순서로 재정렬)
+    result.sort(key=lambda m: m.get("time") or "0")
     return result
 
 
