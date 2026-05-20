@@ -127,18 +127,57 @@ class handler(_Base):
             return
         content_length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(content_length)) if content_length else {}
-        cluster_label = body.get("cluster_label", "")
+        cluster_label = (body.get("cluster_label") or "").strip()
         chat_ids = body.get("chat_ids", [])
+        single_chat = bool(body.get("single_chat", False))
 
-        if not cluster_label or not chat_ids:
-            self._respond(400, {"ok": False, "error": "cluster_label, chat_ids 필요"})
+        if not chat_ids:
+            self._respond(400, {"ok": False, "error": "chat_ids 필요"})
+            return
+        if not cluster_label and not single_chat:
+            self._respond(400, {"ok": False, "error": "cluster_label 필요"})
             return
 
         # chat_ids로 상담 내용 로드
         ids_param = ",".join(f'"{cid}"' for cid in chat_ids[:20])
         url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
-               f"?select=messages&chat_id=in.({ids_param})")
+               f"?select=chat_id,messages&chat_id=in.({ids_param})")
         chats = supabase_get(url, SUPABASE_SERVICE_KEY)
+
+        # DB에 없는 chat은 채널톡 API 실시간 fetch
+        existing_ids = {c.get("chat_id") for c in chats}
+        missing_ids = [cid for cid in chat_ids if cid not in existing_ids]
+        if missing_ids:
+            try:
+                from alf_collect import fetch_messages_for_chat, parse_messages
+                for cid in missing_ids[:20]:
+                    try:
+                        raw_msgs = fetch_messages_for_chat(cid)
+                        chats.append({"chat_id": cid, "messages": parse_messages(raw_msgs)})
+                    except Exception as e:
+                        print(f"[warn] 채널톡 fetch 실패 {cid}: {e}")
+            except Exception as e:
+                print(f"[warn] alf_collect import 실패: {e}")
+
+        # 단일 상담 모드: cluster_label이 비어있으면 LLM이 자동 추출
+        if single_chat and not cluster_label and chats:
+            first_chat = chats[0]
+            msgs = first_chat.get("messages", [])
+            customer_msgs = [m.get("text", "")[:200] for m in msgs if m.get("role") == "customer"][:3]
+            if customer_msgs:
+                label_prompt = (
+                    "다음 고객 문의의 핵심 시나리오를 한 줄로 요약해주세요 (예: '구독 플랜 환불 받는 방법').\n\n"
+                    + " / ".join(customer_msgs)
+                    + "\n\n한 줄 시나리오만 출력 (따옴표·설명 없이):"
+                )
+                try:
+                    cluster_label = call_anthropic(
+                        label_prompt, max_tokens=80, api_key=OPENAI_API_KEY,
+                    ).strip().strip('"').strip("'")
+                except Exception:
+                    cluster_label = "단일 상담 기반 가이드"
+            else:
+                cluster_label = "단일 상담 기반 가이드"
 
         prompt = build_generate_prompt(cluster_label, chats)
         raw = call_anthropic(

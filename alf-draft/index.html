@@ -2222,19 +2222,33 @@ function renderChatPreviews(chats) {
     document.getElementById('chatModalBody').innerHTML = '<div style="text-align:center;padding:40px 0;color:#9ca3af">상담을 찾을 수 없어요.</div>';
     return;
   }
-  document.getElementById('chatModalBody').innerHTML = chats.map(c => `
-    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:8px;background:white">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+  document.getElementById('chatModalBody').innerHTML = chats.map((c, idx) => `
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:8px;background:white" id="chatCard-${idx}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px;color:#6b7280">
           📅 ${escapeHtml(c.date || '-')}
           ${c.assignee_name ? ` · 👤 ${escapeHtml(c.assignee_name)}` : ''}
           ${c.csat_score != null ? ` · ⭐ ${c.csat_score}` : ''}
           · ${c.message_count} 메시지
         </div>
-        <a href="${escapeHtml(c.url)}" target="_blank" rel="noopener"
-          style="font-size:12px;color:#4f46e5;text-decoration:none;font-weight:500">
-          채널톡에서 열기 ↗
-        </a>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button onclick="toggleChatDetail('${escapeHtml(c.chat_id)}', ${idx})"
+            style="font-size:11px;padding:3px 8px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;cursor:pointer;color:#374151">
+            <span id="chatToggleLabel-${idx}">▼ 전체 보기</span>
+          </button>
+          <button onclick="generateFromSingleChat('${escapeHtml(c.chat_id)}', 'article')"
+            style="font-size:11px;padding:3px 8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:5px;cursor:pointer;color:#4338ca;font-weight:500">
+            📄 아티클로
+          </button>
+          <button onclick="generateFromSingleChat('${escapeHtml(c.chat_id)}', 'faq')"
+            style="font-size:11px;padding:3px 8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:5px;cursor:pointer;color:#92400e;font-weight:500">
+            💬 FAQ로
+          </button>
+          <a href="${escapeHtml(c.url)}" target="_blank" rel="noopener"
+            style="font-size:12px;color:#4f46e5;text-decoration:none;font-weight:500">
+            채널톡 ↗
+          </a>
+        </div>
       </div>
       ${c.first_customer ? `<div style="font-size:13px;background:#f3f4f6;padding:8px 10px;border-radius:6px;margin-bottom:6px;line-height:1.5">
         <strong style="color:#374151">고객:</strong> ${escapeHtml(c.first_customer)}${c.first_customer.length >= 150 ? '...' : ''}
@@ -2242,8 +2256,105 @@ function renderChatPreviews(chats) {
       ${c.first_agent ? `<div style="font-size:13px;background:#eef2ff;padding:8px 10px;border-radius:6px;line-height:1.5">
         <strong style="color:#4338ca">상담원:</strong> ${escapeHtml(c.first_agent)}${c.first_agent.length >= 150 ? '...' : ''}
       </div>` : ''}
+      <div id="chatDetail-${idx}" class="hidden" style="margin-top:10px;border-top:1px dashed #e5e7eb;padding-top:10px"></div>
     </div>
   `).join('');
+}
+
+async function toggleChatDetail(chatId, idx) {
+  const detail = document.getElementById(`chatDetail-${idx}`);
+  const label = document.getElementById(`chatToggleLabel-${idx}`);
+  if (!detail) return;
+
+  if (!detail.classList.contains('hidden')) {
+    detail.classList.add('hidden');
+    label.textContent = '▼ 전체 보기';
+    return;
+  }
+
+  detail.classList.remove('hidden');
+  label.textContent = '▲ 접기';
+
+  if (detail.dataset.loaded === 'true') return;
+  detail.innerHTML = '<div style="padding:10px;color:#9ca3af;font-size:13px">불러오는 중...</div>';
+
+  try {
+    const res = await authFetch(`${API}/api/alf_data?type=chat&id=${encodeURIComponent(chatId)}`);
+    const data = await res.json();
+    const msgs = data?.chat?.messages || [];
+    if (msgs.length === 0) {
+      detail.innerHTML = '<div style="padding:10px;color:#9ca3af;font-size:13px">메시지가 없어요.</div>';
+      return;
+    }
+    detail.innerHTML = msgs.map(m => {
+      const role = m.role || 'system';
+      const colors = {
+        customer: {bg: '#f3f4f6', label: '고객', color: '#374151'},
+        agent: {bg: '#eef2ff', label: '상담원', color: '#4338ca'},
+        alf: {bg: '#fef3c7', label: 'ALF (bot)', color: '#92400e'},
+        system: {bg: '#f9fafb', label: '시스템', color: '#6b7280'},
+      };
+      const c = colors[role] || colors.system;
+      return `<div style="font-size:12.5px;background:${c.bg};padding:7px 10px;border-radius:6px;margin-bottom:4px;line-height:1.5">
+        <strong style="color:${c.color}">${c.label}:</strong> ${escapeHtml(m.text || '')}
+      </div>`;
+    }).join('');
+    detail.dataset.loaded = 'true';
+  } catch(e) {
+    detail.innerHTML = `<div style="padding:10px;color:#dc2626;font-size:13px">불러오기 실패: ${escapeHtml(e.message || '')}</div>`;
+  }
+}
+
+async function generateFromSingleChat(chatId, format) {
+  if (!confirm(`이 상담 1건으로 ${format === 'faq' ? 'FAQ' : '아티클'}을 만드시겠어요?\n\n⚠️ 단일 상담 기반이라 일반화에 한계가 있어요.`)) return;
+  closeChatModal();
+  setLoading(true, `${format === 'faq' ? 'FAQ' : '아티클'} 생성 중... (단일 상담)`);
+  document.getElementById('resultGrid').classList.add('hidden');
+  document.getElementById('faqCard').classList.add('hidden');
+  document.getElementById('welcomeCard').style.display = 'none';
+
+  try {
+    const endpoint = format === 'faq' ? 'alf_faq_generate' : 'alf_generate';
+    const res = await authFetch(`${API}/api/${endpoint}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cluster_label: '', chat_ids: [chatId], single_chat: true}),
+    });
+    const data = await res.json();
+    if (!data.ok) { alert('생성 실패: ' + (data.error || '')); return; }
+
+    state.currentDraftId = data.draft_id;
+    state.currentFormat = format;
+
+    if (format === 'faq') {
+      state.currentDraftTitle = data.question;
+      state.currentVariations = data.variations || [];
+      document.getElementById('faqQuestion').value = data.question;
+      document.getElementById('faqAnswer').value = data.answer;
+      document.getElementById('faqAnswerCount').textContent = (data.answer || '').length;
+      renderVariations();
+      document.getElementById('faqCard').classList.remove('hidden');
+    } else {
+      state.currentDraftTitle = data.title;
+      document.getElementById('draftTitle').value = data.title || '';
+      document.getElementById('draftSubtitle').value = data.subtitle || '';
+      document.getElementById('draftArea').value = data.content;
+      document.getElementById('chatCount').textContent = 1;
+      document.getElementById('chatList').innerHTML = `
+        <div class="chat-item">
+          <a href="https://desk.channel.io/liveklass/user-chats/${escapeHtml(chatId)}" target="_blank" rel="noopener"
+             style="font-size:12px;color:#4f46e5;text-decoration:none">
+            💬 ${escapeHtml(String(chatId).slice(0,12))}... ↗
+          </a>
+        </div>`;
+      document.getElementById('resultGrid').classList.remove('hidden');
+    }
+    renderVerification([...(data.warnings || []), {rule: '단일 상담', level: 'info', message: '⚠️ 단일 상담 1건 기반 — 일반화 한계 있음. 다른 케이스도 검토 권장'}]);
+  } catch(e) {
+    alert('오류: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
 }
 
 function copyField(elementId) {
