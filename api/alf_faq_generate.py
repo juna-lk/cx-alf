@@ -3,6 +3,7 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
+import urllib.parse
 
 from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft
 
@@ -122,6 +123,7 @@ class handler(_Base):
         cluster_label = (body.get("cluster_label") or "").strip()
         chat_ids = body.get("chat_ids", [])
         single_chat = bool(body.get("single_chat", False))
+        similar_search = bool(body.get("similar_search", False))
 
         if not chat_ids:
             self._respond(400, {"ok": False, "error": "chat_ids 필요"})
@@ -132,7 +134,7 @@ class handler(_Base):
 
         ids_param = ",".join(f'"{cid}"' for cid in chat_ids[:20])
         url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
-               f"?select=chat_id,messages&chat_id=in.({ids_param})")
+               f"?select=chat_id,messages,tags&chat_id=in.({ids_param})")
         chats = supabase_get(url, SUPABASE_SERVICE_KEY)
 
         # DB에 없는 chat은 채널톡 API 실시간 fetch
@@ -168,6 +170,34 @@ class handler(_Base):
                     cluster_label = "단일 상담 기반 FAQ"
             else:
                 cluster_label = "단일 상담 기반 FAQ"
+
+        # 유사 케이스 종합 분석
+        similar_count = 0
+        if single_chat and similar_search and chats:
+            origin_chat = chats[0]
+            origin_tags = origin_chat.get("tags") or []
+            origin_id = origin_chat.get("chat_id", "")
+            if origin_tags:
+                safe_tag = origin_tags[0].replace('\\', '\\\\').replace('"', '\\"')
+                encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
+                sim_url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+                           f"?select=chat_id,messages,tags"
+                           f"&tags=cs.{encoded_tag}"
+                           f"&chat_id=neq.{origin_id}"
+                           f"&order=date.desc&limit=200")
+                try:
+                    candidates = supabase_get(sim_url, SUPABASE_SERVICE_KEY)
+                except Exception as e:
+                    print(f"[warn] FAQ 유사 케이스 fetch 실패: {e}")
+                    candidates = []
+                if candidates:
+                    try:
+                        from alf_search import filter_by_semantic
+                        similar_chats = filter_by_semantic(candidates, cluster_label)[:30]
+                        chats.extend(similar_chats)
+                        similar_count = len(similar_chats)
+                    except Exception as e:
+                        print(f"[warn] FAQ 유사 케이스 의미 검색 실패: {e}")
 
         prompt = build_faq_prompt(cluster_label, chats)
         raw = call_anthropic(
@@ -206,4 +236,6 @@ class handler(_Base):
             "variations": variations,
             "answer": answer,
             "warnings": verification["warnings"],
+            "analyzed_chat_count": len(chats),
+            "similar_count": similar_count,
         })

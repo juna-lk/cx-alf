@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
+import urllib.parse
 from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
@@ -130,6 +131,7 @@ class handler(_Base):
         cluster_label = (body.get("cluster_label") or "").strip()
         chat_ids = body.get("chat_ids", [])
         single_chat = bool(body.get("single_chat", False))
+        similar_search = bool(body.get("similar_search", False))
 
         if not chat_ids:
             self._respond(400, {"ok": False, "error": "chat_ids 필요"})
@@ -138,10 +140,10 @@ class handler(_Base):
             self._respond(400, {"ok": False, "error": "cluster_label 필요"})
             return
 
-        # chat_ids로 상담 내용 로드
+        # chat_ids로 상담 내용 로드 (tags도 함께)
         ids_param = ",".join(f'"{cid}"' for cid in chat_ids[:20])
         url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
-               f"?select=chat_id,messages&chat_id=in.({ids_param})")
+               f"?select=chat_id,messages,tags&chat_id=in.({ids_param})")
         chats = supabase_get(url, SUPABASE_SERVICE_KEY)
 
         # DB에 없는 chat은 채널톡 API 실시간 fetch
@@ -178,6 +180,36 @@ class handler(_Base):
                     cluster_label = "단일 상담 기반 가이드"
             else:
                 cluster_label = "단일 상담 기반 가이드"
+
+        # 유사 케이스 종합 분석: 원본 chat의 tags로 200건 fetch → LLM 의미 검색
+        similar_count = 0
+        if single_chat and similar_search and chats:
+            origin_chat = chats[0]
+            origin_tags = origin_chat.get("tags") or []
+            origin_id = origin_chat.get("chat_id", "")
+            if origin_tags:
+                safe_tag = origin_tags[0].replace('\\', '\\\\').replace('"', '\\"')
+                encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
+                sim_url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+                           f"?select=chat_id,messages,tags"
+                           f"&tags=cs.{encoded_tag}"
+                           f"&chat_id=neq.{origin_id}"
+                           f"&order=date.desc&limit=200")
+                try:
+                    candidates = supabase_get(sim_url, SUPABASE_SERVICE_KEY)
+                except Exception as e:
+                    print(f"[warn] 유사 케이스 fetch 실패: {e}")
+                    candidates = []
+                # LLM 의미 검색으로 유사한 30건 추출
+                if candidates:
+                    try:
+                        from alf_search import filter_by_semantic
+                        similar_chats = filter_by_semantic(candidates, cluster_label)[:30]
+                        chats.extend(similar_chats)
+                        similar_count = len(similar_chats)
+                    except Exception as e:
+                        print(f"[warn] 유사 케이스 의미 검색 실패: {e}")
+            print(f"[info] 유사 케이스 {similar_count}건 추가됨 (원본 1건 + 유사 {similar_count}건 = 총 {len(chats)}건 분석)")
 
         prompt = build_generate_prompt(cluster_label, chats)
         raw = call_anthropic(
@@ -225,4 +257,6 @@ class handler(_Base):
         self._respond(200, {
             "ok": True, "draft_id": draft_id, "title": title, "subtitle": subtitle,
             "content": draft_content, "warnings": verification["warnings"],
+            "analyzed_chat_count": len(chats),
+            "similar_count": similar_count,
         })

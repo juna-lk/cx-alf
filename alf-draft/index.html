@@ -521,6 +521,26 @@
         🤖 AI 의미 검색 <span style="color:#9ca3af">— 자연어 입력으로 비슷한 의미의 상담 찾기</span>
       </label>
     </div>
+
+    <div style="border-top:1px dashed #e5e7eb;margin-top:14px;padding-top:14px">
+      <label style="font-size:13px;color:#374151;font-weight:600;display:block;margin-bottom:6px">🔗 특정 상담 URL로 시작</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="inputChatUrl" placeholder="https://desk.channel.io/liveklass/user-chats/..."
+               style="flex:1;min-width:280px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px" />
+        <button type="button" onclick="generateFromUrl('article')"
+                style="padding:8px 12px;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:500;white-space:nowrap">
+          📄 아티클로
+        </button>
+        <button type="button" onclick="generateFromUrl('faq')"
+                style="padding:8px 12px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:500;white-space:nowrap">
+          💬 FAQ로
+        </button>
+      </div>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#6b7280;cursor:pointer;margin-top:8px;user-select:none">
+        <input type="checkbox" id="urlSimilarToggle" style="margin:0;cursor:pointer" />
+        📚 유사 케이스도 함께 찾아서 종합 분석 <span style="color:#9ca3af">— 같은 태그·시나리오의 다른 상담들도 참고해서 더 정확한 가이드 생성</span>
+      </label>
+    </div>
   </div>
 
   <div class="welcome-card" id="welcomeCard">
@@ -2305,10 +2325,22 @@ async function toggleChatDetail(chatId, idx) {
   }
 }
 
-async function generateFromSingleChat(chatId, format) {
-  if (!confirm(`이 상담 1건으로 ${format === 'faq' ? 'FAQ' : '아티클'}을 만드시겠어요?\n\n⚠️ 단일 상담 기반이라 일반화에 한계가 있어요.`)) return;
+function generateFromUrl(format) {
+  const url = document.getElementById('inputChatUrl').value.trim();
+  if (!url) { alert('상담 URL을 입력해주세요'); return; }
+  const m = url.match(/user-chats\/(?:매니저-)?([a-zA-Z0-9_-]{8,})/i);
+  if (!m) { alert('올바른 채널톡 상담 URL이 아니에요\n예: https://desk.channel.io/liveklass/user-chats/...'); return; }
+  const chatId = m[1];
+  const similar = document.getElementById('urlSimilarToggle')?.checked || false;
+  generateFromSingleChat(chatId, format, similar);
+}
+
+async function generateFromSingleChat(chatId, format, similar = false) {
+  const fmtLabel = format === 'faq' ? 'FAQ' : '아티클';
+  const similarLabel = similar ? '\n📚 유사 케이스도 함께 찾아서 종합 분석합니다 (1~2분 소요).' : '\n⚠️ 단일 상담 기반이라 일반화에 한계가 있어요.';
+  if (!confirm(`이 상담으로 ${fmtLabel}을 만드시겠어요?${similarLabel}`)) return;
   closeChatModal();
-  setLoading(true, `${format === 'faq' ? 'FAQ' : '아티클'} 생성 중... (단일 상담)`);
+  setLoading(true, similar ? `유사 케이스 찾는 중... (${fmtLabel} 종합 분석)` : `${fmtLabel} 생성 중... (단일 상담)`);
   document.getElementById('resultGrid').classList.add('hidden');
   document.getElementById('faqCard').classList.add('hidden');
   document.getElementById('welcomeCard').style.display = 'none';
@@ -2318,7 +2350,7 @@ async function generateFromSingleChat(chatId, format) {
     const res = await authFetch(`${API}/api/${endpoint}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({cluster_label: '', chat_ids: [chatId], single_chat: true}),
+      body: JSON.stringify({cluster_label: '', chat_ids: [chatId], single_chat: true, similar_search: similar}),
     });
     const data = await res.json();
     if (!data.ok) { alert('생성 실패: ' + (data.error || '')); return; }
@@ -2339,17 +2371,24 @@ async function generateFromSingleChat(chatId, format) {
       document.getElementById('draftTitle').value = data.title || '';
       document.getElementById('draftSubtitle').value = data.subtitle || '';
       document.getElementById('draftArea').value = data.content;
-      document.getElementById('chatCount').textContent = 1;
+      const total = data.analyzed_chat_count || 1;
+      document.getElementById('chatCount').textContent = total;
       document.getElementById('chatList').innerHTML = `
         <div class="chat-item">
           <a href="https://desk.channel.io/liveklass/user-chats/${escapeHtml(chatId)}" target="_blank" rel="noopener"
              style="font-size:12px;color:#4f46e5;text-decoration:none">
-            💬 ${escapeHtml(String(chatId).slice(0,12))}... ↗
+            💬 ${escapeHtml(String(chatId).slice(0,12))}... ↗ (원본)
           </a>
-        </div>`;
+        </div>
+        ${(data.similar_count || 0) > 0 ? `<div class="chat-item" style="background:#fef3c7;padding:6px 8px;border-radius:4px"><div style="font-size:12px;color:#92400e">📚 유사 케이스 ${data.similar_count}건 함께 분석됨</div></div>` : ''}`;
       document.getElementById('resultGrid').classList.remove('hidden');
     }
-    renderVerification([...(data.warnings || []), {rule: '단일 상담', level: 'info', message: '⚠️ 단일 상담 1건 기반 — 일반화 한계 있음. 다른 케이스도 검토 권장'}]);
+    const sourceNote = similar && (data.similar_count || 0) > 0
+      ? {rule: '종합 분석', level: 'info', message: `📚 단일 상담 + 유사 케이스 ${data.similar_count}건 종합 분석 완료 (총 ${data.analyzed_chat_count}건)`}
+      : similar
+        ? {rule: '단일 상담', level: 'warning', message: '⚠️ 유사 케이스를 찾지 못했어요. 단일 상담만으로 생성 — 일반화 한계 있음'}
+        : {rule: '단일 상담', level: 'info', message: '⚠️ 단일 상담 1건 기반 — 일반화 한계 있음. 다른 케이스도 검토 권장'};
+    renderVerification([...(data.warnings || []), sourceNote]);
   } catch(e) {
     alert('오류: ' + e.message);
   } finally {
