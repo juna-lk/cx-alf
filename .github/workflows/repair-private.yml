@@ -1,0 +1,23 @@
+name: ALF private 필드 보정 (1회 실행용)
+
+on:
+  workflow_dispatch:  # Actions 탭에서 수동 트리거
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350  # 약 5.8시간 여유
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 전체 chat private 필드 재계산 + PATCH
+        env:
+          CHANNELTALK_ACCESS_KEY: ${{ secrets.CHANNELTALK_ACCESS_KEY }}
+          CHANNELTALK_ACCESS_SECRET: ${{ secrets.CHANNELTALK_ACCESS_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 repair_messages.py --all
