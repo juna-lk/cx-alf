@@ -610,8 +610,8 @@
       </div>
     </div>
     <div class="cluster-actions">
-      <button class="btn btn-primary" onclick="generate('article')">📄 아티클로 생성</button>
-      <button class="btn btn-primary" onclick="generate('faq')">💬 FAQ로 생성</button>
+      <button id="btnGenArticle" class="btn btn-primary" onclick="generate('article')">📄 아티클로 생성</button>
+      <button id="btnGenFaq" class="btn btn-primary" onclick="generate('faq')">💬 FAQ로 생성</button>
     </div>
   </div>
 
@@ -1970,9 +1970,37 @@ function renderVerification(warnings) {
   banner.style.display = 'block';
 }
 
+function setGenButtonState(format, loading) {
+  const btnArticle = document.getElementById('btnGenArticle');
+  const btnFaq = document.getElementById('btnGenFaq');
+  if (!btnArticle || !btnFaq) return;
+  if (loading) {
+    btnArticle.disabled = true;
+    btnFaq.disabled = true;
+    btnArticle.style.opacity = '0.6';
+    btnFaq.style.opacity = '0.6';
+    btnArticle.style.cursor = 'not-allowed';
+    btnFaq.style.cursor = 'not-allowed';
+    if (format === 'article') btnArticle.innerHTML = '<span class="spinner" style="vertical-align:middle;margin-right:6px"></span>생성 중...';
+    if (format === 'faq') btnFaq.innerHTML = '<span class="spinner" style="vertical-align:middle;margin-right:6px"></span>생성 중...';
+  } else {
+    btnArticle.disabled = false;
+    btnFaq.disabled = false;
+    btnArticle.style.opacity = '1';
+    btnFaq.style.opacity = '1';
+    btnArticle.style.cursor = 'pointer';
+    btnFaq.style.cursor = 'pointer';
+    btnArticle.innerHTML = '📄 아티클로 생성';
+    btnFaq.innerHTML = '💬 FAQ로 생성';
+  }
+}
+
 async function generate(format) {
   const selected = state.clusters.filter((_, i) => document.getElementById('cl' + i)?.checked);
   if (selected.length === 0) { alert('유형을 하나 이상 선택해주세요'); return; }
+
+  // 즉시 버튼 시각 피드백
+  setGenButtonState(format, true);
 
   // 다중 선택 + 아티클이면 모드 선택 모달 표시
   if (selected.length > 1 && format === 'article') {
@@ -1991,7 +2019,7 @@ async function generate(format) {
       `"${selected[0].label}"만 처리할까요?\n\n` +
       `여러 유형을 한 번에 처리하려면 [📄 아티클로 생성]을 사용하세요.`
     );
-    if (!proceed) return;
+    if (!proceed) { setGenButtonState(format, false); return; }
   }
 
   return runSingleGenerate(format, selected[0]);
@@ -2000,6 +2028,8 @@ async function generate(format) {
 function closeMultiMode() {
   document.getElementById('multiModeOverlay').classList.remove('open');
   state.pendingMultiSelection = null;
+  setGenButtonState('article', false);
+  setGenButtonState('faq', false);
 }
 
 async function executeGenerate(mode) {
@@ -2039,7 +2069,7 @@ async function executeGenerate(mode) {
   }
   setLoading(false);
 
-  if (results.length === 0) { alert('모든 아티클 생성 실패'); return; }
+  if (results.length === 0) { setGenButtonState('article', false); alert('모든 아티클 생성 실패'); return; }
 
   // 마지막 결과를 화면에 표시, 전체는 '작성 중인 초안'에 저장됨
   state.currentFormat = 'article';
@@ -2060,11 +2090,13 @@ async function executeGenerate(mode) {
     ).join('');
   document.getElementById('resultGrid').classList.remove('hidden');
   renderVerification(lastData.warnings || []);
+  setGenButtonState('article', false);
   alert(`✅ ${results.length}개 아티클이 생성됐어요!\n\n마지막 1개가 화면에 표시되고, 전체는 "작성 중인 초안" 탭에서 확인할 수 있어요.`);
 }
 
 async function runSingleGenerate(format, cluster) {
   state.currentFormat = format;
+  setGenButtonState(format, true);
   const endpoint = format === 'faq' ? 'alf_faq_generate' : 'alf_generate';
   setLoading(true, format === 'faq' ? 'FAQ 생성 중...' : '아티클 생성 중...');
   document.getElementById('resultGrid').classList.add('hidden');
@@ -2112,6 +2144,7 @@ async function runSingleGenerate(format, cluster) {
     alert('오류: ' + e.message);
   } finally {
     setLoading(false);
+    setGenButtonState(format, false);
   }
 }
 
