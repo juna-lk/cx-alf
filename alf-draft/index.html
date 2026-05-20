@@ -636,7 +636,10 @@
 
       <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px">
         본문 <span style="color:#9ca3af;font-weight:400">(Markdown — 채널톡 본문 영역)</span>
-        <button type="button" onclick="copyField('draftArea')" style="float:right;background:none;border:none;cursor:pointer;font-size:11px;color:#4f46e5;padding:0">📋 복사</button>
+        <span style="float:right;display:inline-flex;gap:10px">
+          <button type="button" onclick="copyRichText('draftArea')" title="HTML 서식으로 복사 — 채널톡 paste 시 헤딩·불릿 자동 적용" style="background:none;border:none;cursor:pointer;font-size:11px;color:#7c3aed;padding:0;font-weight:600">🎨 서식 복사</button>
+          <button type="button" onclick="copyField('draftArea')" title="Markdown 텍스트 그대로 복사" style="background:none;border:none;cursor:pointer;font-size:11px;color:#4f46e5;padding:0">📋 텍스트</button>
+        </span>
       </label>
       <textarea class="draft-area" id="draftArea"></textarea>
 
@@ -2456,6 +2459,101 @@ function copyField(elementId) {
   }).catch(() => {
     document.execCommand('copy');
   });
+}
+
+function markdownToHtml(md) {
+  // 코드블록 보호
+  const codeBlocks = [];
+  md = md.replace(/```([\s\S]*?)```/g, (_, code) => {
+    codeBlocks.push(code);
+    return ` CODEBLOCK_${codeBlocks.length - 1} `;
+  });
+
+  // 줄 단위 변환
+  const lines = md.split('\n');
+  const out = [];
+  let inList = false;
+  let listType = null; // 'ul' or 'ol'
+  let inBlockquote = false;
+
+  const flushList = () => { if (inList) { out.push(`</${listType}>`); inList = false; listType = null; } };
+  const flushBq = () => { if (inBlockquote) { out.push('</blockquote>'); inBlockquote = false; } };
+
+  const inline = (t) => {
+    return t
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  };
+
+  for (const raw of lines) {
+    const line = raw;
+    // 헤딩
+    let m;
+    if ((m = line.match(/^(#{1,6})\s+(.+)$/))) {
+      flushList(); flushBq();
+      const lvl = m[1].length;
+      out.push(`<h${lvl}>${inline(m[2])}</h${lvl}>`);
+      continue;
+    }
+    // 불릿
+    if ((m = line.match(/^[-*]\s+(.+)$/))) {
+      flushBq();
+      if (!inList || listType !== 'ul') { flushList(); out.push('<ul>'); inList = true; listType = 'ul'; }
+      out.push(`<li>${inline(m[1])}</li>`);
+      continue;
+    }
+    // 번호 목록
+    if ((m = line.match(/^\d+\.\s+(.+)$/))) {
+      flushBq();
+      if (!inList || listType !== 'ol') { flushList(); out.push('<ol>'); inList = true; listType = 'ol'; }
+      out.push(`<li>${inline(m[1])}</li>`);
+      continue;
+    }
+    // 콜아웃
+    if ((m = line.match(/^>\s+(.+)$/))) {
+      flushList();
+      if (!inBlockquote) { out.push('<blockquote>'); inBlockquote = true; }
+      out.push(`<p>${inline(m[1])}</p>`);
+      continue;
+    }
+    // 빈 줄
+    if (line.trim() === '') {
+      flushList(); flushBq();
+      continue;
+    }
+    // 일반 단락
+    flushList(); flushBq();
+    out.push(`<p>${inline(line)}</p>`);
+  }
+  flushList(); flushBq();
+
+  let html = out.join('\n');
+  // 코드블록 복원
+  html = html.replace(/ CODEBLOCK_(\d+) /g, (_, i) => `<pre><code>${codeBlocks[i].replace(/</g, '&lt;')}</code></pre>`);
+  return html;
+}
+
+async function copyRichText(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const md = el.value;
+  const html = markdownToHtml(md);
+  const btn = event.target;
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], {type: 'text/html'}),
+      'text/plain': new Blob([md], {type: 'text/plain'}),
+    })]);
+    btn.textContent = '✓ 서식 복사됨';
+  } catch (e) {
+    // fallback: plain text만
+    await navigator.clipboard.writeText(md);
+    btn.textContent = '✓ 텍스트만 복사됨';
+  }
+  setTimeout(() => { btn.textContent = original; }, 1800);
 }
 
 function downloadMd(content, title) {
