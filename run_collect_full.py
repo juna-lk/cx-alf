@@ -104,14 +104,15 @@ if __name__ == "__main__":
     force_update = "--force-update" in args
     days_arg = next((a for a in args if a.isdigit()), None)
 
-    if all_mode or force_update:
+    # 날짜 필터: --all이면 무제한, days 인자 있으면 그만큼, 기본 138일
+    if all_mode:
         since_ts_val = 0.0
         print(f"[start] 전체 데이터 수집 (날짜 제한 없음){' · 강제 업데이트 모드' if force_update else ''}")
     else:
         days = int(days_arg) if days_arg else 138
         since = datetime.now(timezone.utc) - timedelta(days=days)
         since_ts_val = since.timestamp()
-        print(f"[start] {days}일치 수집 (since {since.date()})")
+        print(f"[start] {days}일치 수집 (since {since.date()}){' · 강제 업데이트 모드' if force_update else ''}")
     print()
 
     print("[0/5] 채널톡 매니저 목록 조회...")
