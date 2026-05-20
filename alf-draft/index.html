@@ -510,7 +510,13 @@
         <datalist id="tagList"></datalist>
       </div>
       <div class="field">
-        <label>키워드 (선택, 공백으로 여러 단어 AND)</label>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span>키워드 (선택)</span>
+          <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:400;color:#6b7280;cursor:pointer;user-select:none">
+            <input type="checkbox" id="aiSearchToggle" onchange="toggleAiSearch()" style="margin:0;cursor:pointer" />
+            🤖 AI 의미 검색
+          </label>
+        </label>
         <input type="text" id="inputKeyword" placeholder="예: 무료 변경" />
       </div>
       <button class="btn btn-primary" id="btnAnalyze" onclick="analyze()">분석하기</button>
@@ -1818,7 +1824,7 @@ async function analyze() {
     const res = await authFetch(`${API}/api/alf_search`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({tag, keyword}),
+      body: JSON.stringify({tag, keyword, ai_search: document.getElementById('aiSearchToggle')?.checked || false}),
     });
     const data = await res.json();
     if (!data.ok || data.total === 0) { alert('관련 상담을 찾을 수 없습니다.'); return; }
@@ -2201,6 +2207,14 @@ async function openChatModal(source, idx) {
 
 function closeChatModal() {
   document.getElementById('chatModalOverlay').classList.remove('open');
+}
+
+function toggleAiSearch() {
+  const on = document.getElementById('aiSearchToggle').checked;
+  const input = document.getElementById('inputKeyword');
+  input.placeholder = on
+    ? '예: 수강생 수강 시도 시 결제 페이지로 이동 (자연어 OK)'
+    : '예: 무료 변경';
 }
 
 function renderChatPreviews(chats) {
