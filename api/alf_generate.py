@@ -169,7 +169,7 @@ class handler(_Base):
 
         # 인사·자기소개·마무리 인사 제거 + 자동 검증
         draft_content = strip_article_boilerplate(draft_content)
-        verification = verify_draft(draft_content, "article", cluster_label)
+        verification = verify_draft(draft_content, "article", cluster_label, title=title)
         draft_content = verification["fixed"]
 
         # alf_drafts에 저장

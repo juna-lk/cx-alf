@@ -89,7 +89,7 @@ def strip_article_boilerplate(text: str) -> str:
     return result.strip()
 
 
-def verify_draft(content: str, format_type: str = "article", cluster_label: str = "") -> dict:
+def verify_draft(content: str, format_type: str = "article", cluster_label: str = "", title: str = "") -> dict:
     """채널톡 ALF 가이드라인 기준으로 초안 자동 검증.
 
     반환: {
@@ -112,15 +112,12 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
                          "message": "이모지를 자동 제거했어요 (Help Doc 톤 유지)"})
         fixed = emoji_pattern.sub("", fixed)
 
-    # 2) 헤딩 구조 (article)
+    # 2) 헤딩 구조 (article) — 새 구조: 제목/소제목은 별도 필드, content는 ## 섹션부터 시작
     if format_type == "article":
-        if not re.search(r"^#\s", fixed, re.MULTILINE):
-            warnings.append({"rule": "제목", "level": "error",
-                             "message": "# 제목이 없어요. ALF는 제목을 우선 검색해요"})
         sub_count = len(re.findall(r"^##\s", fixed, re.MULTILINE))
         if sub_count == 0 and len(fixed) > 300:
             warnings.append({"rule": "소제목", "level": "warning",
-                             "message": "## 소제목이 없어요. 구조화하면 ALF 매칭 정확도가 올라가요"})
+                             "message": "## 소제목이 없어요. 본문이 길면 ## 섹션으로 분리하면 ALF 매칭 정확도가 올라가요"})
 
     # 3) 잔존 보일러플레이트 (줄 단위로만 매칭 — 정상 안내문 오탐 방지)
     boilerplate_patterns = [
@@ -159,22 +156,18 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
         warnings.append({"rule": "글자수", "level": "error",
                          "message": f"{length}자 — 채널톡 FAQ 답변 한도 500자 초과"})
 
-    # 6) 불릿·번호 목록 존재
+    # 6) 불릿·번호 목록 존재 (긴 본문일 때만 권장)
     has_list = bool(re.search(r"^\s*[-*]\s|^\s*\d+\.\s", fixed, re.MULTILINE))
-    if format_type == "article" and not has_list and length > 200:
+    if format_type == "article" and not has_list and length > 500:
         warnings.append({"rule": "목록", "level": "info",
                          "message": "불릿/번호 목록이 없어요. 단계·조건은 목록으로 정리하면 ALF가 선후 관계 파악 쉬워요"})
 
-    # 7) 제목에 클러스터 키워드 포함
-    if format_type == "article" and cluster_label:
-        m = re.search(r"^#\s+(.+)$", fixed, re.MULTILINE)
-        if m:
-            title = m.group(1)
-            # 클러스터 라벨의 주요 단어 (2자 이상) 중 하나라도 제목에 있는지
-            kw_tokens = [t for t in re.split(r"[\s,/·]+", cluster_label) if len(t) >= 2]
-            if kw_tokens and not any(t in title for t in kw_tokens):
-                warnings.append({"rule": "제목 키워드", "level": "warning",
-                                 "message": f'제목에 핵심 키워드({", ".join(kw_tokens[:3])}) 미포함'})
+    # 7) 제목에 클러스터 키워드 포함 (title 인자가 별도로 전달된 경우)
+    if format_type == "article" and cluster_label and title:
+        kw_tokens = [t for t in re.split(r"[\s,/·]+", cluster_label) if len(t) >= 2]
+        if kw_tokens and not any(t in title for t in kw_tokens):
+            warnings.append({"rule": "제목 키워드", "level": "warning",
+                             "message": f'제목에 핵심 키워드({", ".join(kw_tokens[:3])}) 미포함'})
 
     return {"warnings": warnings, "fixed": fixed}
 
