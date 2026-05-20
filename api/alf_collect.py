@@ -24,21 +24,64 @@ CT_HEADERS = {
 }
 
 
-def parse_messages(raw_messages: list) -> list:
-    """Channel Talk 메시지 배열을 {role, text} 형식으로 변환"""
+def fetch_all_managers() -> dict:
+    """채널톡 매니저 목록 → {id: name} 매핑. 한 번 호출 후 캐시 권장."""
+    url = f"{CT_BASE}/open/v5/managers?limit=500"
+    req = urllib.request.Request(url, headers=CT_HEADERS)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        return {m.get("id", ""): m.get("name", "") for m in data.get("managers", [])}
+    except Exception as e:
+        print(f"[warn] 매니저 목록 fetch 실패: {e}")
+        return {}
+
+
+def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
+    """Channel Talk 메시지 배열을 {role, text, time, manager, private} 형식으로 변환.
+
+    - time: KST 'YYYY-MM-DD HH:MM' 형식
+    - manager: personType=manager인 메시지에 한해 매니저 이름 (manager_map에서 매핑)
+    - private: 내부 메모(options.private=true) 여부
+    """
     role_map = {
         "user": "customer",
         "manager": "agent",
         "bot": "alf",
         "system": "system",
     }
+    manager_map = manager_map or {}
     result = []
     for m in raw_messages:
         text = (m.get("plainText") or m.get("text") or "").strip()
         if not text:
             continue
         person_type = m.get("personType", "system")
-        result.append({"role": role_map.get(person_type, "system"), "text": text})
+        role = role_map.get(person_type, "system")
+
+        # 매니저 이름
+        manager_name = ""
+        if person_type == "manager":
+            manager_name = manager_map.get(m.get("personId", ""), "")
+
+        # 내부 메모 여부
+        options = m.get("options") or {}
+        is_private = bool(options.get("private")) if isinstance(options, dict) else False
+
+        # KST timestamp
+        created_ms = m.get("createdAt", 0) or 0
+        if created_ms:
+            time_str = datetime.fromtimestamp(created_ms / 1000, tz=KST).strftime("%Y-%m-%d %H:%M")
+        else:
+            time_str = ""
+
+        result.append({
+            "role": role,
+            "text": text,
+            "time": time_str,
+            "manager": manager_name,
+            "private": is_private,
+        })
     return result
 
 
@@ -81,6 +124,7 @@ def get_existing_chat_ids() -> set:
 def collect_and_store(days: int = DEFAULT_COLLECT_DAYS) -> dict:
     """최근 N일 상담 전체 메시지 수집 + Supabase 저장"""
     existing_ids = get_existing_chat_ids()
+    manager_map = fetch_all_managers()
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     all_chats = []
@@ -113,7 +157,7 @@ def collect_and_store(days: int = DEFAULT_COLLECT_DAYS) -> dict:
             continue
         try:
             raw_msgs = fetch_messages_for_chat(cid)
-            messages = parse_messages(raw_msgs)
+            messages = parse_messages(raw_msgs, manager_map)
             new_rows.append(build_row(chat, messages))
             time.sleep(0.05)
         except Exception as e:

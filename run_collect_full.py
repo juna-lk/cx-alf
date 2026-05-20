@@ -25,7 +25,7 @@ for line in _env_lines:
 
 sys.path.insert(0, str(Path(__file__).parent / "api"))
 from _alf_common import supabase_get, supabase_post  # noqa: E402
-from alf_collect import fetch_messages_for_chat, parse_messages, build_row  # noqa: E402
+from alf_collect import fetch_messages_for_chat, parse_messages, build_row, fetch_all_managers  # noqa: E402
 
 CT_HEADERS = {
     "x-access-key": os.environ["CHANNELTALK_ACCESS_KEY"],
@@ -99,23 +99,32 @@ def fetch_chats_full(state: str, since_ts: float = 0) -> list:
 
 
 if __name__ == "__main__":
-    all_mode = len(sys.argv) > 1 and sys.argv[1] == "--all"
-    if all_mode:
+    args = sys.argv[1:]
+    all_mode = "--all" in args
+    force_update = "--force-update" in args
+    days_arg = next((a for a in args if a.isdigit()), None)
+
+    if all_mode or force_update:
         since_ts_val = 0.0
-        print("[start] 전체 데이터 수집 (날짜 제한 없음)")
+        print(f"[start] 전체 데이터 수집 (날짜 제한 없음){' · 강제 업데이트 모드' if force_update else ''}")
     else:
-        days = int(sys.argv[1]) if len(sys.argv) > 1 else 138
+        days = int(days_arg) if days_arg else 138
         since = datetime.now(timezone.utc) - timedelta(days=days)
         since_ts_val = since.timestamp()
         print(f"[start] {days}일치 수집 (since {since.date()})")
     print()
 
-    print("[1/4] 기존 chat_id 조회...")
-    existing = get_existing_chat_ids()
-    print(f"      기존: {len(existing)}건")
+    print("[0/5] 채널톡 매니저 목록 조회...")
+    manager_map = fetch_all_managers()
+    print(f"      매니저 {len(manager_map)}명 캐시 완료")
     print()
 
-    print("[2/4] 채널톡 채팅 목록 수집 (state별 끝까지 페이지네이션)...")
+    print("[1/5] 기존 chat_id 조회...")
+    existing = get_existing_chat_ids()
+    print(f"      기존: {len(existing)}건{' (force-update 모드 — 모두 재처리)' if force_update else ''}")
+    print()
+
+    print("[2/5] 채널톡 채팅 목록 수집 (state별 끝까지 페이지네이션)...")
     all_chats = []
     for state in ("closed", "opened", "snoozed", "initial", "missed"):
         chats = fetch_chats_full(state, since_ts_val)
@@ -126,9 +135,12 @@ if __name__ == "__main__":
 
     # 중복 제거
     unique = {c["id"]: c for c in all_chats}
-    print(f"[3/4] 중복 제거: {len(unique)}건")
-    new_chats = {cid: c for cid, c in unique.items() if cid not in existing}
-    print(f"      신규: {len(new_chats)}건")
+    print(f"[3/5] 중복 제거: {len(unique)}건")
+    if force_update:
+        new_chats = unique  # 모두 다시 처리
+    else:
+        new_chats = {cid: c for cid, c in unique.items() if cid not in existing}
+    print(f"      처리 대상: {len(new_chats)}건")
     print()
 
     def upsert_chunk(chunk: list, chunk_idx: int) -> bool:
@@ -164,7 +176,7 @@ if __name__ == "__main__":
                 return False
         return False
 
-    print("[4/4] 메시지 수집 + 즉시 저장 (chunk 단위)...")
+    print("[4/5] 메시지 수집 + 즉시 저장 (chunk 단위)...")
     buffer = []
     errors = 0
     stored = 0
@@ -175,7 +187,7 @@ if __name__ == "__main__":
     for i, (cid, chat) in enumerate(new_chats.items()):
         try:
             raw = fetch_messages_for_chat(cid)
-            messages = parse_messages(raw)
+            messages = parse_messages(raw, manager_map)
             buffer.append(build_row(chat, messages))
             time.sleep(0.12)
         except Exception as e:

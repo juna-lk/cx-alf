@@ -142,11 +142,12 @@ class handler(_Base):
         missing_ids = [cid for cid in chat_ids if cid not in existing_ids]
         if missing_ids:
             try:
-                from alf_collect import fetch_messages_for_chat, parse_messages
+                from alf_collect import fetch_messages_for_chat, parse_messages, fetch_all_managers
+                mgr_map = fetch_all_managers()
                 for cid in missing_ids[:20]:
                     try:
                         raw_msgs = fetch_messages_for_chat(cid)
-                        chats.append({"chat_id": cid, "messages": parse_messages(raw_msgs)})
+                        chats.append({"chat_id": cid, "messages": parse_messages(raw_msgs, mgr_map)})
                     except Exception as e:
                         print(f"[warn] 채널톡 fetch 실패 {cid}: {e}")
             except Exception as e:
