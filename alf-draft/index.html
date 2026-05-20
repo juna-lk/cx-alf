@@ -2274,7 +2274,7 @@ function renderChatPreviews(chats) {
         <strong style="color:#374151">고객:</strong> ${escapeHtml(c.first_customer)}${c.first_customer.length >= 150 ? '...' : ''}
       </div>` : ''}
       ${c.first_agent ? `<div style="font-size:13px;background:#eef2ff;padding:8px 10px;border-radius:6px;line-height:1.5">
-        <strong style="color:#4338ca">상담원:</strong> ${escapeHtml(c.first_agent)}${c.first_agent.length >= 150 ? '...' : ''}
+        <strong style="color:#4338ca">매니저:</strong> ${escapeHtml(c.first_agent)}${c.first_agent.length >= 150 ? '...' : ''}
       </div>` : ''}
       <div id="chatDetail-${idx}" class="hidden" style="margin-top:10px;border-top:1px dashed #e5e7eb;padding-top:10px"></div>
     </div>
@@ -2310,7 +2310,7 @@ async function toggleChatDetail(chatId, idx) {
       const role = m.role || 'system';
       const baseColors = {
         customer: {bg: '#f3f4f6', label: '고객', color: '#374151'},
-        agent: {bg: '#eef2ff', label: '상담원', color: '#4338ca'},
+        agent: {bg: '#eef2ff', label: '매니저', color: '#4338ca'},
         alf: {bg: '#fef3c7', label: 'ALF (bot)', color: '#92400e'},
         system: {bg: '#f9fafb', label: '시스템', color: '#6b7280'},
       };
@@ -2319,9 +2319,9 @@ async function toggleChatDetail(chatId, idx) {
       // 내부 메모는 별도 색상 + 라벨
       if (m.private) {
         c = {bg: '#fee2e2', color: '#991b1b'};
-        labelText = m.manager ? `🔒 ${escapeHtml(m.manager)} [내부]` : '🔒 [내부]';
+        labelText = m.manager ? `[내부] ${escapeHtml(m.manager)} (매니저)` : '[내부]';
       } else if (role === 'agent' && m.manager) {
-        labelText = `${escapeHtml(m.manager)} (상담원)`;
+        labelText = `${escapeHtml(m.manager)} (매니저)`;
       }
       const timeHtml = m.time
         ? `<span style="color:#9ca3af;font-size:11px;margin-right:8px;font-variant-numeric:tabular-nums">${escapeHtml(m.time)}</span>`
