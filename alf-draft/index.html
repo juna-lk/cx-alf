@@ -2361,7 +2361,8 @@ async function previewDraft(id, title) {
     const variations = (d.variations || []).map(v => `- ${v}`).join('\n');
     state.modalContent = `# ${title}\n\n## 변형 질문\n${variations}\n\n## 답변\n${d.content || ''}\n`;
   } else {
-    state.modalContent = d.content || '';
+    const subtitleLine = d.subtitle ? `[소제목] ${d.subtitle}\n\n` : '';
+    state.modalContent = subtitleLine + (d.content || '');
   }
   state.currentDraftTitle = title;
   document.getElementById('modalTitle').textContent = title;
