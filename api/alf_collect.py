@@ -64,9 +64,14 @@ def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
         if person_type == "manager":
             manager_name = manager_map.get(m.get("personId", ""), "")
 
-        # 내부 메모 여부
-        options = m.get("options") or {}
-        is_private = bool(options.get("private")) if isinstance(options, dict) else False
+        # 내부 메모 여부 — 채널톡 API는 options를 배열로 반환 (예: ["private", "silentToUser", ...])
+        options = m.get("options")
+        if isinstance(options, list):
+            is_private = "private" in options
+        elif isinstance(options, dict):
+            is_private = bool(options.get("private"))
+        else:
+            is_private = False
 
         # KST timestamp
         created_ms = m.get("createdAt", 0) or 0

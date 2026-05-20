@@ -69,12 +69,14 @@ def patch_chat_messages(chat_id: str, messages: list) -> bool:
 
 
 if __name__ == "__main__":
+    all_mode = "--all" in sys.argv
+
     print("[0/3] 채널톡 매니저 목록 fetch...")
     manager_map = fetch_all_managers()
     print(f"      매니저 {len(manager_map)}명 캐시")
     print()
 
-    print("[1/3] 옛 schema chat_id 조회 (페이지네이션)...")
+    print(f"[1/3] {'전체 chat_id' if all_mode else '옛 schema chat_id'} 조회 (페이지네이션)...")
     old_chat_ids = []
     offset = 0
     PAGE = 1000
@@ -85,9 +87,11 @@ if __name__ == "__main__":
             break
         for r in rows:
             msgs = r.get("messages") or []
-            if msgs and isinstance(msgs[0], dict) and "time" not in msgs[0]:
+            if all_mode:
                 old_chat_ids.append(r["chat_id"])
-        print(f"      ... offset={offset}, 누적 옛 schema {len(old_chat_ids)}건")
+            elif msgs and isinstance(msgs[0], dict) and "time" not in msgs[0]:
+                old_chat_ids.append(r["chat_id"])
+        print(f"      ... offset={offset}, 누적 {len(old_chat_ids)}건")
         if len(rows) < PAGE:
             break
         offset += PAGE
