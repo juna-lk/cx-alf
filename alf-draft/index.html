@@ -1927,7 +1927,12 @@ async function analyze() {
           style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:#4f46e5;font-weight:500">
           💬 상담 보기
         </button>
-        <div class="cluster-count">${Number(cl.count) || 0}건</div>
+        <button type="button" id="expandBtn${i}" onclick="event.stopPropagation();expandCluster(${i})"
+          style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:#4f46e5;font-weight:500"
+          title="이 세부 유형에 대해 같은 태그에서 의미적으로 가까운 채팅 25건을 추가로 수집해 분석 풀을 늘려요">
+          🔍 +25건 탐색
+        </button>
+        <div class="cluster-count" id="clusterCount${i}">${Number(cl.count) || 0}건</div>
       </div>
     `).join('');
 
@@ -2162,6 +2167,56 @@ function getReferenceParams() {
   if (url) out.reference_url = url;
   if (doc) out.reference_doc = doc;
   return out;
+}
+
+async function expandCluster(idx) {
+  const cluster = state.clusters?.[idx];
+  if (!cluster) return;
+  const btn = document.getElementById(`expandBtn${idx}`);
+  const countEl = document.getElementById(`clusterCount${idx}`);
+  if (cluster._expanded) return;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 탐색 중...'; }
+
+  try {
+    const res = await authFetch(`${API}/api/alf_expand_cluster`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        cluster_label: cluster.label,
+        current_chat_ids: cluster.chat_ids || [],
+        limit: 25,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      alert('상세 탐색 실패: ' + (data.error || ''));
+      if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }
+      return;
+    }
+    const newIds = data.added_chat_ids || [];
+    const existing = new Set(cluster.chat_ids || []);
+    const merged = [...(cluster.chat_ids || [])];
+    for (const cid of newIds) {
+      if (!existing.has(cid)) { merged.push(cid); existing.add(cid); }
+    }
+    cluster.chat_ids = merged;
+    cluster.count = merged.length;
+    cluster._expanded = true;
+
+    if (countEl) {
+      countEl.innerHTML = `${cluster.count}건 <span style="color:#4f46e5;font-size:11px">(+${newIds.length})</span>`;
+    }
+    if (btn) {
+      btn.textContent = `✓ +${newIds.length}건 탐색됨`;
+      btn.disabled = true;
+      btn.style.background = '#ecfdf5';
+      btn.style.color = '#059669';
+      btn.style.borderColor = '#a7f3d0';
+    }
+  } catch (e) {
+    alert('오류: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }
+  }
 }
 
 async function runSingleGenerate(format, cluster) {
