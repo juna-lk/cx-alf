@@ -1460,9 +1460,11 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div>
         <h3 style="font-size:14px;font-weight:600;color:#374151;margin:0">채널톡에 등록된 문서</h3>
-        <p style="font-size:12px;color:#9ca3af;margin:2px 0 0">채널톡 Documents에 실제로 올라간 아티클 현황이에요.</p>
+        <p style="font-size:12px;color:#9ca3af;margin:2px 0 0">채널톡에 실제로 등록된 아티클·FAQ 현황이에요.</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
+        <button id="ctTabArticle" onclick="switchCtTab('article')" style="font-size:12px;padding:4px 12px;border-radius:6px;border:1px solid #4f46e5;background:#4f46e5;color:#fff;cursor:pointer">📄 아티클</button>
+        <button id="ctTabFaq" onclick="switchCtTab('faq')" style="font-size:12px;padding:4px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer">💬 FAQ</button>
         <select id="ctArticleStateFilter" onchange="renderCtArticles()" style="font-size:12px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;color:#374151">
           <option value="all">전체</option>
           <option value="published">게시됨</option>
@@ -1472,6 +1474,7 @@
       </div>
     </div>
     <div id="ctArticleList"><p style="font-size:13px;color:#9ca3af;text-align:center;padding:24px 0">새로고침을 눌러 채널톡 문서를 불러오세요.</p></div>
+    <div id="ctFaqList" style="display:none"></div>
   </div>
 
   <div id="mergeSuggestions" class="hidden">
@@ -2471,6 +2474,56 @@ function renderCtArticles() {
       <div id="${bodyId}" style="display:none;padding:12px 16px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151;line-height:1.7;max-height:400px;overflow-y:auto">${a.bodyHtml || '<span style="color:#9ca3af">본문 없음</span>'}</div>
     </div>`;
   }).join('');
+}
+
+let _ctTab = 'article';
+
+function switchCtTab(tab) {
+  _ctTab = tab;
+  const articleActive = tab === 'article';
+  document.getElementById('ctTabArticle').style.cssText = `font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid ${articleActive ? '#4f46e5' : '#e5e7eb'};background:${articleActive ? '#4f46e5' : '#fff'};color:${articleActive ? '#fff' : '#374151'}`;
+  document.getElementById('ctTabFaq').style.cssText = `font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid ${!articleActive ? '#4f46e5' : '#e5e7eb'};background:${!articleActive ? '#4f46e5' : '#fff'};color:${!articleActive ? '#fff' : '#374151'}`;
+  document.getElementById('ctArticleList').style.display = articleActive ? '' : 'none';
+  document.getElementById('ctArticleStateFilter').style.display = articleActive ? '' : 'none';
+  document.getElementById('ctFaqList').style.display = articleActive ? 'none' : '';
+  if (!articleActive) loadCtFaqs();
+}
+
+async function loadCtFaqs() {
+  const list = document.getElementById('ctFaqList');
+  list.innerHTML = '<p style="font-size:13px;color:#9ca3af;text-align:center;padding:24px 0">불러오는 중...</p>';
+  try {
+    const res = await authFetch(`${API}/api/alf_data?type=drafts&status=applied&format=faq`);
+    const data = await res.json();
+    const faqs = data.drafts || [];
+    if (!faqs.length) {
+      list.innerHTML = '<p style="font-size:13px;color:#9ca3af;text-align:center;padding:24px 0">등록된 FAQ가 없어요. FAQ 생성 후 "채널톡 JSONL 내보내기"를 누르면 여기에 표시돼요.</p>';
+      return;
+    }
+    list.innerHTML = faqs.map(f => {
+      const updated = f.updated_at ? new Date(f.updated_at).toLocaleDateString('ko-KR') : '';
+      const variations = Array.isArray(f.variations) ? f.variations : [];
+      return `<div style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;background:#fff;overflow:hidden">
+        <div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('[data-arrow]').textContent=this.nextElementSibling.style.display==='none'?'▼':'▲'">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(f.title || '')}</div>
+            ${variations.length ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">변형 질문 ${variations.length}개</div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-left:12px;flex-shrink:0">
+            <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#f0fdf4;color:#15803d;border:1px solid #86efac">등록됨</span>
+            <span style="font-size:11px;color:#9ca3af">${updated}</span>
+            <span style="font-size:11px;color:#9ca3af" data-arrow>▼</span>
+          </div>
+        </div>
+        <div style="display:none;padding:12px 16px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151;line-height:1.7">
+          <div style="margin-bottom:8px"><strong>답변</strong><br>${escapeHtml(f.content || '')}</div>
+          ${variations.length ? `<div><strong>변형 질문</strong><ul style="margin:4px 0 0 16px">${variations.map(v => `<li>${escapeHtml(v)}</li>`).join('')}</ul></div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = `<p style="font-size:13px;color:#dc2626;padding:12px">불러오기 실패: ${escapeHtml(e.message)}</p>`;
+  }
 }
 
 function toggleCtBody(id, row) {
