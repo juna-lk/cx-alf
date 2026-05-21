@@ -2482,7 +2482,7 @@ function toggleCtBody(id, row) {
   if (arrow) arrow.textContent = open ? '▼' : '▲';
 }
 
-function exportFaqJsonl() {
+async function exportFaqJsonl() {
   const question = document.getElementById('faqQuestion')?.value.trim();
   const answer = document.getElementById('faqAnswer')?.value.trim();
   if (!question || !answer) { alert('질문과 답변을 먼저 입력해주세요.'); return; }
@@ -2495,6 +2495,18 @@ function exportFaqJsonl() {
   const a = document.createElement('a');
   a.href = url; a.download = `faq_${Date.now()}.jsonl`;
   a.click(); URL.revokeObjectURL(url);
+  // JSONL 내보내기 = 채널톡 등록 예정 → applied로 표시
+  if (state.currentDraftId) {
+    try {
+      await authFetch(`${API}/api/alf_data`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          action: 'update_status', id: state.currentDraftId, status: 'applied',
+        }),
+      });
+    } catch(e) { console.warn('applied 표시 실패:', e); }
+  }
 }
 
 async function publishToChannelTalk() {
