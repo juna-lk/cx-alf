@@ -213,10 +213,11 @@ class handler(_Base):
             self._respond(400, {"ok": False, "error": "cluster_label 필요"})
             return
 
-        # chat_ids로 상담 내용 로드 (tags도 함께)
+        # chat_ids로 상담 내용 로드 (tags도 함께) — 최신순 우선
         ids_param = ",".join(f'"{cid}"' for cid in chat_ids[:20])
         url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
-               f"?select=chat_id,messages,tags&chat_id=in.({ids_param})")
+               f"?select=chat_id,messages,tags,date&chat_id=in.({ids_param})"
+               f"&order=date.desc")
         chats = supabase_get(url, SUPABASE_SERVICE_KEY)
 
         # DB에 없는 chat은 채널톡 API 실시간 fetch

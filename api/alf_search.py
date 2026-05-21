@@ -120,14 +120,20 @@ def filter_by_semantic(chats: list, query: str) -> list:
         raw = call_anthropic(prompt, max_tokens=1024, api_key=OPENAI_API_KEY)
         parsed = extract_json(raw)
         indices = parsed.get("matched_indices", []) if isinstance(parsed, dict) else []
-        result = []
+        # 인덱스 정수화·중복 제거·범위 검증 → 원래 인덱스(=date.desc) 순으로 재정렬
+        # LLM은 의미 유사도 순으로 반환하므로 그대로 쓰면 date 정렬이 깨짐 → 인덱스 오름차순으로 강제
+        seen: set[int] = set()
+        valid_indices: list[int] = []
         for idx in indices[:SEMANTIC_SEARCH_LIMIT]:
             try:
                 i = int(idx)
             except (TypeError, ValueError):
                 continue
-            if 0 <= i < len(chats):
-                result.append(chats[i])
+            if 0 <= i < len(chats) and i not in seen:
+                seen.add(i)
+                valid_indices.append(i)
+        valid_indices.sort()  # 원래 인덱스 오름차순 = date.desc 유지
+        result = [chats[i] for i in valid_indices]
         return result if result else chats  # 매칭 0건이면 전체 반환 (사용자가 결과 보고 판단)
     except Exception:
         return chats  # LLM 실패 시 전체 반환 (handler에서 keyword fallback 가능)
