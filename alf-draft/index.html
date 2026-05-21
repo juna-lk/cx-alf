@@ -2465,6 +2465,13 @@ async function toggleChatDetail(chatId, idx) {
       detail.innerHTML = '<div style="padding:10px;color:#9ca3af;font-size:13px">메시지가 없어요.</div>';
       return;
     }
+    // 시간순 안정 정렬 — created_ms(ms epoch) 우선, 없으면 time 문자열 fallback
+    msgs.sort((a, b) => {
+      const am = Number(a.created_ms || 0);
+      const bm = Number(b.created_ms || 0);
+      if (am !== bm) return am - bm;
+      return (a.time || '').localeCompare(b.time || '');
+    });
     detail.innerHTML = msgs.map(m => {
       const role = m.role || 'system';
       // 4역할 색상 매핑 — 좌측 4px border로 즉시 구분, 본문 텍스트는 #111827로 가독성 확보

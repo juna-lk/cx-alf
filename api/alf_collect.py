@@ -73,10 +73,10 @@ def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
         else:
             is_private = False
 
-        # KST timestamp
+        # KST timestamp (초 단위까지 보존 — 같은 분 내 정렬 정확성 위해)
         created_ms = m.get("createdAt", 0) or 0
         if created_ms:
-            time_str = datetime.fromtimestamp(created_ms / 1000, tz=KST).strftime("%Y-%m-%d %H:%M")
+            time_str = datetime.fromtimestamp(created_ms / 1000, tz=KST).strftime("%Y-%m-%d %H:%M:%S")
         else:
             time_str = ""
 
@@ -84,11 +84,12 @@ def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
             "role": role,
             "text": text,
             "time": time_str,
+            "created_ms": int(created_ms),
             "manager": manager_name,
             "private": is_private,
         })
-    # 시간순 정렬 (채널톡 API가 최신순으로 반환하므로 시작→끝 순서로 재정렬)
-    result.sort(key=lambda m: m.get("time") or "0")
+    # 시간순 정렬 — created_ms(ms 단위 epoch) 기준으로 안정적이고 초·ms까지 정확
+    result.sort(key=lambda m: m.get("created_ms") or 0)
     return result
 
 
