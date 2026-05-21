@@ -318,6 +318,14 @@
                       color: #374151; }
     .chat-item { padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px;
                  margin-bottom: 8px; font-size: 13px; }
+    .ct-article-body h1,.ct-article-body h2,.ct-article-body h3,.ct-article-body h4 { font-weight:600; color:#111827; margin:20px 0 8px; }
+    .ct-article-body h2 { font-size:15px; }
+    .ct-article-body h3 { font-size:14px; }
+    .ct-article-body p { margin:6px 0 10px; }
+    .ct-article-body ul,.ct-article-body ol { padding-left:20px; margin:6px 0 12px; }
+    .ct-article-body li { margin-bottom:4px; }
+    .ct-article-body strong { font-weight:600; color:#111827; }
+    .ct-article-body hr { border:none; border-top:1px solid #e5e7eb; margin:16px 0; }
     .draft-area { width: 100%; min-height: 400px; border: 1px solid #e5e7eb;
                   border-radius: 8px; padding: 14px; font-size: 14px;
                   font-family: 'Courier New', monospace; line-height: 1.6;
@@ -2471,7 +2479,7 @@ function renderCtArticles() {
           <span style="font-size:11px;color:#9ca3af" data-arrow>▼</span>
         </div>
       </div>
-      <div id="${bodyId}" style="display:none;padding:12px 16px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151;line-height:1.7;max-height:400px;overflow-y:auto">${a.bodyHtml || '<span style="color:#9ca3af">본문 없음</span>'}</div>
+      <div id="${bodyId}" style="display:none;padding:20px 24px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151;line-height:1.8;max-height:500px;overflow-y:auto" class="ct-article-body">${a.bodyHtml || '<span style="color:#9ca3af">본문 없음</span>'}</div>
     </div>`;
   }).join('');
 }
