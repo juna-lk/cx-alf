@@ -301,7 +301,7 @@ class handler(_Base):
         prompt = build_generate_prompt(cluster_label, chats, reference_doc=reference_doc, single_chat=single_chat)
         if prompt is None:
             self._respond(400, {"ok": False,
-                                "error": "이 상담에 매니저 답변이 없거나 화이트리스트(전준영·조승현·김푸름) 매니저가 답변하지 않았어요. 다른 상담을 선택해주세요."})
+                                "error": "매니저 답변이 없거나 처리할 수 없어요. 다른 상담을 선택해주세요."})
             return
         raw = call_anthropic(
             prompt, system=ALF_SYSTEM_PROMPT,
