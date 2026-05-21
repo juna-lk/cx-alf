@@ -1453,6 +1453,26 @@
     </div>
   </div>
   <div id="appliedList"></div>
+
+  <!-- 채널톡 현재 등록된 문서 -->
+  <div style="margin-top:32px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <h3 style="font-size:14px;font-weight:600;color:#374151;margin:0">채널톡에 등록된 문서</h3>
+        <p style="font-size:12px;color:#9ca3af;margin:2px 0 0">채널톡 Documents에 실제로 올라간 아티클 현황이에요.</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="ctArticleStateFilter" onchange="renderCtArticles()" style="font-size:12px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;color:#374151">
+          <option value="all">전체</option>
+          <option value="published">게시됨</option>
+          <option value="draft">초안</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadCtArticles()" id="btnCtSync" style="font-size:12px;padding:5px 12px">새로고침</button>
+      </div>
+    </div>
+    <div id="ctArticleList"><p style="font-size:13px;color:#9ca3af;text-align:center;padding:24px 0">새로고침을 눌러 채널톡 문서를 불러오세요.</p></div>
+  </div>
+
   <div id="mergeSuggestions" class="hidden">
     <h3 style="font-size:15px;font-weight:600;margin:20px 0 12px">병합 제안</h3>
     <div id="mergeSuggestionList"></div>
@@ -1862,7 +1882,7 @@ function switchTab(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'library') loadLibrary();
-  if (name === 'applied') loadApplied();
+  if (name === 'applied') { loadApplied(); loadCtArticles(); }
   if (name === 'rules') loadRules();
 }
 
@@ -2395,6 +2415,55 @@ function downloadDraft() {
   const content = document.getElementById('draftArea').value;
   const full = `# ${title}\n${subtitle ? `\n_${subtitle}_\n` : ''}\n${content}`;
   downloadMd(full, title);
+}
+
+let _ctArticlesCache = null;
+
+async function loadCtArticles() {
+  const btn = document.getElementById('btnCtSync');
+  const list = document.getElementById('ctArticleList');
+  if (btn) { btn.disabled = true; btn.textContent = '불러오는 중...'; }
+  list.innerHTML = '<p style="font-size:13px;color:#9ca3af;text-align:center;padding:24px 0">불러오는 중...</p>';
+  try {
+    const res = await authFetch(`${API}/api/alf_ct_articles`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '오류');
+    _ctArticlesCache = data.articles || [];
+    renderCtArticles();
+  } catch(e) {
+    list.innerHTML = `<p style="font-size:13px;color:#dc2626;padding:12px">불러오기 실패: ${escapeHtml(e.message)}</p>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '새로고침'; }
+  }
+}
+
+function renderCtArticles() {
+  const list = document.getElementById('ctArticleList');
+  const filter = document.getElementById('ctArticleStateFilter')?.value || 'all';
+  const articles = (_ctArticlesCache || []).filter(a => filter === 'all' || a.state === filter);
+  if (!articles.length) {
+    list.innerHTML = '<p style="font-size:13px;color:#9ca3af;text-align:center;padding:24px 0">해당하는 문서가 없어요.</p>';
+    return;
+  }
+  list.innerHTML = articles.map(a => {
+    const stateStyle = a.state === 'published'
+      ? 'background:#f0fdf4;color:#15803d;border:1px solid #86efac'
+      : 'background:#fefce8;color:#a16207;border:1px solid #fde047';
+    const stateLabel = a.state === 'published' ? '게시됨' : '초안';
+    const updated = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('ko-KR') : '';
+    const ctUrl = `https://desk.channel.io/liveklass/documents/articles/${a.id}`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;background:#fff">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.title)}</div>
+        ${a.subtitle ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.subtitle)}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:12px;flex-shrink:0">
+        <span style="font-size:11px;padding:2px 8px;border-radius:4px;${stateStyle}">${stateLabel}</span>
+        <span style="font-size:11px;color:#9ca3af">${updated}</span>
+        <a href="${escapeHtml(ctUrl)}" target="_blank" rel="noopener" style="font-size:11px;color:#4f46e5;text-decoration:none">채널톡 ↗</a>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function publishToChannelTalk() {

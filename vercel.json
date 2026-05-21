@@ -15,6 +15,7 @@
     "api/alf_rule_suggest.py":       { "maxDuration": 60 },
     "api/alf_expand_cluster.py":     { "maxDuration": 60 },
     "api/alf_data.py":               { "maxDuration": 15 },
-    "api/alf_publish.py":            { "maxDuration": 30 }
+    "api/alf_publish.py":            { "maxDuration": 30 },
+    "api/alf_ct_articles.py":        { "maxDuration": 15 }
   }
 }
