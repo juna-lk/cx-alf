@@ -38,11 +38,19 @@ def fetch_all_managers() -> dict:
 
 
 def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
-    """Channel Talk 메시지 배열을 {role, text, time, manager, private} 형식으로 변환.
+    """Channel Talk 메시지 배열을 정규화된 형식으로 변환.
 
-    - time: KST 'YYYY-MM-DD HH:MM' 형식
-    - manager: personType=manager인 메시지에 한해 매니저 이름 (manager_map에서 매핑)
-    - private: 내부 메모(options.private=true) 여부
+    저장 필드:
+      - role: customer / agent / alf / system
+      - text: 본문 (plainText)
+      - time: KST 'YYYY-MM-DD HH:MM:SS' (초 단위)
+      - created_ms: epoch ms (정렬 키)
+      - manager: 매니저 이름 (manager_map에서 매핑)
+      - person_id: 채널톡 personId 원본 (manager_map에 없는 신규 매니저 대응용)
+      - private: 내부 메모 여부 (options에 'private')
+      - type: text / image / file / workflow / form / meet / log (추론)
+      - language: 채널톡 감지 메시지 언어 (있을 때만)
+      - attachments: files 메타 배열 (있을 때만, name/size/content_type/bucket/key)
     """
     role_map = {
         "user": "customer",
@@ -54,17 +62,22 @@ def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
     result = []
     for m in raw_messages:
         text = (m.get("plainText") or m.get("text") or "").strip()
-        if not text:
+        files_raw = m.get("files") or []
+
+        # 본문도 첨부도 없으면 스킵 (단, 워크플로/폼/미팅 같은 인터랙티브는 보존)
+        if not text and not files_raw and not (m.get("workflow") or m.get("form") or m.get("meet") or m.get("buttons")):
             continue
+
         person_type = m.get("personType", "system")
         role = role_map.get(person_type, "system")
+        person_id = m.get("personId") or ""
 
         # 매니저 이름
         manager_name = ""
         if person_type == "manager":
-            manager_name = manager_map.get(m.get("personId", ""), "")
+            manager_name = manager_map.get(person_id, "")
 
-        # 내부 메모 여부 — 채널톡 API는 options를 배열로 반환 (예: ["private", "silentToUser", ...])
+        # 내부 메모 여부 — options는 배열로 반환 (예: ["private", "silentToUser", ...])
         options = m.get("options")
         if isinstance(options, list):
             is_private = "private" in options
@@ -73,22 +86,63 @@ def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
         else:
             is_private = False
 
-        # KST timestamp (초 단위까지 보존 — 같은 분 내 정렬 정확성 위해)
+        # KST timestamp (초 단위까지 보존)
         created_ms = m.get("createdAt", 0) or 0
         if created_ms:
             time_str = datetime.fromtimestamp(created_ms / 1000, tz=KST).strftime("%Y-%m-%d %H:%M:%S")
         else:
             time_str = ""
 
-        result.append({
+        # 첨부 메타 추출
+        attachments = []
+        for f in files_raw:
+            if isinstance(f, dict):
+                attachments.append({
+                    "type": f.get("type") or "file",
+                    "name": f.get("name") or "",
+                    "size": f.get("size") or 0,
+                    "content_type": f.get("contentType") or "",
+                    "bucket": f.get("bucket") or "",
+                    "key": f.get("key") or "",
+                })
+
+        # 메시지 종류 추론
+        has_image = any(
+            (a.get("type") == "image" or a.get("content_type", "").startswith("image/"))
+            for a in attachments
+        )
+        if m.get("workflow"):
+            msg_type = "workflow"
+        elif m.get("form"):
+            msg_type = "form"
+        elif m.get("meet"):
+            msg_type = "meet"
+        elif m.get("buttons"):
+            msg_type = "buttons"
+        elif has_image:
+            msg_type = "image"
+        elif attachments:
+            msg_type = "file"
+        else:
+            msg_type = "text"
+
+        msg = {
             "role": role,
             "text": text,
             "time": time_str,
             "created_ms": int(created_ms),
             "manager": manager_name,
+            "person_id": person_id,
             "private": is_private,
-        })
-    # 시간순 정렬 — created_ms(ms 단위 epoch) 기준으로 안정적이고 초·ms까지 정확
+            "type": msg_type,
+        }
+        # 옵션 필드는 값이 있을 때만 (jsonb 사이즈 절약)
+        if m.get("language"):
+            msg["language"] = m["language"]
+        if attachments:
+            msg["attachments"] = attachments
+        result.append(msg)
+    # 시간순 정렬 — created_ms(ms epoch) 기준 안정 정렬
     result.sort(key=lambda m: m.get("created_ms") or 0)
     return result
 
