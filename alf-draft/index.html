@@ -2384,8 +2384,11 @@ async function openChatModal(source, idx) {
     titleText = `⚠ 분류되지 않은 상담 ${chatIds.length}건`;
     hintText = '주요 클러스터에 안 들어간 상담들이에요. 원하는 유형을 여기서 찾으면, 별도 키워드로 다시 분석하거나 직접 아티클을 만드세요.';
   }
+  const truncatedNotice = chatIds.length > 50
+    ? ` · 총 ${chatIds.length}건 중 최신 50건만 미리보기에 표시돼요 (분석은 전체 사용)`
+    : '';
   document.getElementById('chatModalTitle').textContent = titleText;
-  document.getElementById('chatModalHint').textContent = hintText;
+  document.getElementById('chatModalHint').textContent = hintText + truncatedNotice;
   document.getElementById('chatModalBody').innerHTML = '<div style="text-align:center;padding:40px 0;color:#9ca3af">불러오는 중...</div>';
   document.getElementById('chatModalOverlay').classList.add('open');
 
@@ -2488,11 +2491,15 @@ async function toggleChatDetail(chatId, idx) {
       return;
     }
     // 시간순 안정 정렬 — created_ms(ms epoch) 우선, 없으면 time 문자열 fallback
+    // time이 'YYYY-MM-DD HH:MM' (분 단위) 또는 'YYYY-MM-DD HH:MM:SS' (초 단위) 혼재 가능 →
+    // 19자로 padEnd(0)해서 형식 통일 후 사전순 비교
     msgs.sort((a, b) => {
       const am = Number(a.created_ms || 0);
       const bm = Number(b.created_ms || 0);
-      if (am !== bm) return am - bm;
-      return (a.time || '').localeCompare(b.time || '');
+      if (am > 0 && bm > 0 && am !== bm) return am - bm;
+      const at = (a.time || '').padEnd(19, '0');
+      const bt = (b.time || '').padEnd(19, '0');
+      return at.localeCompare(bt);
     });
     detail.innerHTML = msgs.map(m => {
       const role = m.role || 'system';

@@ -262,8 +262,11 @@ class handler(_Base):
         similar_search = bool(body.get("similar_search", False))
         reference_doc = (body.get("reference_doc") or "").strip()
         reference_url = (body.get("reference_url") or "").strip()
+        reference_fetch_failed = False
         if reference_url and not reference_doc:
             reference_doc = fetch_reference_url(reference_url)
+            if not reference_doc:
+                reference_fetch_failed = True
 
         if not chat_ids:
             self._respond(400, {"ok": False, "error": "chat_ids 필요"})
@@ -396,6 +399,14 @@ class handler(_Base):
         draft_content = strip_article_boilerplate(draft_content)
         verification = verify_draft(draft_content, "article", cluster_label, title=title)
         draft_content = verification["fixed"]
+
+        # 참고 가이드 fetch 실패 알림 — LLM이 가이드 없이 생성됐다는 사실을 사용자에게 명시
+        if reference_fetch_failed:
+            verification["warnings"].insert(0, {
+                "rule": "참고 가이드",
+                "level": "warning",
+                "message": "첨부한 URL을 가져오지 못했어요 — 가이드 없이 생성됐어요. URL이 공개 페이지인지 확인하거나, 본문을 직접 붙여넣어 다시 시도해주세요.",
+            })
 
         # alf_drafts에 저장
         draft = {
