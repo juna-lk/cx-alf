@@ -55,7 +55,7 @@ FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF용 FAQ 콘텐츠 작성 전문가
 예) 編集→편집, プラン→플랜, サイト→사이트."""
 
 
-def build_faq_prompt(cluster_label: str, chats: list) -> str:
+def build_faq_prompt(cluster_label: str, chats: list, single_chat: bool = False) -> str | None:
     samples = []
     for i, c in enumerate(chats[:50]):
         msgs = c.get("messages", [])
@@ -68,6 +68,9 @@ def build_faq_prompt(cluster_label: str, chats: list) -> str:
             if m.get("role") == "agent"
             and any(p in (m.get("manager") or "") for p in PRIMARY_MANAGERS)
         ]
+        # 단일 chat 모드는 화이트리스트가 비면 그 chat의 모든 매니저 답변으로 fallback
+        if single_chat and not agent_msgs:
+            agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"]
         if not customer_msgs or not agent_msgs:
             continue
         # 상담원 답변은 충분히 길게 포함 (FAQ 답변 어휘·말투의 원천)
@@ -79,7 +82,7 @@ def build_faq_prompt(cluster_label: str, chats: list) -> str:
         )
 
     if not samples:
-        return f"'{cluster_label}' 관련 상담원 답변 데이터가 부족해서 FAQ 작성이 어렵습니다."
+        return None
 
     return f"""아래는 '{cluster_label}' 상황의 실제 채널톡 상담 {len(samples)}건입니다.
 
@@ -198,7 +201,11 @@ class handler(_Base):
                     except Exception as e:
                         print(f"[warn] FAQ 유사 케이스 의미 검색 실패: {e}")
 
-        prompt = build_faq_prompt(cluster_label, chats)
+        prompt = build_faq_prompt(cluster_label, chats, single_chat=single_chat)
+        if prompt is None:
+            self._respond(400, {"ok": False,
+                                "error": "이 상담에 매니저 답변이 없거나 화이트리스트(전준영·조승현·김푸름) 매니저가 답변하지 않았어요. 다른 상담을 선택해주세요."})
+            return
         raw = call_anthropic(
             prompt, system=FAQ_SYSTEM_PROMPT,
             max_tokens=1500, api_key=OPENAI_API_KEY,
