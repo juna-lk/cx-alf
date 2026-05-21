@@ -677,7 +677,9 @@
       <div class="draft-actions">
         <button class="btn btn-primary" onclick="saveDraft()">저장</button>
         <button class="btn btn-secondary" onclick="downloadDraft()">↓ .md 다운로드</button>
+        <button class="btn btn-secondary" id="btnPublishCT" onclick="publishToChannelTalk()" style="background:#f0fdf4;color:#15803d;border-color:#86efac">채널톡에 등록</button>
       </div>
+      <div id="publishResult" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:13px"></div>
     </div>
   </div>
 
@@ -2393,6 +2395,64 @@ function downloadDraft() {
   const content = document.getElementById('draftArea').value;
   const full = `# ${title}\n${subtitle ? `\n_${subtitle}_\n` : ''}\n${content}`;
   downloadMd(full, title);
+}
+
+async function publishToChannelTalk() {
+  const name = document.getElementById('draftTitle').value.trim();
+  const subtitle = document.getElementById('draftSubtitle').value.trim();
+  const content = document.getElementById('draftArea').value.trim();
+  if (!name) { alert('제목을 입력해주세요.'); return; }
+  if (!content) { alert('본문이 비어있어요.'); return; }
+
+  const doPublish = confirm('채널톡에 등록할게요.\n\n[확인] 바로 게시\n[취소] 초안으로만 저장');
+
+  const btn = document.getElementById('btnPublishCT');
+  const resultEl = document.getElementById('publishResult');
+  if (btn) { btn.disabled = true; btn.textContent = '등록 중...'; }
+  if (resultEl) resultEl.style.display = 'none';
+
+  try {
+    const res = await authFetch(`${API}/api/alf_publish`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        name,
+        subtitle,
+        content,
+        draft_id: state.currentDraftId || null,
+        publish: doPublish,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const statusLabel = data.published ? '게시됨' : '초안 저장됨';
+      if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#f0fdf4';
+        resultEl.style.color = '#15803d';
+        resultEl.style.border = '1px solid #86efac';
+        resultEl.innerHTML = `✅ 채널톡에 등록됐어요 (${statusLabel}) — 아티클 ID: <strong>${data.article_id}</strong>`;
+      }
+    } else {
+      if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#fef2f2';
+        resultEl.style.color = '#dc2626';
+        resultEl.style.border = '1px solid #fca5a5';
+        resultEl.innerHTML = `❌ 등록 실패: ${escapeHtml(data.error || '알 수 없는 오류')}`;
+      }
+    }
+  } catch(e) {
+    if (resultEl) {
+      resultEl.style.display = 'block';
+      resultEl.style.background = '#fef2f2';
+      resultEl.style.color = '#dc2626';
+      resultEl.style.border = '1px solid #fca5a5';
+      resultEl.innerHTML = `❌ 오류: ${escapeHtml(e.message)}`;
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '채널톡에 등록'; }
+  }
 }
 
 async function openChatModal(source, idx) {
