@@ -738,6 +738,7 @@
         </div>
         <div class="guide-toc-group">
           <div class="guide-toc-group-title">베스트 프랙티스</div>
+          <a href="#section-success">🏆 성공 사례 + 통합 템플릿</a>
           <a href="#section-cs">📞 CS 직접 답변</a>
           <a href="#section-difficult">⚠️ ALF가 못 찾는 형태</a>
         </div>
@@ -983,6 +984,57 @@
         <li>정기 결제 취소, 서류 발급 요청</li>
       </ul>
       <p style="margin-top:8px;font-size:13px;color:#6b7280">→ 반복 업무는 태스크로, 정보 제공은 FAQ/아티클로 분담해서 운영하면 효율적이에요.</p>
+    </div>
+
+    <div class="guide-section" id="section-success">
+      <h3>🏆 성공 사례 + 통합 아티클 템플릿</h3>
+      <p>채널톡이 공개한 실제 ALF 활용 사례와, 공통 정책을 한 문서로 통합하는 템플릿이에요. 라이브클래스 운영 가이드를 ALF 아티클로 옮길 때 그대로 응용하세요.</p>
+
+      <h4>공식 성공 사례</h4>
+      <table class="guide-table">
+        <tr><th>고객사</th><th>성과</th><th>핵심 패턴</th></tr>
+        <tr><td><strong>베리시</strong> (여성 언더웨어)</td><td>전체 상담의 <strong>51%</strong>를 ALF만으로 처리</td><td>제품별 입고·세탁·사이즈 정책을 카테고리 통합 아티클로 운영</td></tr>
+        <tr><td><strong>이스타항공</strong></td><td>AI 상담 해결률 <strong>74%</strong></td><td>"고객이 실제로 묻는 흐름"으로 시나리오 재설계 후 아티클 재구성</td></tr>
+        <tr><td><strong>도큐먼트 누적</strong></td><td>도입 고객사 평균 다수가 수십~수백 건 보유 (2024-08 기준 전체 6,000건+)</td><td>"적게 잘"보다 "체계적으로 많이" 쌓는 게 ALF 정확도와 직결</td></tr>
+      </table>
+
+      <h4>통합 아티클 템플릿 — "공통 주제 묶기"</h4>
+      <p>가입·탈퇴·비밀번호처럼 공통 주제는 한 아티클로 묶고, 소제목으로 케이스를 분리하세요. 정책 변경 시 한 곳만 수정하면 됩니다.</p>
+      <div class="quote">예시: <strong>[회원 계정 관리 가이드]</strong><br>
+      ── ## 1. 회원가입 방법<br>
+      ── ## 2. 회원탈퇴 방법<br>
+      ── ## 3. 비밀번호 변경 및 찾기<br>
+      ── ## FAQ (짧은 Q&A 보완)</div>
+
+      <h4>좋은 제목 vs 나쁜 제목</h4>
+      <table class="guide-table">
+        <tr><th>✅ 좋은 제목</th><th>❌ 나쁜 제목</th><th>이유</th></tr>
+        <tr><td>라이브클래스 결제·환불 정책</td><td>안내사항</td><td>제목에 핵심 키워드 없음 → ALF가 검색 못 함</td></tr>
+        <tr><td>커리큘럼 설정과 강의 등록 방법</td><td>커리큘럼 설명</td><td>고객이 실제로 검색하는 표현으로</td></tr>
+        <tr><td>정산 정보 등록 및 인증</td><td>운영자 가이드 1편</td><td>일련번호·시리즈명은 검색 신호가 약함</td></tr>
+      </table>
+
+      <h4>좋은 본문 vs 나쁜 본문</h4>
+      <table class="guide-table">
+        <tr><th>✅ 좋은 본문</th><th>❌ 나쁜 본문</th></tr>
+        <tr><td><code>## 환불 가능 조건</code> → 7일 이내·미수강 강의에 한해 가능합니다.</td><td>"보통 환불은 가능합니다." → 조건 모호 → ALF가 잘못된 답변 생성</td></tr>
+        <tr><td>스크린샷 + "[설정 저장] 버튼을 클릭하면 반영됩니다" 설명 텍스트</td><td>스크린샷만 첨부 → ALF는 이미지 안 읽음</td></tr>
+        <tr><td>1. 메뉴 → 2. 입력 → 3. 저장 (번호 단계)</td><td>"메뉴에서 입력하고 저장하세요" (한 줄 요약)</td></tr>
+      </table>
+
+      <h4>라이브클래스 운영 가이드 → ALF 아티클 변환 체크리스트</h4>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:8px">guide-kr.liveklass.com 등 기존 GitBook 가이드를 ALF로 옮길 때 점검:</p>
+      <ul>
+        <li>제목에 라이브클래스·강의·결제·환불 등 <strong>핵심 키워드</strong> 포함</li>
+        <li>같은 카테고리(가입·탈퇴·비번 등)는 <strong>한 아티클로 통합</strong></li>
+        <li>각 케이스를 <strong>##</strong> 소제목으로 분리 (3개 이상 권장)</li>
+        <li>절차는 <strong>1./2./3. 번호</strong> 명시</li>
+        <li>"보통/일반적으로/경우에 따라" → 케이스별 조건 명시로 교체</li>
+        <li>"담당자에게 문의하세요" 단독 사용 금지 — 조건·연락 방법 함께</li>
+        <li>이미지/스크린샷은 위아래에 <strong>설명 텍스트</strong> 추가 (ALF는 이미지 안 읽음)</li>
+        <li>본문 <strong>2,000자 이내</strong> — 초과 시 별도 아티클로 분리</li>
+        <li>아티클 하단에 FAQ로 짧은 Q&A 보완 (선택)</li>
+      </ul>
     </div>
 
     <div class="guide-section" id="section-cs">

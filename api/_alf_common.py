@@ -124,6 +124,9 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
         if sub_count == 0 and len(fixed) > 300:
             warnings.append({"rule": "소제목", "level": "warning",
                              "message": "## 소제목이 없어요. 본문이 길면 ## 섹션으로 분리하면 ALF 매칭 정확도가 올라가요"})
+        elif 0 < sub_count < 3 and len(fixed) > 1000:
+            warnings.append({"rule": "소제목 개수", "level": "info",
+                             "message": f"## 소제목 {sub_count}개 — 1,000자 넘는 본문은 3개 이상으로 분리하면 ALF가 영역별로 더 정확히 답변해요"})
 
     # 3) 잔존 보일러플레이트 (줄 단위로만 매칭 — 정상 안내문 오탐 방지)
     boilerplate_patterns = [
@@ -138,6 +141,27 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
             snippet = m.group(0).strip()[:30] if m else ""
             warnings.append({"rule": label, "level": "warning",
                              "message": f'금지 표현 감지 — Help Doc 톤 위반: "{snippet}…"'})
+
+    # 3.5) 모호 표현 — 채널톡 공식 가이드 "피해야 할 표현"
+    vague_patterns = [
+        (r"보통[\s,은는]", "보통"),
+        (r"일반적으로", "일반적으로"),
+        (r"경우에 따라", "경우에 따라"),
+    ]
+    for pattern, label in vague_patterns:
+        if re.search(pattern, fixed):
+            warnings.append({"rule": "모호 표현", "level": "warning",
+                             "message": f'"{label}" 사용 — 채널톡 공식 가이드 금지 표현. 조건을 케이스별로 명시해주세요'})
+
+    # 3.6) "담당자에게 문의하세요" 단독 사용 검출
+    if re.search(r"담당자(에게|께)?\s*(문의|연락)", fixed):
+        # 같은 본문에 조건·방법·연락처가 함께 있는지 확인
+        has_context = bool(re.search(
+            r"(이?면|일\s*때|에는|시\s*에는|아래|다음|단계|방법|연락처|이메일|전화|@|https?://|채널톡)",
+            fixed))
+        if not has_context:
+            warnings.append({"rule": "담당자 문의", "level": "warning",
+                             "message": '"담당자에게 문의하세요" 단독 사용 — 어떤 경우에 누구에게 어떻게 문의해야 하는지 조건·방법을 함께 명시해주세요'})
 
     # 4) 친근한 종결형 비율 (헤딩·불릿·번호목록은 제외)
     sentences = [
@@ -167,6 +191,13 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
     if format_type == "article" and not has_list and length > 500:
         warnings.append({"rule": "목록", "level": "info",
                          "message": "불릿/번호 목록이 없어요. 단계·조건은 목록으로 정리하면 ALF가 선후 관계 파악 쉬워요"})
+
+    # 6.5) 번호 단계 권장 — 절차/순서가 있는 긴 article에선 번호 형태가 ALF에 더 명확
+    if format_type == "article" and length > 500:
+        has_numbered = bool(re.search(r"(^|\n)\s*\d+\.\s|[①②③④⑤⑥⑦⑧⑨⑩]", fixed))
+        if not has_numbered:
+            warnings.append({"rule": "단계 번호", "level": "info",
+                             "message": "절차가 있다면 1./2./3. 형태로 번호화하면 ALF가 순서를 정확히 안내해요"})
 
     # 7) 제목에 클러스터 키워드 포함 (title 인자가 별도로 전달된 경우)
     if format_type == "article" and cluster_label and title:
