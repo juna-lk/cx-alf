@@ -10,7 +10,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, PRIMARY_MANAGERS, is_safe_postgrest_tag
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, PRIMARY_MANAGERS, is_safe_postgrest_tag, select_specific_tag
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -284,12 +284,22 @@ class handler(_Base):
         missing_ids = [cid for cid in chat_ids if cid not in existing_ids]
         if missing_ids:
             try:
-                from alf_collect import fetch_messages_for_chat, parse_messages, fetch_all_managers
+                from alf_collect import fetch_messages_for_chat, fetch_chat_detail, parse_messages, fetch_all_managers
                 mgr_map = fetch_all_managers()
                 for cid in missing_ids[:20]:
                     try:
                         raw_msgs = fetch_messages_for_chat(cid)
-                        chats.append({"chat_id": cid, "messages": parse_messages(raw_msgs, mgr_map)})
+                        # chat detail에서 tags 함께 가져오기 (similar_search·태그 화이트리스트용)
+                        chat_tags: list = []
+                        try:
+                            chat_tags = fetch_chat_detail(cid).get("tags") or []
+                        except Exception as te:
+                            print(f"[warn] 채널톡 chat detail fetch 실패 {cid}: {te}")
+                        chats.append({
+                            "chat_id": cid,
+                            "messages": parse_messages(raw_msgs, mgr_map),
+                            "tags": chat_tags,
+                        })
                     except Exception as e:
                         print(f"[warn] 채널톡 fetch 실패 {cid}: {e}")
             except Exception as e:
@@ -321,8 +331,9 @@ class handler(_Base):
             origin_chat = chats[0]
             origin_tags = origin_chat.get("tags") or []
             origin_id = origin_chat.get("chat_id", "")
-            if origin_tags and is_safe_postgrest_tag(origin_tags[0]):
-                safe_tag = origin_tags[0].replace('\\', '\\\\').replace('"', '\\"')
+            chosen_tag = select_specific_tag(origin_tags)
+            if chosen_tag:
+                safe_tag = chosen_tag.replace('\\', '\\\\').replace('"', '\\"')
                 encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
                 sim_url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
                            f"?select=chat_id,messages,tags"
@@ -368,10 +379,15 @@ class handler(_Base):
         except Exception:
             pass
 
-        # fallback: JSON 파싱 실패 시 raw에서 H1 추출 후 그대로 사용
+        # fallback: JSON 파싱 실패 시 raw에서 H1 추출 + 코드펜스 strip
         if not draft_content:
-            draft_content = raw
-            for line in raw.split("\n"):
+            cleaned = raw
+            # ```json ... ``` 또는 ``` ... ``` 코드펜스 제거
+            fence_match = re.search(r"```(?:json)?\s*\n?([\s\S]*?)```", cleaned)
+            if fence_match:
+                cleaned = fence_match.group(1).strip()
+            draft_content = cleaned
+            for line in cleaned.split("\n"):
                 if line.startswith("# "):
                     title = line[2:].strip()
                     break

@@ -176,6 +176,15 @@ def fetch_messages_for_chat(chat_id: str) -> list:
     return data.get("messages", [])
 
 
+def fetch_chat_detail(chat_id: str) -> dict:
+    """단일 상담의 상세 정보(tags 포함) — Supabase miss 시 fallback용"""
+    url = f"{CT_BASE}/open/v5/user-chats/{chat_id}"
+    req = urllib.request.Request(url, headers=CT_HEADERS)
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    return data.get("userChat") or {}
+
+
 def get_existing_chat_ids() -> set:
     """이미 수집된 chat_id 목록 조회"""
     url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=chat_id&limit=50000"
@@ -201,13 +210,19 @@ def collect_and_store(days: int = DEFAULT_COLLECT_DAYS) -> dict:
                 data = json.loads(resp.read())
             batch = data.get("userChats", [])
             in_range = []
+            oldest_seen = float("inf")
             for c in batch:
-                created = c.get("createdAt", 0)
-                if created / 1000 >= since.timestamp():
+                created = c.get("createdAt", 0) / 1000
+                if created < oldest_seen:
+                    oldest_seen = created
+                if created >= since.timestamp():
                     in_range.append(c)
             all_chats.extend(in_range)
             next_cursor = data.get("next")
-            if not next_cursor or not batch or len(in_range) < len(batch):
+            # 종료 조건: 다음 페이지 없거나, batch 비어있거나, 가장 옛날 데이터가
+            # since보다 7일 이상 옛날일 때만 stop (경계 페이지 누락 방지 buffer)
+            buffer_cutoff = since.timestamp() - 7 * 86400
+            if not next_cursor or not batch or oldest_seen < buffer_cutoff:
                 break
             cursor = next_cursor
             time.sleep(0.1)

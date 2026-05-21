@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 import urllib.parse
 
-from _alf_common import supabase_get, make_handler_base, is_safe_postgrest_tag
+from _alf_common import supabase_get, make_handler_base, is_safe_postgrest_tag, select_specific_tag
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -55,13 +55,14 @@ class handler(_Base):
             self._respond(400, {"ok": False,
                                 "error": "원본 chat에 tags 없음 — 탐색 불가"})
             return
-        if not is_safe_postgrest_tag(origin_tags[0]):
+        chosen_tag = select_specific_tag(origin_tags)
+        if not chosen_tag:
             self._respond(400, {"ok": False,
                                 "error": "원본 chat의 태그가 PostgREST 검색에 안전하지 않아요"})
             return
 
-        # 2) 같은 태그의 200건 후보 fetch (현재 클러스터 외)
-        safe_tag = origin_tags[0].replace("\\", "\\\\").replace('"', '\\"')
+        # 2) 같은 태그의 200건 후보 fetch (현재 클러스터 외) — 가장 specific한 태그 사용
+        safe_tag = chosen_tag.replace("\\", "\\\\").replace('"', '\\"')
         encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe="")
         excl_ids = ",".join(f'"{c}"' for c in current_chat_ids[:80])
         sim_url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"

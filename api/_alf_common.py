@@ -32,6 +32,20 @@ def is_safe_postgrest_tag(tag: str) -> bool:
         return False
     return True
 
+
+def select_specific_tag(tags: list) -> str:
+    """다태그 chat에서 가장 specific한 tag 선택 — slash 계층 깊거나 길이 긴 순.
+
+    "기타", "상담유형" 같은 일반 tag가 [0]일 때 similar_search 노이즈 폭증을 방지.
+    채널톡 tag 계층 구조(슬래시 구분, 예: "정산/계좌인증/기업회원")를 활용.
+    안전한 tag가 없으면 빈 문자열.
+    """
+    safe_tags = [t for t in (tags or []) if t and is_safe_postgrest_tag(t)]
+    if not safe_tags:
+        return ""
+    safe_tags.sort(key=lambda t: (t.count("/"), len(t)), reverse=True)
+    return safe_tags[0]
+
 # 한자/일본어 자주 혼입되는 단어 → 한글 치환 사전
 CJK_REPLACE = {
     "内容": "내용", "內容": "내용",
@@ -416,11 +430,18 @@ def make_handler_base():
 
         def _check_auth(self) -> bool:
             """Supabase 액세스 토큰 검증 + 이메일 도메인 화이트리스트.
-            SUPABASE_URL / SUPABASE_ANON_KEY 미설정 시 비활성화 (개발용).
+
+            ALF_ALLOW_NO_AUTH=1 일 때만 인증 비활성화 (개발 전용).
+            이전엔 SUPABASE_ANON_KEY 미설정 시 자동 fail-open 이었음 → 환경변수
+            누락 한 줄로 무인증 통과. 명시적 opt-in 으로 변경.
             """
             anon_key = os.environ.get("SUPABASE_ANON_KEY", "")
             if not anon_key:
-                return True
+                if os.environ.get("ALF_ALLOW_NO_AUTH") == "1":
+                    return True
+                self._respond(500, {"ok": False,
+                                    "error": "서버 인증 설정 누락 (SUPABASE_ANON_KEY 필요)"})
+                return False
             allowed_domain = os.environ.get("ALLOWED_EMAIL_DOMAIN", "liveklass.com").lower()
             header = self.headers.get("Authorization", "")
             token = header.removeprefix("Bearer ").strip() if header.startswith("Bearer ") else header.strip()
@@ -438,6 +459,8 @@ def make_handler_base():
             try:
                 super().handle_one_request()
             except Exception as e:
+                import traceback
+                traceback.print_exc()  # Vercel logs에 스택트레이스 남김 (디버깅용)
                 try:
                     self._respond(500, {"ok": False, "error": str(e)})
                 except Exception:

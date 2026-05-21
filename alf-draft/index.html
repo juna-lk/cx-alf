@@ -1872,7 +1872,21 @@ function clearTagAndReset() {
   document.getElementById('verificationBanner').style.display = 'none';
 }
 
+function resetDraftState() {
+  // 새 분석 시작 시 이전 생성 결과 잔존 방지
+  state.currentDraftId = null;
+  state.currentDraftTitle = '';
+  state.currentVariations = [];
+  state.editingDraft = null;
+  state.editingVariations = [];
+  state.pendingMultiSelection = null;
+}
+
 async function analyze() {
+  if (state.analyzing) {
+    alert('분석이 진행 중이에요. 잠시만 기다려주세요.');
+    return;
+  }
   const tag = document.getElementById('inputTag').value.trim();
   const keyword = document.getElementById('inputKeyword').value.trim();
   if (!tag) { alert('태그를 입력해주세요'); return; }
@@ -1890,6 +1904,8 @@ async function analyze() {
     return;
   }
 
+  state.analyzing = true;
+  resetDraftState();
   document.getElementById('btnAnalyze').disabled = true;
   document.getElementById('welcomeCard').style.display = 'none';
   document.getElementById('clusterCard').style.display = 'none';
@@ -1911,12 +1927,13 @@ async function analyze() {
 
     setStep(2); document.getElementById('loadingText').textContent = '유형 분류 완료 (2/4)';
 
-    state.clusters = data.clusters;
+    const clusters = Array.isArray(data.clusters) ? data.clusters : [];
+    state.clusters = clusters;
     state.unclusteredIds = data.unclustered_ids || [];
     document.getElementById('clusterTitle').textContent =
-      `관련 상담 ${data.total}건 발견 — 세부 유형 ${data.clusters.length}개`;
+      `관련 상담 ${data.total}건 발견 — 세부 유형 ${clusters.length}개`;
 
-    const clusterRows = data.clusters.map((cl, i) => `
+    const clusterRows = clusters.map((cl, i) => `
       <div class="cluster-item" onclick="toggleCluster(${i})">
         <input type="checkbox" id="cl${i}" checked>
         <div style="flex:1;min-width:0">
@@ -1955,16 +1972,17 @@ async function analyze() {
     document.getElementById('clusterList').innerHTML = clusterRows + unclusteredRow;
     document.getElementById('clusterCard').style.display = 'block';
 
-    if (data.clusters.length > 0) {
+    if (clusters.length > 0) {
       setStep(3); document.getElementById('loadingText').textContent = '구조 분석 중... (3/4)';
-      await suggestStructure(tag, data.clusters[0].label);
+      await suggestStructure(tag, clusters[0].label);
 
       setStep(4); document.getElementById('loadingText').textContent = '포맷 추천 중... (4/4)';
-      await suggestFormat(data.clusters[0].label, data.clusters[0].chat_ids || []);
+      await suggestFormat(clusters[0].label, clusters[0].chat_ids || []);
     }
   } catch(e) {
     alert('오류: ' + e.message);
   } finally {
+    state.analyzing = false;
     setLoading(false);
     document.getElementById('btnAnalyze').disabled = false;
   }
@@ -2170,6 +2188,10 @@ function getReferenceParams() {
 }
 
 async function expandCluster(idx) {
+  if (state.analyzing) {
+    alert('분석이 진행 중이에요. 잠시만 기다려주세요.');
+    return;
+  }
   const cluster = state.clusters?.[idx];
   if (!cluster) return;
   const btn = document.getElementById(`expandBtn${idx}`);

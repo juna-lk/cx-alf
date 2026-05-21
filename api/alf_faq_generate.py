@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 import urllib.parse
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft, PRIMARY_MANAGERS, is_safe_postgrest_tag
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft, PRIMARY_MANAGERS, is_safe_postgrest_tag, select_specific_tag
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -149,12 +149,21 @@ class handler(_Base):
         missing_ids = [cid for cid in chat_ids if cid not in existing_ids]
         if missing_ids:
             try:
-                from alf_collect import fetch_messages_for_chat, parse_messages, fetch_all_managers
+                from alf_collect import fetch_messages_for_chat, fetch_chat_detail, parse_messages, fetch_all_managers
                 mgr_map = fetch_all_managers()
                 for cid in missing_ids[:20]:
                     try:
                         raw_msgs = fetch_messages_for_chat(cid)
-                        chats.append({"chat_id": cid, "messages": parse_messages(raw_msgs, mgr_map)})
+                        chat_tags: list = []
+                        try:
+                            chat_tags = fetch_chat_detail(cid).get("tags") or []
+                        except Exception as te:
+                            print(f"[warn] 채널톡 chat detail fetch 실패 {cid}: {te}")
+                        chats.append({
+                            "chat_id": cid,
+                            "messages": parse_messages(raw_msgs, mgr_map),
+                            "tags": chat_tags,
+                        })
                     except Exception as e:
                         print(f"[warn] 채널톡 fetch 실패 {cid}: {e}")
             except Exception as e:
@@ -185,8 +194,9 @@ class handler(_Base):
             origin_chat = chats[0]
             origin_tags = origin_chat.get("tags") or []
             origin_id = origin_chat.get("chat_id", "")
-            if origin_tags and is_safe_postgrest_tag(origin_tags[0]):
-                safe_tag = origin_tags[0].replace('\\', '\\\\').replace('"', '\\"')
+            chosen_tag = select_specific_tag(origin_tags)
+            if chosen_tag:
+                safe_tag = chosen_tag.replace('\\', '\\\\').replace('"', '\\"')
                 encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
                 sim_url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
                            f"?select=chat_id,messages,tags"
