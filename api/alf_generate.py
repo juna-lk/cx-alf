@@ -1,21 +1,58 @@
 from __future__ import annotations
+import ipaddress
 import os
 import re
+import socket
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
+import urllib.error
 import urllib.parse
 import urllib.request
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, PRIMARY_MANAGERS
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, PRIMARY_MANAGERS, is_safe_postgrest_tag
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """SSRF 방어 — redirect를 통한 private host 우회 차단."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[override]
+        return None
 
 
 def fetch_reference_url(url: str, max_chars: int = 5000) -> str:
-    """첨부 URL을 HTML로 가져와 텍스트만 추출. 실패 시 빈 문자열."""
+    """첨부 URL을 HTML로 가져와 텍스트만 추출. 실패 시 빈 문자열.
+
+    SSRF 방어:
+    - scheme http/https만 허용
+    - host resolve 후 private/loopback/link-local/multicast/reserved IP 차단
+    - HTTP redirect 차단 (private host 우회 방지)
+    """
     try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            print(f"[warn] reference URL 차단 — scheme={parsed.scheme!r}")
+            return ""
+        host = parsed.hostname or ""
+        if not host:
+            return ""
+        try:
+            resolved = {info[4][0] for info in socket.getaddrinfo(host, None)}
+        except socket.gaierror:
+            print(f"[warn] reference URL host resolve 실패 ({host})")
+            return ""
+        for ip_str in resolved:
+            try:
+                ip = ipaddress.ip_address(ip_str)
+            except ValueError:
+                continue
+            if (ip.is_private or ip.is_loopback or ip.is_link_local
+                    or ip.is_multicast or ip.is_reserved or ip.is_unspecified):
+                print(f"[warn] reference URL 차단 — internal IP {ip} ({host})")
+                return ""
+        opener = urllib.request.build_opener(_NoRedirectHandler())
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (cx-alf reference fetch)"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
+        with opener.open(req, timeout=15) as resp:
+            html = resp.read(2 * 1024 * 1024).decode("utf-8", errors="ignore")
         html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
         html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
         html = re.sub(r"<nav[^>]*>.*?</nav>", "", html, flags=re.DOTALL | re.IGNORECASE)
@@ -23,6 +60,12 @@ def fetch_reference_url(url: str, max_chars: int = 5000) -> str:
         text = re.sub(r"<[^>]+>", " ", html)
         text = re.sub(r"\s+", " ", text).strip()
         return text[:max_chars]
+    except urllib.error.HTTPError as e:
+        if e.code in (301, 302, 303, 307, 308):
+            print(f"[warn] reference URL 리다이렉트 차단 ({url})")
+        else:
+            print(f"[warn] reference URL HTTP {e.code} ({url})")
+        return ""
     except Exception as e:
         print(f"[warn] reference URL fetch 실패 ({url}): {e}")
         return ""
@@ -278,7 +321,7 @@ class handler(_Base):
             origin_chat = chats[0]
             origin_tags = origin_chat.get("tags") or []
             origin_id = origin_chat.get("chat_id", "")
-            if origin_tags:
+            if origin_tags and is_safe_postgrest_tag(origin_tags[0]):
                 safe_tag = origin_tags[0].replace('\\', '\\\\').replace('"', '\\"')
                 encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
                 sim_url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"

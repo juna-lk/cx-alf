@@ -2595,12 +2595,19 @@ function copyField(elementId) {
 }
 
 function markdownToHtml(md) {
-  // 코드블록 보호
+  // 코드블록 보호 (raw 그대로 보관, 복원 시 escape)
   const codeBlocks = [];
-  md = md.replace(/```([\s\S]*?)```/g, (_, code) => {
+  md = String(md || '').replace(/```([\s\S]*?)```/g, (_, code) => {
     codeBlocks.push(code);
-    return ` CODEBLOCK_${codeBlocks.length - 1} `;
+    return ` CODEBLOCK_${codeBlocks.length - 1} `;
   });
+
+  // URL 화이트리스트 — javascript:·data:·vbscript: 같은 XSS scheme 차단
+  const safeUrl = (u) => {
+    const t = String(u || '').trim();
+    if (/^(https?:\/\/|mailto:|\/|\.|#)/i.test(t)) return t;
+    return '#';
+  };
 
   // 줄 단위 변환
   const lines = md.split('\n');
@@ -2612,12 +2619,15 @@ function markdownToHtml(md) {
   const flushList = () => { if (inList) { out.push(`</${listType}>`); inList = false; listType = null; } };
   const flushBq = () => { if (inBlockquote) { out.push('</blockquote>'); inBlockquote = false; } };
 
+  // 모든 inline 변환은 escapeHtml 먼저 → 마크업 토큰만 복원 (XSS 차단)
   const inline = (t) => {
-    return t
+    let s = escapeHtml(t);
+    return s
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
       .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      .replace(/\[(.+?)\]\(([^)]+)\)/g, (_, txt, url) =>
+        `<a href="${escapeHtml(safeUrl(url))}" target="_blank" rel="noopener">${txt}</a>`);
   };
 
   for (const raw of lines) {
@@ -2664,7 +2674,7 @@ function markdownToHtml(md) {
 
   let html = out.join('\n');
   // 코드블록 복원
-  html = html.replace(/ CODEBLOCK_(\d+) /g, (_, i) => `<pre><code>${codeBlocks[i].replace(/</g, '&lt;')}</code></pre>`);
+  html = html.replace(/ CODEBLOCK_(\d+) /g, (_, i) => `<pre><code>${escapeHtml(codeBlocks[i])}</code></pre>`);
   return html;
 }
 

@@ -201,6 +201,10 @@ class handler(_Base):
         if not tag:
             self._respond(400, {"ok": False, "error": "tag 필요"})
             return
+        from _alf_common import is_safe_postgrest_tag
+        if not is_safe_postgrest_tag(tag):
+            self._respond(400, {"ok": False, "error": "tag에 허용되지 않는 문자가 있어요 (쉼표·중괄호·제어 문자 불가)"})
+            return
 
         # Supabase에서 태그 매칭 채팅 조회
         # PostgreSQL 배열 리터럴 안에서 "는 \\"로, \는 \\\\로 이스케이프

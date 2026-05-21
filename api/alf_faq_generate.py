@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 import urllib.parse
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft, PRIMARY_MANAGERS
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft, PRIMARY_MANAGERS, is_safe_postgrest_tag
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -185,7 +185,7 @@ class handler(_Base):
             origin_chat = chats[0]
             origin_tags = origin_chat.get("tags") or []
             origin_id = origin_chat.get("chat_id", "")
-            if origin_tags:
+            if origin_tags and is_safe_postgrest_tag(origin_tags[0]):
                 safe_tag = origin_tags[0].replace('\\', '\\\\').replace('"', '\\"')
                 encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
                 sim_url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"

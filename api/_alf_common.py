@@ -16,6 +16,22 @@ PRIMARY_MANAGERS = [
                         or "전준영,조승현,김푸름").split(",") if n.strip()
 ]
 
+
+def is_safe_postgrest_tag(tag: str) -> bool:
+    """PostgREST array literal `tags=cs.{...}` 사용에 안전한지 검증.
+
+    채널톡 태그는 한글/영문/숫자/슬래시/공백 등 일반 문자만 포함해야 함.
+    PostgreSQL array 구분자(`,` `{` `}`) 또는 제어 문자가 있으면 literal이 깨져
+    다른 row가 매칭되거나 500 에러 발생 → reject.
+    """
+    if not tag:
+        return False
+    if any(ch in tag for ch in ',{}'):
+        return False
+    if any(ord(ch) < 0x20 for ch in tag):
+        return False
+    return True
+
 # 한자/일본어 자주 혼입되는 단어 → 한글 치환 사전
 CJK_REPLACE = {
     "内容": "내용", "內容": "내용",
@@ -257,7 +273,10 @@ def sanitize_korean(text: str) -> str:
 
 
 def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_key: str = "") -> str:
-    """OpenAI API 호출 → 텍스트 응답 반환. 429 시 최대 3회 재시도."""
+    """OpenAI API 호출 → 텍스트 응답 반환. 429·네트워크 에러 시 최대 3회 재시도.
+
+    모든 retry 실패 시 implicit None이 아닌 명시적 예외 raise → 호출자가 처리 가능.
+    """
     if not api_key:
         raise ValueError("api_key is required")
 
@@ -272,6 +291,7 @@ def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_ke
         "messages": messages,
     }).encode()
 
+    last_err: Exception | None = None
     for attempt in range(3):
         req = urllib.request.Request(
             OPENAI_API_URL,
@@ -287,10 +307,20 @@ def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_ke
             text = data["choices"][0]["message"]["content"]
             return sanitize_korean(text)
         except urllib.error.HTTPError as e:
+            last_err = e
             if e.code == 429 and attempt < 2:
                 time.sleep(3 * (attempt + 1))  # 3s → 6s 재시도
                 continue
+            # 429 외 HTTP 에러는 retry 무의미 → 즉시 raise
             raise
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(2 * (attempt + 1))
+                continue
+            break
+    # 모든 retry 실패 시 명시적 raise (implicit None 반환 방지)
+    raise RuntimeError(f"call_anthropic 3회 retry 실패: {last_err}") from last_err
 
 
 def get_supabase_headers(service_key: str) -> dict:
