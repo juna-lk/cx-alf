@@ -2516,7 +2516,7 @@ async function loadCtFaqs() {
           </div>
         </div>
         <div style="display:none;padding:12px 16px;border-top:1px solid #f3f4f6;font-size:13px;color:#374151;line-height:1.7">
-          <div style="margin-bottom:8px"><strong>답변</strong><br>${escapeHtml(f.content || '')}</div>
+          <div style="margin-bottom:8px"><strong>답변</strong><br>${escapeHtml(f.content || '').replace(/\n/g, '<br>')}</div>
           ${variations.length ? `<div><strong>변형 질문</strong><ul style="margin:4px 0 0 16px">${variations.map(v => `<li>${escapeHtml(v)}</li>`).join('')}</ul></div>` : ''}
         </div>
       </div>`;
