@@ -9,6 +9,13 @@ import urllib.request
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_MODEL = "gpt-4o-mini"
 
+# 화이트리스트 매니저 — 이 매니저들의 답변만 아티클·FAQ 생성에 사용
+# ALF_PRIMARY_MANAGERS env로 override 가능 (쉼표 구분)
+PRIMARY_MANAGERS = [
+    n.strip() for n in (os.environ.get("ALF_PRIMARY_MANAGERS")
+                        or "전준영,조승현,김푸름").split(",") if n.strip()
+]
+
 # 한자/일본어 자주 혼입되는 단어 → 한글 치환 사전
 CJK_REPLACE = {
     "内容": "내용", "內容": "내용",

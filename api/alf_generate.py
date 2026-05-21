@@ -7,7 +7,7 @@ import json
 
 import urllib.parse
 import urllib.request
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, PRIMARY_MANAGERS
 
 
 def fetch_reference_url(url: str, max_chars: int = 5000) -> str:
@@ -135,8 +135,13 @@ def build_generate_prompt(cluster_label: str, chats: list, reference_doc: str = 
     for i, c in enumerate(chats[:50]):
         msgs = c.get("messages", [])
         customer_msgs = [m.get("text", "")[:200] for m in msgs if m.get("role") == "customer"][:2]
-        # 상담원 답변만 (ALF/봇 제외, 답변 패턴 추출용) — 정책·절차의 핵심이 잘리지 않도록 충분히 길게
-        agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"]
+        # 화이트리스트 매니저 답변만 사용 (전준영·조승현·김푸름 — ALF_PRIMARY_MANAGERS env로 override 가능)
+        # 부분 매칭: 채널톡 매니저 이름이 "조승현(Logan)" 식으로 영문 닉네임 포함 가능
+        agent_msgs = [
+            m.get("text", "") for m in msgs
+            if m.get("role") == "agent"
+            and any(p in (m.get("manager") or "") for p in PRIMARY_MANAGERS)
+        ]
         if not customer_msgs or not agent_msgs:
             continue
         agent_full = "\n".join(f"  → {a[:600]}" for a in agent_msgs[:6])
