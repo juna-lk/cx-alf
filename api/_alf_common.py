@@ -121,7 +121,12 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
 
     # 1.5) Markdown 헤딩 공백 자동 보장 (##제목 → ## 제목)
     # 채널톡 에디터가 markdown 헤딩으로 인식하려면 # 다음 공백 1칸 필수
-    fixed = re.sub(r"^(#{1,6})(\S)", r"\1 \2", fixed, flags=re.MULTILINE)
+    # 줄 시작뿐 아니라 줄 중간에 들어간 케이스도 처리 (LLM이 줄바꿈 없이 ##을 본문에 붙이는 경우)
+    # (?<![\w#]) 보호: 앞에 단어/# 없을 때만 (예: "안녕##하세요" 같은 패턴은 변환 X)
+    fixed = re.sub(r"(?<![\w#])(#{1,6})(?=[^\s#])", r"\1 ", fixed)
+    # 헤딩 앞에 줄바꿈 없이 본문이 붙어있으면 줄바꿈 삽입 (헤딩이 본문 중간에 묻히지 않도록)
+    # 앞 문자가 # 또는 줄바꿈이면 스킵 (이미 헤딩 일부거나 줄 시작인 케이스)
+    fixed = re.sub(r"([^\n#])(\s*)(#{1,6}\s)", r"\1\n\n\3", fixed)
     # 불릿/번호 목록 공백도 보장 (-항목 → - 항목)
     fixed = re.sub(r"^([-*])(\S)", r"\1 \2", fixed, flags=re.MULTILINE)
 
