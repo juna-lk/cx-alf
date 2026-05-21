@@ -1,11 +1,31 @@
 from __future__ import annotations
 import os
+import re
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
 import urllib.parse
+import urllib.request
 from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json
+
+
+def fetch_reference_url(url: str, max_chars: int = 5000) -> str:
+    """첨부 URL을 HTML로 가져와 텍스트만 추출. 실패 시 빈 문자열."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (cx-alf reference fetch)"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r"<nav[^>]*>.*?</nav>", "", html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r"<footer[^>]*>.*?</footer>", "", html, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(r"<[^>]+>", " ", html)
+        text = re.sub(r"\s+", " ", text).strip()
+        return text[:max_chars]
+    except Exception as e:
+        print(f"[warn] reference URL fetch 실패 ({url}): {e}")
+        return ""
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -107,7 +127,7 @@ ALF는 RAG로 등록된 지식을 참조해 고객 응대하므로, 잘 정리�
 예) 編集→편집, プラン→플랜, サイト→사이트, ホスティング→호스팅."""
 
 
-def build_generate_prompt(cluster_label: str, chats: list) -> str:
+def build_generate_prompt(cluster_label: str, chats: list, reference_doc: str = "") -> str:
     samples = []
     for i, c in enumerate(chats[:50]):
         msgs = c.get("messages", [])
@@ -126,10 +146,22 @@ def build_generate_prompt(cluster_label: str, chats: list) -> str:
     if not samples:
         return f"'{cluster_label}' 관련 상담원 답변 데이터가 부족합니다."
 
+    ref_section = ""
+    if reference_doc:
+        ref_section = f"""
+
+【참고 가이드 문서】 ← 우선 기준
+작성자가 첨부한 운영 가이드 원본입니다. **정책·절차·메뉴 경로·용어는 이 가이드를 정답으로 사용**하고, 상담 데이터는 고객이 실제로 묻는 표현·자주 헷갈리는 케이스·매니저 답변 톤을 추출하는 보강 자료로만 활용해주세요. 가이드에 없는 내용을 상담 데이터에서 가져오는 건 가능하지만, 가이드와 충돌하면 가이드를 따르세요.
+
+\"\"\"
+{reference_doc}
+\"\"\"
+"""
+
     return f"""아래는 '{cluster_label}' 상황의 실제 채널톡 상담 {len(samples)}건입니다.
 
 {chr(10).join(samples)}
-
+{ref_section}
 위 데이터에서 **공통된 정보·절차·정책**만 뽑아 채널톡 Help Doc 형식의 지식 아티클로 정리해주세요.
 
 【필수 변환 작업】
@@ -169,6 +201,10 @@ class handler(_Base):
         chat_ids = body.get("chat_ids", [])
         single_chat = bool(body.get("single_chat", False))
         similar_search = bool(body.get("similar_search", False))
+        reference_doc = (body.get("reference_doc") or "").strip()
+        reference_url = (body.get("reference_url") or "").strip()
+        if reference_url and not reference_doc:
+            reference_doc = fetch_reference_url(reference_url)
 
         if not chat_ids:
             self._respond(400, {"ok": False, "error": "chat_ids 필요"})
@@ -249,7 +285,7 @@ class handler(_Base):
                         print(f"[warn] 유사 케이스 의미 검색 실패: {e}")
             print(f"[info] 유사 케이스 {similar_count}건 추가됨 (원본 1건 + 유사 {similar_count}건 = 총 {len(chats)}건 분석)")
 
-        prompt = build_generate_prompt(cluster_label, chats)
+        prompt = build_generate_prompt(cluster_label, chats, reference_doc=reference_doc)
         raw = call_anthropic(
             prompt, system=ALF_SYSTEM_PROMPT,
             max_tokens=2048, api_key=OPENAI_API_KEY,

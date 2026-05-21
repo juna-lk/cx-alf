@@ -608,6 +608,16 @@
           style="font-size:13px;color:#4f46e5;text-decoration:none">자세한 작성 가이드 보기 →</a>
       </div>
     </div>
+    <div id="referenceSection" style="margin-top:16px;padding:14px;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:600;color:#374151">📎 참고 가이드 문서 (선택)</span>
+        <span style="font-size:11px;color:#6b7280">첨부하면 LLM이 가이드 + 채팅 + 매니저 답변 패턴을 종합 분석해서 아티클을 생성해요.</span>
+      </div>
+      <input type="url" id="referenceUrl" placeholder="https://guide-kr.liveklass.com/... (URL 입력 시 서버에서 자동 fetch)"
+             style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;margin-bottom:6px;font-family:inherit" />
+      <textarea id="referenceDoc" rows="3" placeholder="또는 운영 가이드 본문을 직접 붙여넣기 (URL과 본문 둘 다 입력 시 본문 우선)"
+                style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;resize:vertical;font-family:inherit"></textarea>
+    </div>
     <div class="cluster-actions">
       <button id="btnGenArticle" class="btn btn-primary" onclick="generate('article')">📄 아티클로 생성</button>
       <button id="btnGenFaq" class="btn btn-primary" onclick="generate('faq')">💬 FAQ로 생성</button>
@@ -738,7 +748,7 @@
         </div>
         <div class="guide-toc-group">
           <div class="guide-toc-group-title">베스트 프랙티스</div>
-          <a href="#section-success">🏆 성공 사례 + 통합 템플릿</a>
+          <a href="#section-success">🏆 통합 아티클 템플릿</a>
           <a href="#section-cs">📞 CS 직접 답변</a>
           <a href="#section-difficult">⚠️ ALF가 못 찾는 형태</a>
         </div>
@@ -987,16 +997,8 @@
     </div>
 
     <div class="guide-section" id="section-success">
-      <h3>🏆 성공 사례 + 통합 아티클 템플릿</h3>
-      <p>채널톡이 공개한 실제 ALF 활용 사례와, 공통 정책을 한 문서로 통합하는 템플릿이에요. 라이브클래스 운영 가이드를 ALF 아티클로 옮길 때 그대로 응용하세요.</p>
-
-      <h4>공식 성공 사례</h4>
-      <table class="guide-table">
-        <tr><th>고객사</th><th>성과</th><th>핵심 패턴</th></tr>
-        <tr><td><strong>베리시</strong> (여성 언더웨어)</td><td>전체 상담의 <strong>51%</strong>를 ALF만으로 처리</td><td>제품별 입고·세탁·사이즈 정책을 카테고리 통합 아티클로 운영</td></tr>
-        <tr><td><strong>이스타항공</strong></td><td>AI 상담 해결률 <strong>74%</strong></td><td>"고객이 실제로 묻는 흐름"으로 시나리오 재설계 후 아티클 재구성</td></tr>
-        <tr><td><strong>도큐먼트 누적</strong></td><td>도입 고객사 평균 다수가 수십~수백 건 보유 (2024-08 기준 전체 6,000건+)</td><td>"적게 잘"보다 "체계적으로 많이" 쌓는 게 ALF 정확도와 직결</td></tr>
-      </table>
+      <h3>🏆 통합 아티클 템플릿</h3>
+      <p>공통 정책을 한 문서로 통합하는 패턴과, 라이브클래스 운영 가이드를 ALF 아티클로 옮길 때 그대로 응용할 수 있는 템플릿이에요.</p>
 
       <h4>통합 아티클 템플릿 — "공통 주제 묶기"</h4>
       <p>가입·탈퇴·비밀번호처럼 공통 주제는 한 아티클로 묶고, 소제목으로 케이스를 분리하세요. 정책 변경 시 한 곳만 수정하면 됩니다.</p>
@@ -2108,6 +2110,7 @@ async function executeGenerate(mode) {
   document.getElementById('resultGrid').classList.add('hidden');
   document.getElementById('faqCard').classList.add('hidden');
 
+  const refParams = getReferenceParams();
   const results = [];
   let lastData = null;
   let lastCluster = null;
@@ -2118,7 +2121,7 @@ async function executeGenerate(mode) {
       const res = await authFetch(`${API}/api/alf_generate`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({cluster_label: cluster.label, chat_ids: cluster.chat_ids || []}),
+        body: JSON.stringify({cluster_label: cluster.label, chat_ids: cluster.chat_ids || [], ...refParams}),
       });
       const data = await res.json();
       if (data.ok) { results.push(data); lastData = data; lastCluster = cluster; }
@@ -2152,6 +2155,15 @@ async function executeGenerate(mode) {
   alert(`✅ ${results.length}개 아티클이 생성됐어요!\n\n마지막 1개가 화면에 표시되고, 전체는 "작성 중인 초안" 탭에서 확인할 수 있어요.`);
 }
 
+function getReferenceParams() {
+  const url = (document.getElementById('referenceUrl')?.value || '').trim();
+  const doc = (document.getElementById('referenceDoc')?.value || '').trim();
+  const out = {};
+  if (url) out.reference_url = url;
+  if (doc) out.reference_doc = doc;
+  return out;
+}
+
 async function runSingleGenerate(format, cluster) {
   state.currentFormat = format;
   setGenButtonState(format, true);
@@ -2161,10 +2173,11 @@ async function runSingleGenerate(format, cluster) {
   document.getElementById('faqCard').classList.add('hidden');
 
   try {
+    const refParams = getReferenceParams();
     const res = await authFetch(`${API}/api/${endpoint}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({cluster_label: cluster.label, chat_ids: cluster.chat_ids || []}),
+      body: JSON.stringify({cluster_label: cluster.label, chat_ids: cluster.chat_ids || [], ...refParams}),
     });
     const data = await res.json();
     if (!data.ok) { alert('생성 실패: ' + (data.error || '')); return; }
