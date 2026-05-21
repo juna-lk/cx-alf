@@ -2425,7 +2425,7 @@ async function loadCtArticles() {
   if (btn) { btn.disabled = true; btn.textContent = '불러오는 중...'; }
   list.innerHTML = '<p style="font-size:13px;color:#9ca3af;text-align:center;padding:24px 0">불러오는 중...</p>';
   try {
-    const res = await authFetch(`${API}/api/alf_ct_articles`);
+    const res = await authFetch(`${API}/api/alf_publish`);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '오류');
     _ctArticlesCache = data.articles || [];

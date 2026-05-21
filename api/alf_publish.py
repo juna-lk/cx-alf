@@ -78,6 +78,36 @@ _Base = make_handler_base()
 
 
 class handler(_Base):
+    def do_GET(self):
+        if not self._check_auth():
+            return
+        if not DOCS_ACCESS_KEY or not DOCS_ACCESS_SECRET:
+            self._respond(500, {"ok": False, "error": "채널톡 Documents API 키가 설정되지 않았어요."})
+            return
+        try:
+            data = docs_req("/open/v1/spaces/$me/articles?language=ko&limit=100", method="GET")
+        except urllib.error.HTTPError as e:
+            self._respond(500, {"ok": False, "error": f"채널톡 API 오류: {e.read().decode()}"})
+            return
+        except Exception as e:
+            self._respond(500, {"ok": False, "error": str(e)})
+            return
+        articles = data.get("articles") or []
+        result = [
+            {
+                "id": a.get("id"),
+                "title": a.get("title") or a.get("name") or "",
+                "subtitle": a.get("subtitle") or a.get("summary") or "",
+                "slug": a.get("slug", ""),
+                "state": a.get("state", ""),
+                "createdAt": a.get("createdAt"),
+                "updatedAt": a.get("updatedAt"),
+            }
+            for a in articles
+        ]
+        result.sort(key=lambda x: (0 if x["state"] == "published" else 1, -(x["updatedAt"] or 0)))
+        self._respond(200, {"ok": True, "articles": result, "total": len(result)})
+
     def do_POST(self):
         if not self._check_auth():
             return
