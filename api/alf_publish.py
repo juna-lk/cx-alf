@@ -100,6 +100,7 @@ class handler(_Base):
                 "subtitle": a.get("subtitle") or a.get("summary") or "",
                 "slug": a.get("slug", ""),
                 "state": a.get("state", ""),
+                "bodyHtml": a.get("bodyHtml") or "",
                 "createdAt": a.get("createdAt"),
                 "updatedAt": a.get("updatedAt"),
             }
