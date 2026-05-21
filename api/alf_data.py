@@ -80,7 +80,7 @@ class handler(_Base):
         status = (params.get("status", [""])[0] or "").strip()
         fmt = (params.get("format", [""])[0] or "").strip()
         url = (f"{SUPABASE_URL}/rest/v1/alf_drafts"
-               f"?select=id,title,subtitle,cluster_label,format,variations,source_chat_count,created_at,status"
+               f"?select=id,title,subtitle,content,cluster_label,format,variations,source_chat_count,created_at,status"
                f"&order=created_at.desc")
         if status in ("draft", "applied"):
             url += f"&status=eq.{status}"
