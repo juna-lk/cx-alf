@@ -160,6 +160,23 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
             warnings.append({"rule": "모호 표현", "level": "warning",
                              "message": f'"{label}" 사용 — 채널톡 공식 가이드 금지 표현. 조건을 케이스별로 명시해주세요'})
 
+    # 3.7) 1:1 특정 사례 응답 감지 — 일반화 안 된 처리 응답 검출
+    # 특정 날짜·시점·1회성 처리 종결형은 다음 고객에게 그대로 적용 불가
+    case_specific_patterns = [
+        (r"\b\d{1,2}/\d{1,2}\b", "특정 날짜", "특정 날짜(X/X) 형식 — 일반 조건으로 변환 필요 (예: '결제일', '환불 가능 기간 내')"),
+        (r"\d{1,2}월\s?\d{1,2}일", "특정 날짜", "특정 날짜(X월 X일) — 일반 조건으로 변환 필요"),
+        (r"(오늘|어제|내일|모레|이번\s?주|지난\s?주|이번\s?달|지난\s?달|금주|차주)", "시점 표현", "상대 시점 표현 — 다음 고객에게는 다른 의미이므로 일반화 필요"),
+        (r"(확인됩니다|확인되었습니다|처리되었습니다|조치하였습니다|진행된\s?것으로|처리된\s?것으로|완료된\s?것으로)", "1회성 처리 응답", "특정 사례의 처리 결과 표현 — 일반 안내 어투로 변환 필요"),
+    ]
+    seen_rules: set[str] = set()
+    for pattern, rule, msg in case_specific_patterns:
+        if re.search(pattern, fixed) and rule not in seen_rules:
+            seen_rules.add(rule)
+            m = re.search(pattern, fixed)
+            snippet = m.group(0).strip() if m else ""
+            warnings.append({"rule": rule, "level": "warning",
+                             "message": f'"{snippet}" 감지 — {msg}'})
+
     # 3.6) "담당자에게 문의하세요" 단독 사용 검출
     if re.search(r"담당자(에게|께)?\s*(문의|연락)", fixed):
         # 같은 본문에 조건·방법·연락처가 함께 있는지 확인
