@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 import urllib.parse
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft, PRIMARY_MANAGERS, is_safe_postgrest_tag, select_specific_tag
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft, is_safe_postgrest_tag, select_specific_tag
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -61,22 +61,14 @@ FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF용 FAQ 콘텐츠 작성 전문가
 예) 編集→편집, プラン→플랜, サイト→사이트."""
 
 
-def build_faq_prompt(cluster_label: str, chats: list, single_chat: bool = False) -> str | None:
+def build_faq_prompt(cluster_label: str, chats: list) -> str | None:
     samples = []
     for i, c in enumerate(chats[:50]):
         msgs = c.get("messages", [])
         # 고객 메시지 (질문 패턴용)
         customer_msgs = [m.get("text", "")[:200] for m in msgs if m.get("role") == "customer"][:2]
-        # 화이트리스트 매니저 답변만 사용 (전준영·조승현·김푸름)
-        # 부분 매칭: 채널톡 매니저 이름이 "조승현(Logan)" 식으로 영문 닉네임 포함 가능
-        agent_msgs = [
-            m.get("text", "") for m in msgs
-            if m.get("role") == "agent"
-            and any(p in (m.get("manager") or "") for p in PRIMARY_MANAGERS)
-        ]
-        # 단일 chat 모드는 화이트리스트가 비면 그 chat의 모든 매니저 답변으로 fallback
-        if single_chat and not agent_msgs:
-            agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"]
+        # 모든 매니저 답변 사용 (ALF/봇 제외)
+        agent_msgs = [m.get("text", "") for m in msgs if m.get("role") == "agent"]
         if not customer_msgs or not agent_msgs:
             continue
         # 상담원 답변은 충분히 길게 포함 (FAQ 답변 어휘·말투의 원천)
@@ -217,7 +209,7 @@ class handler(_Base):
                     except Exception as e:
                         print(f"[warn] FAQ 유사 케이스 의미 검색 실패: {e}")
 
-        prompt = build_faq_prompt(cluster_label, chats, single_chat=single_chat)
+        prompt = build_faq_prompt(cluster_label, chats)
         if prompt is None:
             self._respond(400, {"ok": False,
                                 "error": "매니저 답변이 없거나 처리할 수 없어요. 다른 상담을 선택해주세요."})

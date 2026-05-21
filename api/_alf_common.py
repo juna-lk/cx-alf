@@ -9,14 +9,6 @@ import urllib.request
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_MODEL = "gpt-4o-mini"
 
-# 화이트리스트 매니저 — 이 매니저들의 답변만 아티클·FAQ 생성에 사용
-# ALF_PRIMARY_MANAGERS env로 override 가능 (쉼표 구분)
-PRIMARY_MANAGERS = [
-    n.strip() for n in (os.environ.get("ALF_PRIMARY_MANAGERS")
-                        or "전준영,조승현,김푸름").split(",") if n.strip()
-]
-
-
 def is_safe_postgrest_tag(tag: str) -> bool:
     """PostgREST array literal `tags=cs.{...}` 사용에 안전한지 검증.
 
