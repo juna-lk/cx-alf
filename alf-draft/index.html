@@ -517,6 +517,7 @@
 
 <div class="tab-bar">
   <div class="tab active" onclick="switchTab('generate')">초안 생성</div>
+  <div class="tab" onclick="switchTab('search')">🔍 인입 검색</div>
   <div class="tab" onclick="switchTab('library')">📝 작성 중인 초안</div>
   <div class="tab" onclick="switchTab('applied')">✅ ALF 적용 가이드</div>
   <div class="tab" onclick="switchTab('rules')">⚙️ ALF 규칙</div>
@@ -711,6 +712,43 @@
       <button class="btn btn-secondary" onclick="downloadFAQ()">↓ FAQ 다운로드</button>
       <button class="btn btn-secondary" onclick="exportFaqJsonl()" style="background:#f0fdf4;color:#15803d;border-color:#86efac" title="채널톡 FAQ 일괄 업로드용 JSONL 파일 다운로드">채널톡 JSONL 내보내기</button>
     </div>
+  </div>
+</div>
+
+<div class="page" id="tab-search">
+  <div class="input-card">
+    <div class="input-row">
+      <div class="field" style="flex:1">
+        <label>키워드</label>
+        <input type="text" id="searchKeyword" placeholder="예: 강의실 커뮤니티 비활성화, 환불 정책 문의" autocomplete="off"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();runKeywordSearch();}" />
+      </div>
+      <button class="btn btn-primary" id="btnSearchAll" onclick="runKeywordSearch()">🔍 검색</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:16px;align-items:center;font-size:12px;color:#6b7280">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="searchAiToggle" style="margin:0;cursor:pointer" />
+        <span>AI 시맨틱 검색 (의미상 유사한 문의도 포함)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="searchClusterToggle" style="margin:0;cursor:pointer" />
+        <span>📊 검색 결과 클러스터링</span>
+      </label>
+    </div>
+  </div>
+
+  <div id="searchEmpty" style="background:white;border-radius:10px;padding:60px 24px;text-align:center;color:#9ca3af;margin-top:16px">
+    키워드를 입력하면 인입 상담 전체에서 검색합니다.
+  </div>
+
+  <div id="searchLoading" style="display:none;background:white;border-radius:10px;padding:40px;text-align:center;margin-top:16px">
+    <div style="color:#6366f1;font-size:14px">검색 중...</div>
+  </div>
+
+  <div id="searchResults" style="display:none;margin-top:16px">
+    <div id="searchSummary" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#3730a3"></div>
+    <div id="searchClusters" style="margin-bottom:16px"></div>
+    <div id="searchList"></div>
   </div>
 </div>
 
@@ -1889,13 +1927,165 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['generate','library','applied','rules','guide'][i] === name);
+    t.classList.toggle('active', ['generate','search','library','applied','rules','guide'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'library') loadLibrary();
   if (name === 'applied') { loadApplied(); loadCtArticles(); }
   if (name === 'rules') loadRules();
+}
+
+// ─── 인입 검색 (태그 없이 키워드만) ────────────────────────────────────────
+const _expandedSearchChats = new Set();
+
+function _escapeHTML(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function _firstCustomerMsg(messages) {
+  const TEMPLATE_PREFIXES = ['▶️','🤔','🥰','🙋','🌐','🎯','💡','⚡','🔥','📞','📧','📝'];
+  for (const m of (messages || [])) {
+    if (m.role !== 'customer') continue;
+    const t = (m.text || '').trim();
+    if (!t || t.length < 10) continue;
+    if (TEMPLATE_PREFIXES.includes(t[0]) || (t.codePointAt(0) > 0x1F000)) continue;
+    return t;
+  }
+  // 폴백: 템플릿 포함 첫 customer 메시지
+  for (const m of (messages || [])) {
+    if (m.role === 'customer' && (m.text || '').trim()) return m.text;
+  }
+  return '(고객 메시지 없음)';
+}
+
+async function runKeywordSearch() {
+  const keyword = document.getElementById('searchKeyword').value.trim();
+  if (!keyword) { alert('키워드를 입력해주세요'); return; }
+
+  const aiSearch = document.getElementById('searchAiToggle').checked;
+  const doCluster = document.getElementById('searchClusterToggle').checked;
+
+  const btn = document.getElementById('btnSearchAll');
+  btn.disabled = true;
+  btn.textContent = '검색 중...';
+  document.getElementById('searchEmpty').style.display = 'none';
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('searchLoading').style.display = 'block';
+
+  try {
+    const res = await authFetch(`${API}/api/alf_search_all`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({keyword, ai_search: aiSearch, cluster: doCluster}),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      alert(data.error || '검색 실패');
+      document.getElementById('searchEmpty').style.display = 'block';
+      return;
+    }
+    renderSearchResults(data, aiSearch, doCluster);
+  } catch (e) {
+    alert('검색 오류: ' + e.message);
+    document.getElementById('searchEmpty').style.display = 'block';
+  } finally {
+    document.getElementById('searchLoading').style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🔍 검색';
+  }
+}
+
+function renderSearchResults(data, aiSearch, doCluster) {
+  _expandedSearchChats.clear();
+  const total = data.total || 0;
+  const chats = data.chats || [];
+  const clusters = data.clusters || [];
+  window._lastSearchChats = chats;
+
+  document.getElementById('searchResults').style.display = 'block';
+  const summary = document.getElementById('searchSummary');
+  const mode = aiSearch ? 'AI 시맨틱' : '키워드';
+  summary.textContent = `검색 결과: ${total}건 (${mode}${doCluster && clusters.length ? ` · 클러스터 ${clusters.length}개` : ''})`;
+
+  // 클러스터 표시
+  const clusterEl = document.getElementById('searchClusters');
+  if (clusters.length) {
+    clusterEl.innerHTML = clusters.map(cl => `
+      <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:8px">
+        <div style="font-weight:600;color:#1f2937;font-size:14px;margin-bottom:4px">
+          📁 ${_escapeHTML(cl.label)} <span style="color:#6366f1;font-size:12px;font-weight:500">(${cl.count}건)</span>
+        </div>
+        <div style="font-size:12px;color:#6b7280">${_escapeHTML(cl.description || '')}</div>
+      </div>
+    `).join('');
+  } else {
+    clusterEl.innerHTML = '';
+  }
+
+  // 채팅 리스트
+  const listEl = document.getElementById('searchList');
+  if (!chats.length) {
+    listEl.innerHTML = '<div style="background:white;border-radius:10px;padding:40px;text-align:center;color:#9ca3af">매칭되는 상담이 없습니다.</div>';
+    return;
+  }
+  listEl.innerHTML = chats.map(c => {
+    const first = _firstCustomerMsg(c.messages);
+    const snippet = _escapeHTML(first.slice(0, 200));
+    const tags = (c.tags || []).slice(0, 3).map(t => `<span style="background:#f3f4f6;border-radius:4px;padding:2px 8px;font-size:11px;color:#4b5563">${_escapeHTML(t)}</span>`).join(' ');
+    const ctUrl = `https://desk.channel.io/liveklass/user-chats/${c.chat_id}`;
+    return `
+      <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;overflow:hidden">
+        <div style="padding:14px 16px;cursor:pointer" onclick="toggleSearchChatExpand('${c.chat_id}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;margin-bottom:6px">
+                <span>📅 ${c.date}</span>
+                <span style="color:#d1d5db">·</span>
+                <span style="font-family:monospace;font-size:11px">${c.chat_id.slice(0, 12)}</span>
+                ${tags}
+              </div>
+              <div style="font-size:13px;color:#1f2937;line-height:1.5">💬 ${snippet}${first.length > 200 ? '…' : ''}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
+              <a href="${ctUrl}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:#6366f1;text-decoration:none">채널톡 ↗</a>
+              <span id="exp-arrow-${c.chat_id}" style="font-size:12px;color:#9ca3af">▼ 펼치기</span>
+            </div>
+          </div>
+        </div>
+        <div id="exp-body-${c.chat_id}" style="display:none;border-top:1px solid #f3f4f6;padding:14px 16px;background:#fafafa"></div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleSearchChatExpand(chatId) {
+  const body = document.getElementById('exp-body-' + chatId);
+  const arrow = document.getElementById('exp-arrow-' + chatId);
+  if (!body) return;
+  if (_expandedSearchChats.has(chatId)) {
+    body.style.display = 'none';
+    arrow.textContent = '▼ 펼치기';
+    _expandedSearchChats.delete(chatId);
+    return;
+  }
+  // 채팅 데이터 찾아서 전체 메시지 렌더
+  const chats = window._lastSearchChats || [];
+  const chat = chats.find(c => c.chat_id === chatId);
+  const messages = chat ? (chat.messages || []) : [];
+  const roleLabel = { customer: '고객', agent: '상담원', alf: '🤖 ALF', system: '시스템' };
+  const roleColor = { customer: '#3b82f6', agent: '#10b981', alf: '#8b5cf6', system: '#9ca3af' };
+  body.innerHTML = messages.map(m => `
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:${roleColor[m.role] || '#6b7280'};font-weight:600;margin-bottom:3px">${roleLabel[m.role] || m.role}</div>
+      <div style="font-size:13px;color:#1f2937;white-space:pre-wrap;line-height:1.5">${_escapeHTML(m.text)}</div>
+    </div>
+  `).join('') || '<div style="color:#9ca3af;font-size:12px">메시지 없음</div>';
+  body.style.display = 'block';
+  arrow.textContent = '▲ 접기';
+  _expandedSearchChats.add(chatId);
 }
 
 function setLoading(show, text = '분석 중...') {
