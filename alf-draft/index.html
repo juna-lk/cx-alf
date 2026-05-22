@@ -522,6 +522,7 @@
   <div class="tab" onclick="switchTab('applied')">✅ ALF 적용 가이드</div>
   <div class="tab" onclick="switchTab('rules')">⚙️ ALF 규칙</div>
   <div class="tab" onclick="switchTab('guide')">📖 작성 가이드</div>
+  <div class="tab" onclick="switchTab('validate')">✔ 가이드라인 검증</div>
 </div>
 
 <div class="page active" id="tab-generate">
@@ -1529,6 +1530,62 @@
   </div>
 </div>
 
+<div class="page" id="tab-validate">
+  <div class="library-header">
+    <div>
+      <h2 style="font-size:16px;font-weight:600">✔ 아티클 가이드라인 검증</h2>
+      <p style="font-size:13px;color:#6b7280;margin-top:4px">
+        직접 작성한 아티클·FAQ가 채널톡 ALF 가이드라인에 맞는지 확인해요. (이모지, 모호 표현, 1:1 응답, 글자수, 헤딩 구조 등 16개 항목)
+      </p>
+    </div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:16px">
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">제목 <span style="color:#9ca3af;font-weight:400">(선택)</span></label>
+      <input type="text" id="validateTitle" placeholder="예: 구독 플랜 환불받는 방법"
+        style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">본문 (Markdown) <span style="color:#9ca3af;font-weight:400">— 본문 안에 # 제목은 넣지 말 것</span></label>
+      <textarea id="validateContent" rows="14" oninput="document.getElementById('validateCharCount').textContent=this.value.length"
+        placeholder="여기에 작성한 아티클 본문을 붙여넣으세요.&#10;&#10;예시)&#10;## 문제 상황&#10;수강생이 비밀번호를 잊어버렸을 때 어떻게 안내해야 하나요?&#10;&#10;## 해결 방법&#10;1. 사이트 관리 > 회원 관리에서 해당 수강생을 선택해요.&#10;2. 비밀번호 재설정 메일을 발송하면 수강생이 직접 변경할 수 있어요."
+        style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <div style="font-size:11px;color:#9ca3af"><span id="validateCharCount">0</span>자</div>
+        <div style="font-size:11px;color:#9ca3af">아티클 한도 2,000자 / FAQ 한도 500자</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer">
+        <input type="radio" name="validateFormat" value="article" checked /> 아티클
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;cursor:pointer">
+        <input type="radio" name="validateFormat" value="faq" /> FAQ
+      </label>
+      <div style="flex:1"></div>
+      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none'">초기화</button>
+      <button class="btn btn-primary" onclick="runValidation()" style="padding:10px 22px">검증하기</button>
+    </div>
+  </div>
+
+  <div id="validateResult" style="display:none"></div>
+
+  <div style="margin-top:24px;padding:14px 18px;background:#f9fafb;border:1px dashed #e5e7eb;border-radius:10px">
+    <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">📌 검증 항목 (요약)</div>
+    <div style="font-size:12px;color:#6b7280;line-height:1.7">
+      <strong>구조</strong>: ## 헤딩 공백 · 본문 H1 금지 · ## 소제목 개수 · 글자수 한도<br>
+      <strong>톤</strong>: 이모지 · 친근한 종결형(-어요/-습니다) 비율<br>
+      <strong>금지 표현</strong>: 인사·마무리 · 모호 표현(보통/일반적으로) · 1:1 사례(특정 날짜·처리 응답) · 담당자 문의 단독<br>
+      <strong>메뉴 경로</strong>: 백틱 없이 · 화살표(&gt;)로 한 줄<br>
+      <strong>언어</strong>: 한국어만 (일본어/한자 금지)<br>
+      <strong>구조 권장</strong>: 불릿·번호 목록 활용 · 절차는 1./2./3. 형태
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <h2 id="modalTitle"></h2>
@@ -1927,13 +1984,258 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['generate','search','library','applied','rules','guide'][i] === name);
+    t.classList.toggle('active', ['generate','search','library','applied','rules','guide','validate'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'library') loadLibrary();
   if (name === 'applied') { loadApplied(); loadCtArticles(); }
   if (name === 'rules') loadRules();
+}
+
+// ─── 아티클 가이드라인 검증 ─────────────────────────────────────────────────
+// 채널톡 ALF 가이드라인 기준 client-side 검증.
+// api/_alf_common.py의 verify_draft() 로직을 JS로 포팅.
+function validateArticle(content, title, format) {
+  format = format || 'article';
+  title = title || '';
+  const warnings = [];
+  const length = content.length;
+
+  // 1) 이모지
+  const emojiPattern = /[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}☀-➿]/gu;
+  const emojiMatches = content.match(emojiPattern);
+  if (emojiMatches && emojiMatches.length > 0) {
+    warnings.push({rule:'이모지', level:'error', message:`이모지 ${emojiMatches.length}개 사용 — Help Doc 톤 위반 (예: ${emojiMatches.slice(0,3).join(' ')})`});
+  }
+
+  // 2) Markdown 헤딩 공백 누락 (##제목 → ## 제목)
+  if (/(^|\n)#{1,6}[^\s#]/.test(content)) {
+    warnings.push({rule:'헤딩 공백', level:'error', message:'## 뒤에 공백 누락 — 채널톡 에디터가 헤딩으로 인식 못 함. "## 제목" 형식 필수'});
+  }
+
+  // 3) 본문 H1 금지
+  if (/^#\s/m.test(content)) {
+    warnings.push({rule:'본문 H1', level:'error', message:'본문에 # (H1) 사용 — 제목은 별도 필드여야 함. 본문은 ##부터 시작'});
+  }
+
+  // 4) 소제목 (## ) 개수
+  const subCount = (content.match(/^##\s/gm) || []).length;
+  if (format === 'article') {
+    if (subCount === 0 && length > 300) {
+      warnings.push({rule:'소제목', level:'warning', message:`본문 ${length}자인데 ## 소제목이 없음. 케이스별 분리하면 ALF 매칭률 ↑`});
+    } else if (subCount > 0 && subCount < 3 && length > 1000) {
+      warnings.push({rule:'소제목 개수', level:'info', message:`## 소제목 ${subCount}개 — 1,000자 넘으면 3개 이상으로 분리 권장`});
+    }
+  }
+
+  // 5) 잔존 보일러플레이트 (인사·마무리·자기소개)
+  const boilerplate = [
+    [/(^|\n)[^\n]*안녕하세요[^\n]*/, '시작 인사'],
+    [/(^|\n)[^\n]*감사합니다[^\n]*/, '마무리 인사'],
+    [/(^|\n)[^\n]{0,20}(안내|소개|설명)해?\s*드리겠습니다[^\n]*/, '안내 도입'],
+    [/(^|\n)[^\n]*마무리할게요[^\n]*/, '상담 종료'],
+    [/(^|\n)[^\n]*(코치|매니저|운영자)\s*[A-Za-z가-힣]+\s?(입니다|예요)[^\n]*/, '자기소개'],
+    [/(^|\n)[^\n]*(혹시|어떤 부분).*\?[^\n]*/, '직접 질문'],
+  ];
+  for (const [pattern, label] of boilerplate) {
+    const m = content.match(pattern);
+    if (m) {
+      const snippet = m[0].trim().slice(0, 40);
+      warnings.push({rule:label, level:'error', message:`"${snippet}…" — Help Doc 톤 위반. 삭제 필요`});
+    }
+  }
+
+  // 6) 모호 표현
+  const vague = [
+    [/보통[\s,은는]/, '보통'],
+    [/일반적으로/, '일반적으로'],
+    [/경우에 따라/, '경우에 따라'],
+    [/대부분/, '대부분'],
+    [/대체로/, '대체로'],
+  ];
+  for (const [pattern, label] of vague) {
+    if (pattern.test(content)) {
+      warnings.push({rule:'모호 표현', level:'warning', message:`"${label}" — 채널톡 가이드 금지 표현. 조건을 케이스별로 명시해주세요`});
+    }
+  }
+
+  // 7) 1:1 사례 응답 (특정 날짜·시점·처리 응답)
+  const caseSpec = [
+    [/\b\d{1,2}\/\d{1,2}\b/, '특정 날짜', '특정 날짜(X/X) 형식 — "결제일", "환불 가능 기간 내" 등으로 일반화 필요'],
+    [/\d{1,2}월\s?\d{1,2}일/, '특정 날짜', '특정 날짜(X월 X일) — 일반 조건으로 변환 필요'],
+    [/(오늘|어제|내일|모레|이번\s?주|지난\s?주|이번\s?달|지난\s?달|금주|차주)/, '시점 표현', '상대 시점 — "신청일", "처리일", "해당 기간" 등으로 변환'],
+    [/(확인됩니다|확인되었습니다|처리되었습니다|조치하였습니다|진행된\s?것으로|처리된\s?것으로|완료된\s?것으로)/, '1회성 처리 응답', '처리 결과 표현 — "확인할 수 있어요", "처리해드려요" 같은 일반 안내로'],
+  ];
+  const seenRules = new Set();
+  for (const [pattern, rule, msg] of caseSpec) {
+    if (!seenRules.has(rule) && pattern.test(content)) {
+      seenRules.add(rule);
+      const m = content.match(pattern);
+      warnings.push({rule, level:'warning', message:`"${m[0].trim()}" — ${msg}`});
+    }
+  }
+
+  // 8) "담당자에게 문의" 단독 사용
+  if (/담당자(에게|께)?\s*(문의|연락)/.test(content)) {
+    const hasContext = /(이?면|일\s*때|에는|시\s*에는|아래|다음|단계|방법|연락처|이메일|전화|@|https?:\/\/|채널톡)/.test(content);
+    if (!hasContext) {
+      warnings.push({rule:'담당자 문의', level:'warning', message:'"담당자에게 문의" 단독 사용 — 어떤 경우/누구/방법을 함께 명시해주세요'});
+    }
+  }
+
+  // 9) 친근한 종결형 비율
+  const sentences = content.split(/[.\n!?]/).filter(s => {
+    const t = s.trim();
+    return t.length > 8 && !/^\s*(#{1,6}|-|\*|\d+\.|\|)/.test(t);
+  });
+  if (sentences.length >= 3) {
+    const friendly = sentences.filter(s => /(어요|습니다|예요|에요|드려요|돼요)\s*$/.test(s.trim())).length;
+    const ratio = friendly / sentences.length;
+    if (ratio < 0.25) {
+      warnings.push({rule:'종결형', level:'warning', message:`친근한 종결형(-어요/-습니다) 비율 ${Math.round(ratio*100)}% — 권장 30% 이상. Help Doc 톤 유지`});
+    }
+  }
+
+  // 10) 글자수
+  if (format === 'article' && length > 2000) {
+    warnings.push({rule:'글자수', level:'warning', message:`${length}자 — 2,000자 초과. 별도 아티클로 분리 권장`});
+  } else if (format === 'faq' && length > 500) {
+    warnings.push({rule:'글자수', level:'error', message:`${length}자 — FAQ 한도 500자 초과. 답변 압축 필요`});
+  }
+
+  // 11) 불릿·번호 목록
+  const hasList = /^\s*[-*]\s|^\s*\d+\.\s/m.test(content);
+  if (format === 'article' && !hasList && length > 500) {
+    warnings.push({rule:'목록', level:'info', message:'불릿/번호 목록 없음 — 단계·조건은 목록으로 정리하면 ALF가 선후 관계 파악 쉬워요'});
+  }
+
+  // 12) 단계 번호
+  if (format === 'article' && length > 500) {
+    const hasNumbered = /(^|\n)\s*\d+\.\s|[①②③④⑤⑥⑦⑧⑨⑩]/.test(content);
+    if (!hasNumbered) {
+      warnings.push({rule:'단계 번호', level:'info', message:'절차가 있다면 1./2./3. 번호화 권장 — ALF가 순서 정확히 안내'});
+    }
+  }
+
+  // 13) 메뉴 경로 백틱
+  if (/`[가-힣]+`\s*[>→]\s*`[가-힣]+`/.test(content)) {
+    warnings.push({rule:'메뉴 경로 백틱', level:'warning', message:'메뉴 경로에 백틱(`) 사용 — 백틱 없이 화살표(&gt;)로 한 줄 표시. 예: 사이트 관리 &gt; 사이트 디자인'});
+  }
+
+  // 14) 메뉴 경로 줄바꿈
+  if (/[가-힣]+\s*→\s*\n\s*[가-힣]+/.test(content) || /[가-힣]+\s*>\s*\n\s*[가-힣]+/.test(content)) {
+    warnings.push({rule:'메뉴 경로 줄바꿈', level:'warning', message:'메뉴 경로 중간에 줄바꿈 — 한 줄로 작성 권장'});
+  }
+
+  // 15) 일본어 (히라가나·가타카나)
+  if (/[ぁ-ゟ゠-ヿ]/.test(content)) {
+    warnings.push({rule:'외국어 (일본어)', level:'error', message:'일본어 사용 — 한국어로 변환 필요 (예: プラン→플랜, サイト→사이트)'});
+  }
+
+  // 16) 한자
+  if (/[㐀-䶿一-鿿]/.test(content)) {
+    warnings.push({rule:'외국어 (한자)', level:'error', message:'한자 사용 — 한글로 변환 필요 (예: 編集→편집)'});
+  }
+
+  // 17) 제목 키워드 (옵션)
+  if (format === 'article' && title) {
+    if (title.length < 5) {
+      warnings.push({rule:'제목 길이', level:'info', message:'제목이 짧음 — 핵심 키워드(상품명·기능명)와 동사 포함 권장'});
+    }
+    if (/안내$|관련$/.test(title.trim())) {
+      warnings.push({rule:'제목 표현', level:'info', message:'제목이 "○○ 안내", "○○ 관련" 류 — 구체적 동사 포함 권장 (예: "환불 받는 방법")'});
+    }
+  }
+
+  return { warnings, length };
+}
+
+function runValidation() {
+  const content = document.getElementById('validateContent').value;
+  const title = document.getElementById('validateTitle').value;
+  const format = document.querySelector('input[name="validateFormat"]:checked').value;
+
+  if (!content.trim()) {
+    alert('검증할 본문을 입력해주세요');
+    return;
+  }
+
+  const { warnings, length } = validateArticle(content, title, format);
+  renderValidationResult(warnings, length, format);
+
+  // 결과로 스크롤
+  setTimeout(() => {
+    document.getElementById('validateResult').scrollIntoView({behavior:'smooth', block:'start'});
+  }, 50);
+}
+
+function _renderValidateCard(w, bg, border, ruleColor) {
+  return `<div style="padding:10px 14px;background:${bg};border:1px solid ${border};border-radius:8px;display:flex;gap:10px;align-items:flex-start">
+    <div style="font-size:11px;font-weight:700;color:${ruleColor};flex-shrink:0;min-width:110px;padding-top:1px">${_escapeHTML(w.rule)}</div>
+    <div style="font-size:13px;color:#374151;flex:1;line-height:1.55">${w.message}</div>
+  </div>`;
+}
+
+function renderValidationResult(warnings, length, format) {
+  const errors = warnings.filter(w => w.level === 'error');
+  const warns = warnings.filter(w => w.level === 'warning');
+  const infos = warnings.filter(w => w.level === 'info');
+
+  let html = '';
+
+  const status = errors.length > 0 ? 'fail' : (warns.length > 0 ? 'warn' : 'pass');
+  const statusStyles = {
+    pass: {bg:'#f0fdf4', border:'#86efac', color:'#15803d', label:'✅ 합격', desc:'모든 가이드라인 통과 — 채널톡에 등록해도 좋아요'},
+    warn: {bg:'#fffbeb', border:'#fcd34d', color:'#b45309', label:'⚠️ 경고', desc:`${warns.length}건 개선 권장${infos.length > 0 ? ` · 참고 ${infos.length}건` : ''}`},
+    fail: {bg:'#fef2f2', border:'#fca5a5', color:'#b91c1c', label:'❌ 실패', desc:`${errors.length}건 수정 필수${warns.length > 0 ? ` · 경고 ${warns.length}건` : ''}${infos.length > 0 ? ` · 참고 ${infos.length}건` : ''}`},
+  };
+  const s = statusStyles[status];
+  html += `<div style="padding:14px 18px;border-radius:10px;background:${s.bg};border:1px solid ${s.border};margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="font-size:18px;font-weight:700;color:${s.color}">${s.label}</div>
+    <div style="font-size:13px;color:${s.color};opacity:.85">${s.desc}</div>
+    <div style="flex:1"></div>
+    <div style="font-size:12px;color:${s.color};font-weight:600">본문 ${length}자 (${format === 'article' ? '아티클' : 'FAQ'})</div>
+  </div>`;
+
+  if (errors.length > 0) {
+    html += `<div style="margin-bottom:18px">
+      <h3 style="font-size:14px;font-weight:600;color:#b91c1c;margin:0 0 8px">❌ 실패 (수정 필수) — ${errors.length}건</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${errors.map(w => _renderValidateCard(w, '#fef2f2', '#fecaca', '#b91c1c')).join('')}
+      </div>
+    </div>`;
+  }
+
+  if (warns.length > 0) {
+    html += `<div style="margin-bottom:18px">
+      <h3 style="font-size:14px;font-weight:600;color:#b45309;margin:0 0 8px">⚠️ 경고 (개선 권장) — ${warns.length}건</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${warns.map(w => _renderValidateCard(w, '#fffbeb', '#fde68a', '#b45309')).join('')}
+      </div>
+    </div>`;
+  }
+
+  if (infos.length > 0) {
+    html += `<div style="margin-bottom:18px">
+      <h3 style="font-size:14px;font-weight:600;color:#1e40af;margin:0 0 8px">💡 참고 — ${infos.length}건</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${infos.map(w => _renderValidateCard(w, '#eff6ff', '#bfdbfe', '#1e40af')).join('')}
+      </div>
+    </div>`;
+  }
+
+  if (warnings.length === 0) {
+    html += `<div style="padding:32px 24px;text-align:center;background:#f0fdf4;border:1px dashed #86efac;border-radius:10px">
+      <div style="font-size:28px;margin-bottom:8px">🎉</div>
+      <div style="font-size:14px;font-weight:600;color:#15803d;margin-bottom:4px">완벽해요!</div>
+      <div style="font-size:12px;color:#15803d;opacity:.8">검증한 모든 가이드라인을 충족했어요. 채널톡에 등록해도 좋아요.</div>
+    </div>`;
+  }
+
+  const resultEl = document.getElementById('validateResult');
+  resultEl.innerHTML = html;
+  resultEl.style.display = 'block';
 }
 
 // ─── 인입 검색 (태그 없이 키워드만) ────────────────────────────────────────
