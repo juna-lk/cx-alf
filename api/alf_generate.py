@@ -304,6 +304,85 @@ class handler(_Base):
                 self._respond(500, {"ok": False, "error": "제목 추천에 실패했어요. 잠시 후 다시 시도해주세요."})
                 return
 
+        # ─── 본문 재작성 모드 ────────────────────────────────────────────
+        # 사용자가 작성한 본문을 채널톡 ALF 가이드에 맞게 LLM이 재작성.
+        # warnings(검증기 결과)도 함께 전달하면 LLM이 우선 해결.
+        if mode == "rewrite":
+            user_content = (body.get("content") or "").strip()
+            user_warnings = body.get("warnings") or []
+            user_title = (body.get("title") or "").strip()
+            if not user_content:
+                self._respond(400, {"ok": False, "error": "content 필요"})
+                return
+            if len(user_content) > 6000:
+                user_content = user_content[:6000]
+
+            warnings_section = ""
+            if isinstance(user_warnings, list) and user_warnings:
+                lines = []
+                for w in user_warnings[:30]:
+                    if isinstance(w, dict):
+                        rule = (w.get("rule") or "").strip()
+                        msg = (w.get("message") or "").strip()
+                        if rule or msg:
+                            lines.append(f"- [{rule}] {msg}")
+                if lines:
+                    warnings_section = (
+                        "\n\n【검증기가 감지한 문제점 — 우선 해결】\n" + "\n".join(lines)
+                    )
+            title_hint = f"\n\n【현재 제목】 {user_title}" if user_title else ""
+
+            rewrite_prompt = f"""다음은 사용자가 직접 작성한 채널톡 ALF 지식 아티클입니다. 위 시스템 프롬프트의 **모든 채널톡 ALF 가이드라인**에 맞게 재작성해주세요.
+
+【원본 본문】
+\"\"\"
+{user_content}
+\"\"\"{title_hint}{warnings_section}
+
+【재작성 규칙】
+1. 원본의 **사실 정보·메뉴 경로·정책·일정·수치**는 그대로 유지 (절대 추측·생성 금지)
+2. 톤·표현·구조만 가이드에 맞게 수정 (이모지·인사·1:1 응답·모호 표현 제거)
+3. `## 소제목`으로 케이스/단계 명확히 분리
+4. 불릿(`- `) / 번호 목록(`1. `) 적극 활용 — `##`, `-`, `1.` 뒤 공백 필수
+5. 친근한 `-어요/-습니다` 종결형
+6. 본문 안에 H1(`#`)은 절대 사용 금지 (제목은 별도)
+7. 발견된 문제점이 있으면 우선 해결
+
+반드시 아래 JSON 형식으로만 답변하세요 (다른 텍스트·설명 금지):
+{{
+  "content": "재작성된 본문 마크다운 (## 섹션부터 시작, H1 금지)",
+  "title": "추천 제목 (50자 이내, 핵심 키워드 + 동사)",
+  "subtitle": "추천 소제목 (50자 이내, 본문 한 줄 요약)",
+  "changes": ["주요 변경 사항 1", "주요 변경 사항 2", "..."]
+}}"""
+            try:
+                raw = call_anthropic(
+                    rewrite_prompt, system=ALF_SYSTEM_PROMPT,
+                    max_tokens=2500, api_key=OPENAI_API_KEY,
+                )
+                parsed = extract_json(raw)
+                if not isinstance(parsed, dict):
+                    self._respond(500, {"ok": False, "error": "재작성 결과 파싱 실패"})
+                    return
+                revised = (parsed.get("content") or "").strip()
+                revised = strip_article_boilerplate(revised)
+                verification = verify_draft(revised, "article",
+                                            user_title or (parsed.get("title") or ""),
+                                            title=(parsed.get("title") or user_title))
+                self._respond(200, {
+                    "ok": True,
+                    "content": verification["fixed"],
+                    "title": (parsed.get("title") or "").strip(),
+                    "subtitle": (parsed.get("subtitle") or "").strip(),
+                    "changes": parsed.get("changes") or [],
+                    "warnings": verification["warnings"],
+                })
+                return
+            except Exception as e:
+                print(f"[alf_generate rewrite] 실패: {e}")
+                self._respond(500, {"ok": False, "error": "재작성에 실패했어요. 잠시 후 다시 시도해주세요."})
+                return
+
         cluster_label = (body.get("cluster_label") or "").strip()
         chat_ids = body.get("chat_ids", [])
         single_chat = bool(body.get("single_chat", False))

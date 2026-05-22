@@ -1548,10 +1548,16 @@
     </div>
 
     <div style="margin-bottom:14px">
-      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">본문 (Markdown) <span style="color:#9ca3af;font-weight:400">— 본문 안에 # 제목은 넣지 말 것</span></label>
-      <textarea id="validateContent" rows="14" oninput="document.getElementById('validateCharCount').textContent=this.value.length"
-        placeholder="여기에 작성한 아티클 본문을 붙여넣으세요.&#10;&#10;예시)&#10;## 문제 상황&#10;수강생이 비밀번호를 잊어버렸을 때 어떻게 안내해야 하나요?&#10;&#10;## 해결 방법&#10;1. 사이트 관리 > 회원 관리에서 해당 수강생을 선택해요.&#10;2. 비밀번호 재설정 메일을 발송하면 수강생이 직접 변경할 수 있어요."
-        style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label style="font-size:13px;font-weight:600;color:#374151">본문 (Markdown) <span style="color:#9ca3af;font-weight:400">— 본문 안에 # 제목은 넣지 말 것</span></label>
+        <button type="button" onclick="toggleValidatePreview()" id="btnTogglePreview"
+          style="font-size:11px;padding:4px 12px;border-radius:5px;background:#fff;color:#4f46e5;border:1px solid #c7d2fe;cursor:pointer;font-weight:600">👁 미리보기</button>
+      </div>
+      <div id="validateEditorWrap" style="display:grid;grid-template-columns:1fr;gap:10px">
+        <textarea id="validateContent" rows="14" oninput="document.getElementById('validateCharCount').textContent=this.value.length;_updateValidatePreview()"
+          placeholder="여기에 작성한 아티클 본문을 붙여넣으세요.&#10;&#10;예시)&#10;## 문제 상황&#10;수강생이 비밀번호를 잊어버렸을 때 어떻게 안내해야 하나요?&#10;&#10;## 해결 방법&#10;1. 사이트 관리 > 회원 관리에서 해당 수강생을 선택해요.&#10;2. 비밀번호 재설정 메일을 발송하면 수강생이 직접 변경할 수 있어요."
+          style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
         <div style="font-size:11px;color:#9ca3af"><span id="validateCharCount">0</span>자</div>
         <div style="font-size:11px;color:#9ca3af">아티클 한도 2,000자 / FAQ 한도 500자</div>
@@ -2153,6 +2159,9 @@ function validateArticle(content, title, format) {
   return { warnings, length };
 }
 
+let _lastValidationWarnings = [];
+let _lastValidationContent = '';
+
 function runValidation() {
   const content = document.getElementById('validateContent').value;
   const title = document.getElementById('validateTitle').value;
@@ -2164,6 +2173,8 @@ function runValidation() {
   }
 
   const { warnings, length } = validateArticle(content, title, format);
+  _lastValidationWarnings = warnings;
+  _lastValidationContent = content;
   renderValidationResult(warnings, length, format);
 
   // 결과로 스크롤
@@ -2199,6 +2210,17 @@ function renderValidationResult(warnings, length, format) {
     <div style="flex:1"></div>
     <div style="font-size:12px;color:${s.color};font-weight:600">본문 ${length}자 (${format === 'article' ? '아티클' : 'FAQ'})</div>
   </div>`;
+
+  // 재작성 버튼 — 경고/실패 있을 때만
+  if (warnings.length > 0) {
+    html += `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:2px">🔧 AI가 가이드에 맞게 다시 작성해드릴까요?</div>
+        <div style="font-size:12px;color:#9a3412;opacity:.85">발견된 문제점을 자동으로 해결하고 채널톡 톤에 맞게 재작성합니다.</div>
+      </div>
+      <button id="btnRewrite" onclick="rewriteContent()" class="btn btn-primary" style="background:#ea580c;border-color:#ea580c;padding:10px 18px;font-weight:600">🔧 가이드에 맞게 다시 작성</button>
+    </div>`;
+  }
 
   if (errors.length > 0) {
     html += `<div style="margin-bottom:18px">
@@ -2238,6 +2260,47 @@ function renderValidationResult(warnings, length, format) {
   const resultEl = document.getElementById('validateResult');
   resultEl.innerHTML = html;
   resultEl.style.display = 'block';
+}
+
+// ─── 본문 미리보기 토글 ──────────────────────────────────────────────────
+let _validatePreviewOn = false;
+function toggleValidatePreview() {
+  _validatePreviewOn = !_validatePreviewOn;
+  const btn = document.getElementById('btnTogglePreview');
+  const wrap = document.getElementById('validateEditorWrap');
+  let previewEl = document.getElementById('validatePreview');
+  if (_validatePreviewOn) {
+    btn.textContent = '✏️ 편집기만';
+    btn.style.background = '#4f46e5';
+    btn.style.color = '#fff';
+    wrap.style.gridTemplateColumns = '1fr 1fr';
+    if (!previewEl) {
+      previewEl = document.createElement('div');
+      previewEl.id = 'validatePreview';
+      previewEl.className = 'ct-article-body';
+      previewEl.style.cssText = 'padding:14px 18px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;font-size:13px;line-height:1.7;color:#374151;overflow-y:auto;max-height:600px;min-height:200px;box-sizing:border-box';
+      wrap.appendChild(previewEl);
+    }
+    _updateValidatePreview();
+  } else {
+    btn.textContent = '👁 미리보기';
+    btn.style.background = '#fff';
+    btn.style.color = '#4f46e5';
+    wrap.style.gridTemplateColumns = '1fr';
+    if (previewEl) previewEl.remove();
+  }
+}
+
+function _updateValidatePreview() {
+  if (!_validatePreviewOn) return;
+  const previewEl = document.getElementById('validatePreview');
+  if (!previewEl) return;
+  const md = document.getElementById('validateContent').value;
+  if (!md.trim()) {
+    previewEl.innerHTML = '<div style="color:#9ca3af">본문을 입력하면 여기에 미리보기가 표시돼요.</div>';
+    return;
+  }
+  previewEl.innerHTML = markdownToHtml(md);
 }
 
 async function suggestTitle() {
@@ -2311,6 +2374,116 @@ async function suggestTitle() {
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
+  }
+}
+
+async function rewriteContent() {
+  const content = _lastValidationContent || document.getElementById('validateContent').value.trim();
+  if (!content) {
+    alert('재작성할 본문이 없어요. 먼저 검증하기를 눌러주세요.');
+    return;
+  }
+  const title = document.getElementById('validateTitle').value.trim();
+  const btn = document.getElementById('btnRewrite');
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '재작성 중... (15~30초)'; }
+
+  // 결과 영역에 로딩 표시
+  let rewriteBox = document.getElementById('rewriteResultBox');
+  if (!rewriteBox) {
+    rewriteBox = document.createElement('div');
+    rewriteBox.id = 'rewriteResultBox';
+    document.getElementById('validateResult').appendChild(rewriteBox);
+  }
+  rewriteBox.innerHTML = `<div style="padding:14px 18px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin-top:16px;font-size:13px;color:#9a3412">🔧 AI가 가이드에 맞게 재작성하고 있어요... (15~30초)</div>`;
+  rewriteBox.scrollIntoView({behavior:'smooth', block:'center'});
+
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        mode: 'rewrite',
+        content,
+        title,
+        warnings: _lastValidationWarnings || [],
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '재작성 실패');
+
+    const revised = data.content || '';
+    const suggTitle = data.title || '';
+    const suggSubtitle = data.subtitle || '';
+    const changes = Array.isArray(data.changes) ? data.changes : [];
+    const remainWarnings = Array.isArray(data.warnings) ? data.warnings : [];
+
+    let html = `<div style="margin-top:18px;padding:18px 20px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:14px;font-weight:700;color:#9a3412">🔧 가이드에 맞게 재작성된 본문</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button onclick="_applyRewrite()" class="btn btn-primary" style="font-size:12px;padding:6px 12px;background:#ea580c;border-color:#ea580c">✓ 위 textarea에 적용</button>
+          <button onclick="_copyRewrite()" class="btn btn-secondary" style="font-size:12px;padding:6px 12px">📋 텍스트 복사</button>
+        </div>
+      </div>`;
+
+    if (suggTitle || suggSubtitle) {
+      html += `<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px">`;
+      if (suggTitle) {
+        html += `<div style="margin-bottom:4px"><strong style="color:#9a3412">제목</strong> <button onclick="document.getElementById('validateTitle').value=${JSON.stringify(suggTitle)}" style="font-size:10px;padding:2px 8px;border-radius:4px;background:#fff;color:#ea580c;border:1px solid #fed7aa;cursor:pointer;margin-left:4px">적용</button><br><span style="color:#374151;font-size:13px;font-weight:500">${_escapeHTML(suggTitle)}</span></div>`;
+      }
+      if (suggSubtitle) {
+        html += `<div><strong style="color:#9a3412">소제목</strong><br><span style="color:#374151;font-size:13px">${_escapeHTML(suggSubtitle)}</span></div>`;
+      }
+      html += `</div>`;
+    }
+
+    html += `<textarea id="rewriteContentTextarea" readonly style="width:100%;padding:12px 14px;border:1px solid #fed7aa;border-radius:8px;background:#fff;font-size:13px;line-height:1.6;font-family:inherit;resize:vertical;min-height:240px;box-sizing:border-box;color:#374151">${_escapeHTML(revised)}</textarea>`;
+
+    if (changes.length > 0) {
+      html += `<div style="margin-top:12px;padding:10px 14px;background:#fff;border:1px solid #fed7aa;border-radius:8px">
+        <div style="font-size:11px;font-weight:700;color:#9a3412;margin-bottom:6px">주요 변경 사항</div>
+        <ul style="margin:0;padding-left:18px;font-size:12px;color:#374151;line-height:1.6">
+          ${changes.map(c => `<li>${_escapeHTML(c)}</li>`).join('')}
+        </ul>
+      </div>`;
+    }
+
+    if (remainWarnings.length > 0) {
+      html += `<div style="margin-top:10px;font-size:11px;color:#9a3412">⚠️ 재작성 후에도 자동 검증에서 ${remainWarnings.length}건의 추가 항목이 감지됐어요. 적용 후 다시 검증해보세요.</div>`;
+    }
+
+    html += `</div>`;
+    rewriteBox.innerHTML = html;
+    window._lastRewriteContent = revised;
+    rewriteBox.scrollIntoView({behavior:'smooth', block:'start'});
+  } catch (e) {
+    rewriteBox.innerHTML = `<div style="margin-top:16px;padding:14px 18px;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;font-size:13px;color:#b91c1c">❌ 재작성 실패: ${_escapeHTML(e.message || String(e))}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+  }
+}
+
+function _applyRewrite() {
+  const revised = window._lastRewriteContent || '';
+  if (!revised) return;
+  const ta = document.getElementById('validateContent');
+  ta.value = revised;
+  document.getElementById('validateCharCount').textContent = revised.length;
+  _updateValidatePreview();
+  ta.scrollIntoView({behavior:'smooth', block:'center'});
+  alert('재작성된 본문이 적용됐어요. 다시 검증해보세요.');
+}
+
+async function _copyRewrite() {
+  const revised = window._lastRewriteContent || '';
+  if (!revised) return;
+  try {
+    await navigator.clipboard.writeText(revised);
+    alert('복사됐어요');
+  } catch (e) {
+    const ta = document.getElementById('rewriteContentTextarea');
+    if (ta) { ta.select(); document.execCommand('copy'); }
   }
 }
 
