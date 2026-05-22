@@ -1566,11 +1566,13 @@
         <input type="radio" name="validateFormat" value="faq" /> FAQ
       </label>
       <div style="flex:1"></div>
-      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none'">초기화</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none'">초기화</button>
+      <button class="btn btn-secondary" onclick="suggestTitle()" id="btnSuggestTitle" style="padding:10px 18px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe">✨ 제목·소제목 추천</button>
       <button class="btn btn-primary" onclick="runValidation()" style="padding:10px 22px">검증하기</button>
     </div>
   </div>
 
+  <div id="validateSuggestResult" style="display:none"></div>
   <div id="validateResult" style="display:none"></div>
 
   <div style="margin-top:24px;padding:14px 18px;background:#f9fafb;border:1px dashed #e5e7eb;border-radius:10px">
@@ -2236,6 +2238,80 @@ function renderValidationResult(warnings, length, format) {
   const resultEl = document.getElementById('validateResult');
   resultEl.innerHTML = html;
   resultEl.style.display = 'block';
+}
+
+async function suggestTitle() {
+  const content = document.getElementById('validateContent').value.trim();
+  if (!content) {
+    alert('본문을 먼저 입력해주세요');
+    return;
+  }
+  if (content.length < 30) {
+    alert('본문이 너무 짧아요 (30자 이상 권장)');
+    return;
+  }
+
+  const btn = document.getElementById('btnSuggestTitle');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '추천 생성 중...';
+
+  const resultEl = document.getElementById('validateSuggestResult');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<div style="padding:14px 18px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:10px;margin-bottom:16px;font-size:13px;color:#7c3aed">✨ AI가 제목과 소제목을 추천하고 있어요... (5~10초)</div>`;
+
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: 'title_suggest', content}),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      throw new Error(data.error || '추천 실패');
+    }
+    const title = data.title || '';
+    const subtitle = data.subtitle || '';
+    const alternatives = Array.isArray(data.alternatives) ? data.alternatives : [];
+
+    let html = `<div style="padding:18px 20px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:10px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:14px">✨ AI 추천 제목·소제목</div>
+
+      <div style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:11px;font-weight:700;color:#7c3aed">제목</div>
+          <button onclick="document.getElementById('validateTitle').value=${JSON.stringify(title)};document.getElementById('validateTitle').scrollIntoView({behavior:'smooth',block:'center'})"
+            style="font-size:11px;padding:4px 10px;border-radius:5px;background:#7c3aed;color:#fff;border:none;cursor:pointer;font-weight:600">적용</button>
+        </div>
+        <div style="font-size:15px;color:#1f2937;font-weight:500;line-height:1.5">${_escapeHTML(title)}</div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:14px 16px;margin-bottom:${alternatives.length > 0 ? '14px' : '0'}">
+        <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:6px">소제목</div>
+        <div style="font-size:13px;color:#374151;line-height:1.5">${_escapeHTML(subtitle)}</div>
+      </div>`;
+
+    if (alternatives.length > 0) {
+      html += `<div style="background:#fafafa;border:1px dashed #e9d5ff;border-radius:8px;padding:12px 14px">
+        <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">다른 제목 후보</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${alternatives.map(alt => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-size:13px;color:#374151;flex:1;line-height:1.5">${_escapeHTML(alt)}</div>
+            <button onclick="document.getElementById('validateTitle').value=${JSON.stringify(alt)};document.getElementById('validateTitle').scrollIntoView({behavior:'smooth',block:'center'})"
+              style="font-size:11px;padding:3px 10px;border-radius:5px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600;flex-shrink:0">적용</button>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    html += `</div>`;
+    resultEl.innerHTML = html;
+  } catch (e) {
+    resultEl.innerHTML = `<div style="padding:14px 18px;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;margin-bottom:16px;font-size:13px;color:#b91c1c">❌ 추천 생성 실패: ${_escapeHTML(e.message || String(e))}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 // ─── 인입 검색 (태그 없이 키워드만) ────────────────────────────────────────

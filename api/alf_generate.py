@@ -247,6 +247,63 @@ class handler(_Base):
             return
         content_length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(content_length)) if content_length else {}
+        mode = (body.get("mode") or "").strip()
+
+        # ─── 제목·소제목 추천 모드 ─────────────────────────────────────────
+        # 사용자가 직접 작성한 본문을 받아 LLM이 제목·소제목 추천만 반환.
+        # chat_ids 불필요. ALF Studio 검증 탭에서 사용.
+        if mode == "title_suggest":
+            user_content = (body.get("content") or "").strip()
+            if not user_content:
+                self._respond(400, {"ok": False, "error": "content 필요"})
+                return
+            if len(user_content) > 5000:
+                user_content = user_content[:5000]
+            suggest_prompt = f"""다음은 채널톡 ALF 지식 아티클의 본문이에요. 본문 내용에 가장 어울리는 제목과 소제목을 추천해주세요.
+
+【제목 규칙】
+- 핵심 키워드(상품명·기능명·서비스명) 반드시 포함
+- 동사 형태 권장 (예: "구독 플랜 환불받는 방법", "비메오 영상 업로드하는 방법")
+- 마케팅·과장 표현 금지 ("요즘 핫한", "강력 추천" 등)
+- "○○ 안내", "○○ 관련" 류는 피하고 구체적 동사로 표현
+- 50자 이내
+
+【소제목 규칙】
+- 본문 핵심을 한 줄로 요약
+- 제목에 없는 추가 키워드 포함 권장 (검색 매칭 ↑)
+- 50자 이내
+
+【본문】
+\"\"\"
+{user_content}
+\"\"\"
+
+반드시 아래 JSON 형식으로만 답변하세요 (다른 텍스트·설명 금지):
+{{
+  "title": "추천 제목",
+  "subtitle": "추천 소제목",
+  "alternatives": ["대체 제목 1", "대체 제목 2"]
+}}"""
+            try:
+                raw = call_anthropic(
+                    suggest_prompt, max_tokens=400, api_key=OPENAI_API_KEY,
+                )
+                parsed = extract_json(raw)
+                if isinstance(parsed, dict):
+                    self._respond(200, {
+                        "ok": True,
+                        "title": (parsed.get("title") or "").strip(),
+                        "subtitle": (parsed.get("subtitle") or "").strip(),
+                        "alternatives": parsed.get("alternatives") or [],
+                    })
+                    return
+                self._respond(500, {"ok": False, "error": "추천 결과 파싱 실패"})
+                return
+            except Exception as e:
+                print(f"[alf_generate title_suggest] 실패: {e}")
+                self._respond(500, {"ok": False, "error": "제목 추천에 실패했어요. 잠시 후 다시 시도해주세요."})
+                return
+
         cluster_label = (body.get("cluster_label") or "").strip()
         chat_ids = body.get("chat_ids", [])
         single_chat = bool(body.get("single_chat", False))
