@@ -2438,7 +2438,14 @@ async function rewriteContent() {
       html += `</div>`;
     }
 
-    html += `<textarea id="rewriteContentTextarea" readonly style="width:100%;padding:12px 14px;border:1px solid #fed7aa;border-radius:8px;background:#fff;font-size:13px;line-height:1.6;font-family:inherit;resize:vertical;min-height:240px;box-sizing:border-box;color:#374151">${_escapeHTML(revised)}</textarea>`;
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700;color:#9a3412">📝 마크다운 원본</div>
+      <div style="font-size:11px;font-weight:700;color:#9a3412">👁 채널톡에서 보일 모습</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <textarea id="rewriteContentTextarea" readonly style="width:100%;padding:12px 14px;border:1px solid #fed7aa;border-radius:8px;background:#fff;font-size:13px;line-height:1.6;font-family:inherit;resize:vertical;min-height:300px;box-sizing:border-box;color:#374151">${_escapeHTML(revised)}</textarea>
+      <div class="ct-article-body" style="padding:14px 16px;border:1px solid #fed7aa;border-radius:8px;background:#fff;font-size:13px;line-height:1.7;color:#374151;overflow-y:auto;max-height:600px;min-height:300px;box-sizing:border-box">${markdownToHtml(revised)}</div>
+    </div>`;
 
     if (changes.length > 0) {
       html += `<div style="margin-top:12px;padding:10px 14px;background:#fff;border:1px solid #fed7aa;border-radius:8px">
@@ -2471,8 +2478,11 @@ function _applyRewrite() {
   ta.value = revised;
   document.getElementById('validateCharCount').textContent = revised.length;
   _updateValidatePreview();
+  // 재작성 결과 영역 제거 후 자동 재검증
+  const rewriteBox = document.getElementById('rewriteResultBox');
+  if (rewriteBox) rewriteBox.remove();
   ta.scrollIntoView({behavior:'smooth', block:'center'});
-  alert('재작성된 본문이 적용됐어요. 다시 검증해보세요.');
+  setTimeout(() => runValidation(), 100);
 }
 
 async function _copyRewrite() {
