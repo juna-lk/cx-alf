@@ -1976,10 +1976,10 @@ async function runKeywordSearch() {
   document.getElementById('searchLoading').style.display = 'block';
 
   try {
-    const res = await authFetch(`${API}/api/alf_search_all`, {
+    const res = await authFetch(`${API}/api/alf_search`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({keyword, ai_search: aiSearch, cluster: doCluster}),
+      body: JSON.stringify({tag: '', keyword, ai_search: aiSearch, cluster: doCluster}),
     });
     const data = await res.json();
     if (!data.ok) {

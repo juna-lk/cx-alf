@@ -4,8 +4,7 @@
     { "source": "/landing", "destination": "/alf-draft/landing.html" }
   ],
   "functions": {
-    "api/alf_search.py":             { "maxDuration": 30 },
-    "api/alf_search_all.py":         { "maxDuration": 60 },
+    "api/alf_search.py":             { "maxDuration": 60 },
     "api/alf_generate.py":           { "maxDuration": 60 },
     "api/alf_collect.py":            { "maxDuration": 300 },
     "api/alf_structure_suggest.py":  { "maxDuration": 30 },

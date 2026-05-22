@@ -197,36 +197,60 @@ class handler(_Base):
         tag = body.get("tag", "").strip()
         keyword = body.get("keyword", "").strip()
         ai_search = bool(body.get("ai_search", False))
+        # cluster=False면 클러스터링 스킵, chats 리스트 반환 (인입 검색 탭용)
+        do_cluster = body.get("cluster", True)
 
-        if not tag:
-            self._respond(400, {"ok": False, "error": "tag 필요"})
-            return
-        from _alf_common import is_safe_postgrest_tag
-        if not is_safe_postgrest_tag(tag):
-            self._respond(400, {"ok": False, "error": "tag에 허용되지 않는 문자가 있어요 (쉼표·중괄호·제어 문자 불가)"})
+        if not tag and not keyword:
+            self._respond(400, {"ok": False, "error": "tag 또는 keyword 중 하나는 필요"})
             return
 
-        # Supabase에서 태그 매칭 채팅 조회
-        # PostgreSQL 배열 리터럴 안에서 "는 \\"로, \는 \\\\로 이스케이프
-        safe_tag = tag.replace('\\', '\\\\').replace('"', '\\"')
-        encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
-        url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
-               f"?select=chat_id,messages,tags,date,assignee_name,csat_score"
-               f"&tags=cs.{encoded_tag}&order=date.desc&limit=200")
+        if tag:
+            from _alf_common import is_safe_postgrest_tag
+            if not is_safe_postgrest_tag(tag):
+                self._respond(400, {"ok": False, "error": "tag에 허용되지 않는 문자가 있어요 (쉼표·중괄호·제어 문자 불가)"})
+                return
+            safe_tag = tag.replace('\\', '\\\\').replace('"', '\\"')
+            encoded_tag = urllib.parse.quote(f'{{"{safe_tag}"}}', safe='')
+            url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+                   f"?select=chat_id,messages,tags,date,assignee_name,csat_score"
+                   f"&tags=cs.{encoded_tag}&order=date.desc&limit=200")
+        else:
+            # tag 없으면 최근 1000건에서 keyword/semantic 검색
+            url = (f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+                   f"?select=chat_id,messages,tags,date,assignee_name,csat_score"
+                   f"&order=date.desc&limit=1000")
         chats = supabase_get(url, SUPABASE_SERVICE_KEY)
 
         # 검색 모드 분기
         if ai_search and keyword:
-            filtered = filter_by_semantic(chats, keyword)
+            # 시맨틱 전 keyword pre-filter로 LLM 부하 절감 (tag-less 모드만)
+            pre = filter_by_keyword(chats, keyword) if not tag else chats
+            filtered = filter_by_semantic(pre if pre else chats, keyword)
         else:
             filtered = filter_by_keyword(chats, keyword)
 
         if not filtered:
-            self._respond(200, {"ok": True, "total": 0, "clusters": []})
+            self._respond(200, {"ok": True, "total": 0, "clusters": [], "chats": []})
+            return
+
+        # 클러스터링 스킵하면 chats 리스트만 반환 (인입 검색 탭)
+        if not do_cluster:
+            compact = []
+            for c in filtered[:CLUSTER_SAMPLE_LIMIT * 2]:
+                msgs = c.get("messages") or []
+                compact.append({
+                    "chat_id": c.get("chat_id"),
+                    "date": c.get("date"),
+                    "tags": c.get("tags") or [],
+                    "messages": msgs[:30],
+                    "assignee_name": c.get("assignee_name") or "",
+                    "csat_score": c.get("csat_score"),
+                })
+            self._respond(200, {"ok": True, "total": len(filtered), "chats": compact, "clusters": []})
             return
 
         # Claude로 클러스터링
-        prompt, _sample_indices = build_cluster_prompt(filtered, tag)
+        prompt, _sample_indices = build_cluster_prompt(filtered, tag or keyword)
         raw = call_anthropic(prompt, max_tokens=1024, api_key=OPENAI_API_KEY)
 
         try:
