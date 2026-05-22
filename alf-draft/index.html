@@ -1550,8 +1550,12 @@
     <div style="margin-bottom:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <label style="font-size:13px;font-weight:600;color:#374151">본문 (Markdown) <span style="color:#9ca3af;font-weight:400">— 본문 안에 # 제목은 넣지 말 것</span></label>
-        <button type="button" onclick="toggleValidatePreview()" id="btnTogglePreview"
-          style="font-size:11px;padding:4px 12px;border-radius:5px;background:#fff;color:#4f46e5;border:1px solid #c7d2fe;cursor:pointer;font-weight:600">👁 미리보기</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button type="button" onclick="copyRichText('validateContent')" title="HTML 서식으로 복사 — 채널톡 paste 시 헤딩·불릿 자동 적용"
+            style="font-size:11px;padding:4px 12px;border-radius:5px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600">🎨 서식 복사</button>
+          <button type="button" onclick="toggleValidatePreview()" id="btnTogglePreview"
+            style="font-size:11px;padding:4px 12px;border-radius:5px;background:#fff;color:#4f46e5;border:1px solid #c7d2fe;cursor:pointer;font-weight:600">👁 미리보기</button>
+        </div>
       </div>
       <div id="validateEditorWrap" style="display:grid;grid-template-columns:1fr;gap:10px">
         <textarea id="validateContent" rows="14" oninput="document.getElementById('validateCharCount').textContent=this.value.length;_updateValidatePreview()"
@@ -2423,6 +2427,7 @@ async function rewriteContent() {
         <div style="font-size:14px;font-weight:700;color:#9a3412">🔧 가이드에 맞게 재작성된 본문</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button onclick="_applyRewrite()" class="btn btn-primary" style="font-size:12px;padding:6px 12px;background:#ea580c;border-color:#ea580c">✓ 위 textarea에 적용</button>
+          <button onclick="copyRichText('rewriteContentTextarea')" class="btn btn-secondary" title="HTML 서식으로 복사 — 채널톡 paste 시 헤딩·불릿 자동 적용" style="font-size:12px;padding:6px 12px;color:#7c3aed;border-color:#ddd6fe">🎨 서식 복사</button>
           <button onclick="_copyRewrite()" class="btn btn-secondary" style="font-size:12px;padding:6px 12px">📋 텍스트 복사</button>
         </div>
       </div>`;
