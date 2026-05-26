@@ -1595,10 +1595,12 @@
       <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none';document.getElementById('validateImageResult').style.display='none'">초기화</button>
       <button class="btn btn-secondary" onclick="suggestTitle()" id="btnSuggestTitle" style="padding:10px 18px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe">✨ 제목·소제목 추천</button>
       <button class="btn btn-secondary" onclick="saveValidateDraft()" id="btnSaveValidate" style="padding:10px 18px;background:#ecfdf5;color:#047857;border-color:#a7f3d0">💾 저장</button>
+      <button class="btn btn-secondary" onclick="publishValidateToChannelTalk()" id="btnPublishValidate" style="padding:10px 18px;background:#f0fdf4;color:#15803d;border-color:#86efac">📤 채널톡에 등록</button>
       <button class="btn btn-primary" onclick="runValidation()" style="padding:10px 22px">검증하기</button>
     </div>
   </div>
 
+  <div id="validatePublishResult" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px"></div>
   <div id="validateSuggestResult" style="display:none"></div>
   <div id="validateResult" style="display:none"></div>
   <div id="validateImageResult" style="display:none"></div>
@@ -3361,6 +3363,55 @@ async function saveValidateDraft() {
     alert('라이브러리에 저장됐어요!');
   } catch(e) {
     alert('저장 실패: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+async function publishValidateToChannelTalk() {
+  const name = document.getElementById('validateTitle').value.trim();
+  const content = document.getElementById('validateContent').value.trim();
+  if (!name) { alert('제목을 입력해주세요.'); return; }
+  if (!content) { alert('본문이 비어있어요.'); return; }
+  const doPublish = confirm('채널톡에 등록할게요.\n\n[확인] 바로 게시\n[취소] 초안으로만 저장');
+  const btn = document.getElementById('btnPublishValidate');
+  const resultEl = document.getElementById('validatePublishResult');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '등록 중...';
+  if (resultEl) resultEl.style.display = 'none';
+  try {
+    const res = await authFetch(`${API}/api/alf_publish`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, content, publish: doPublish }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const statusLabel = data.published ? '게시됨' : '초안 저장됨';
+      if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#f0fdf4';
+        resultEl.style.color = '#15803d';
+        resultEl.style.border = '1px solid #86efac';
+        resultEl.innerHTML = `✅ 채널톡에 등록됐어요 (${statusLabel}) — 아티클 ID: <strong>${escapeHtml(data.article_id || '')}</strong>`;
+      }
+    } else {
+      if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = '#fef2f2';
+        resultEl.style.color = '#dc2626';
+        resultEl.style.border = '1px solid #fca5a5';
+        resultEl.innerHTML = `❌ 등록 실패: ${escapeHtml(data.error || '알 수 없는 오류')}`;
+      }
+    }
+  } catch(e) {
+    if (resultEl) {
+      resultEl.style.display = 'block';
+      resultEl.style.background = '#fef2f2';
+      resultEl.style.color = '#dc2626';
+      resultEl.style.border = '1px solid #fca5a5';
+      resultEl.innerHTML = `❌ 오류: ${escapeHtml(e.message)}`;
+    }
   } finally {
     btn.disabled = false; btn.textContent = orig;
   }
