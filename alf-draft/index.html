@@ -1594,6 +1594,7 @@
       <div style="flex:1"></div>
       <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none';document.getElementById('validateImageResult').style.display='none'">초기화</button>
       <button class="btn btn-secondary" onclick="suggestTitle()" id="btnSuggestTitle" style="padding:10px 18px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe">✨ 제목·소제목 추천</button>
+      <button class="btn btn-secondary" onclick="saveValidateDraft()" id="btnSaveValidate" style="padding:10px 18px;background:#ecfdf5;color:#047857;border-color:#a7f3d0">💾 저장</button>
       <button class="btn btn-primary" onclick="runValidation()" style="padding:10px 22px">검증하기</button>
     </div>
   </div>
@@ -3338,6 +3339,31 @@ async function saveDraft() {
     body: JSON.stringify({action: 'save_draft', id: state.currentDraftId, title, subtitle, content}),
   });
   alert('저장됐어요!');
+}
+
+async function saveValidateDraft() {
+  const title = document.getElementById('validateTitle').value.trim();
+  const content = document.getElementById('validateContent').value.trim();
+  if (!title) { alert('제목을 입력해주세요.'); return; }
+  if (!content) { alert('본문을 입력해주세요.'); return; }
+  const format = document.querySelector('input[name="validateFormat"]:checked')?.value || 'article';
+  const btn = document.getElementById('btnSaveValidate');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    const res = await authFetch(`${API}/api/alf_data`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'save_draft', title, content, format}),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '저장 실패');
+    alert('라이브러리에 저장됐어요!');
+  } catch(e) {
+    alert('저장 실패: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
 }
 
 function downloadDraft() {

@@ -217,12 +217,21 @@ class handler(_Base):
 
     def _save_draft(self, body: dict):
         did = _safe_uuid(body.get("id"))
-        if not did:
-            self._respond(400, {"ok": False, "error": "유효하지 않은 id"})
-            return
         # 허용 필드만 통과 (보안)
-        allowed = {"title", "subtitle", "content", "variations"}
+        allowed = {"title", "subtitle", "content", "variations", "format"}
         payload = {k: v for k, v in body.items() if k in allowed}
+        if not did:
+            # 신규 draft 생성 (검증 탭 등 draft id 없는 경로용)
+            if not (payload.get("title") and payload.get("content")):
+                self._respond(400, {"ok": False, "error": "title과 content가 필요해요"})
+                return
+            saved = supabase_post(
+                f"{SUPABASE_URL}/rest/v1/alf_drafts",
+                payload, SUPABASE_SERVICE_KEY,
+            )
+            new_id = saved[0]["id"] if isinstance(saved, list) and saved else None
+            self._respond(200, {"ok": True, "id": new_id})
+            return
         if not payload:
             self._respond(400, {"ok": False, "error": "수정할 필드 없음"})
             return
