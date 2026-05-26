@@ -15,11 +15,37 @@ def _escape(s: str) -> str:
              .replace(">", "&gt;").replace('"', "&quot;"))
 
 
+_SAFE_URL_PREFIX = re.compile(r"^(https?://|mailto:|/|#)", re.IGNORECASE)
+
+
 def _inline(s: str) -> str:
+    # 이미지·링크 마크다운을 escape 전에 stash해서 HTML로 보존
+    stash: list[str] = []
+
+    def _stash_img(m: re.Match) -> str:
+        alt = m.group(1) or ""
+        url = (m.group(2) or "").strip()
+        if not _SAFE_URL_PREFIX.match(url):
+            return _escape(m.group(0))
+        stash.append(f'<img src="{_escape(url)}" alt="{_escape(alt)}" />')
+        return f"\x00IMG{len(stash) - 1}\x00"
+
+    def _stash_link(m: re.Match) -> str:
+        text = m.group(1) or ""
+        url = (m.group(2) or "").strip()
+        if not _SAFE_URL_PREFIX.match(url):
+            return _escape(m.group(0))
+        stash.append(f'<a href="{_escape(url)}" target="_blank" rel="noopener">{_escape(text)}</a>')
+        return f"\x00LNK{len(stash) - 1}\x00"
+
+    s = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _stash_img, s)
+    s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", _stash_link, s)
     s = _escape(s)
     s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
     s = re.sub(r"\*(.+?)\*", r"<em>\1</em>", s)
     s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+    for idx, html in enumerate(stash):
+        s = s.replace(f"\x00IMG{idx}\x00", html).replace(f"\x00LNK{idx}\x00", html)
     return s
 
 
