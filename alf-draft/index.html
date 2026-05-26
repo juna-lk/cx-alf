@@ -4402,7 +4402,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   // 이미지 캡쳐→붙여넣기 (Canvas 자동 처리 + Supabase Storage 업로드)
-  ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer'].forEach(setupImagePaste);
+  ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer', 'validateContent'].forEach(setupImagePaste);
 
   // 가이드 탭 사이드바: smooth scroll + 현재 섹션 활성 표시
   const tocLinks = document.querySelectorAll('.guide-toc a');
