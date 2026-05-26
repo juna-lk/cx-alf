@@ -1882,16 +1882,16 @@ async function _checkAuth() {
 }
 
 // ───── 이미지 자동 처리 (Canvas) ─────
-// 규칙: W 1500 / 라운드 25 / 그림자 blur 15 / 검정 1px inside 스트로크
+// 규칙: W 1500 / 라운드 25 / 그림자 blur 15 / 검정 2px inside 스트로크
 async function processImage(file) {
   const TARGET_W = 1500;
   const RADIUS = 25;
-  const STROKE_W = 1;
+  const STROKE_W = 2;
   const STROKE_COLOR = '#000000';
-  const SHADOW_BLUR = 15;
-  const SHADOW_OFFSET_Y = 4;
-  const SHADOW_COLOR = 'rgba(0, 0, 0, 0.18)';
-  const PADDING = SHADOW_BLUR + SHADOW_OFFSET_Y + 6;
+  const SHADOW_BLUR = 20;
+  const SHADOW_OFFSET_Y = 6;
+  const SHADOW_COLOR = 'rgba(0, 0, 0, 0.22)';
+  const PADDING = SHADOW_BLUR + SHADOW_OFFSET_Y + 10;
 
   const objUrl = URL.createObjectURL(file);
   const img = await new Promise((resolve, reject) => {
@@ -1988,7 +1988,8 @@ async function _handleImageFormatFile(file) {
     // 미리보기 표시
     const preview = document.getElementById('imgFormatPreview');
     const purl = URL.createObjectURL(blob);
-    preview.innerHTML = `<img src="${purl}" alt="처리 결과" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid #e5e7eb" />`;
+    // 투명 영역(라운드 모서리·그림자)이 보이도록 체커보드 배경
+    preview.innerHTML = `<div style="display:inline-block;padding:8px;background-image:linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0px;background-color:#fff;border-radius:6px"><img src="${purl}" alt="처리 결과" style="max-width:100%;max-height:280px;display:block" /></div>`;
     preview.style.display = 'block';
     _showImgFormatResult('success', `✅ 다운로드 완료 — <code style="background:#fff;padding:1px 6px;border-radius:4px;border:1px solid #a7f3d0">${filename}</code>`);
   } catch (err) {
