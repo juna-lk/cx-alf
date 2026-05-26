@@ -3514,7 +3514,7 @@ async function publishValidateToChannelTalk() {
   const content = document.getElementById('validateContent').value.trim();
   if (!name) { alert('제목을 입력해주세요.'); return; }
   if (!content) { alert('본문이 비어있어요.'); return; }
-  const doPublish = confirm('채널톡에 등록할게요.\n\n[확인] 바로 게시\n[취소] 초안으로만 저장');
+  if (!confirm('채널톡에 초안(비공개)으로 등록할게요. 계속할까요?')) return;
   const btn = document.getElementById('btnPublishValidate');
   const resultEl = document.getElementById('validatePublishResult');
   const orig = btn.textContent;
@@ -3524,7 +3524,7 @@ async function publishValidateToChannelTalk() {
     const res = await authFetch(`${API}/api/alf_publish`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ name, content, publish: doPublish }),
+      body: JSON.stringify({ name, content, publish: false }),
     });
     const data = await res.json();
     if (data.ok) {
@@ -3714,7 +3714,7 @@ async function publishToChannelTalk() {
   if (!name) { alert('제목을 입력해주세요.'); return; }
   if (!content) { alert('본문이 비어있어요.'); return; }
 
-  const doPublish = confirm('채널톡에 등록할게요.\n\n[확인] 바로 게시\n[취소] 초안으로만 저장');
+  if (!confirm('채널톡에 초안(비공개)으로 등록할게요. 계속할까요?')) return;
 
   const btn = document.getElementById('btnPublishCT');
   const resultEl = document.getElementById('publishResult');
@@ -3730,7 +3730,7 @@ async function publishToChannelTalk() {
         subtitle,
         content,
         draft_id: state.currentDraftId || null,
-        publish: doPublish,
+        publish: false,
       }),
     });
     const data = await res.json();
@@ -4346,7 +4346,8 @@ async function deleteDraft(id, title) {
 }
 
 async function publishById(id, title) {
-  const doPublish = confirm(`"${title}"을(를) 채널톡에 등록할게요.\n\n[확인] 바로 게시\n[취소] 초안으로만 저장`);
+  if (!confirm(`"${title}"을(를) 채널톡에 초안(비공개)으로 등록할게요. 계속할까요?`)) return;
+  const doPublish = false;
   const res = await authFetch(`${API}/api/alf_data?type=draft&id=${encodeURIComponent(id)}`);
   const data = await res.json();
   const d = data.draft;
