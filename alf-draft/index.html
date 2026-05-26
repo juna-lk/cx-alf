@@ -515,6 +515,12 @@
   </div>
 </div>
 
+<button type="button" id="btnImageFormatTool" onclick="openImageFormatTool()"
+  title="이미지 서식 변환 도구 (가로 1500px·라운드·그림자 자동 적용 후 다운로드)"
+  style="position:fixed;top:18px;right:24px;z-index:90;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:999px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.35);display:flex;align-items:center;gap:6px">
+  🖼 이미지 서식 변환
+</button>
+
 <div class="tab-bar">
   <div class="tab active" onclick="switchTab('generate')">초안 생성</div>
   <div class="tab" onclick="switchTab('search')">🔍 인입 검색</div>
@@ -1629,6 +1635,25 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="imageFormatOverlay">
+  <div class="modal" style="max-width:580px">
+    <h2 style="margin-bottom:6px">🖼 이미지 서식 변환</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:18px">캡쳐한 이미지를 채널톡 ALF 규격(가로 1500px · 라운드 25 · 그림자 · 1px 스트로크)으로 변환해서 다운로드 폴더에 저장해요. 저장한 파일은 Finder에서 직접 채널톡 아티클에 첨부하시면 돼요.</p>
+    <div id="imgFormatDropZone" tabindex="0"
+      style="border:2px dashed #c4b5fd;border-radius:10px;padding:36px 20px;text-align:center;background:#faf5ff;cursor:pointer;outline:none;transition:all .15s">
+      <div style="font-size:32px;margin-bottom:8px">📋</div>
+      <div style="font-size:14px;color:#4c1d95;font-weight:600;margin-bottom:6px">여기를 클릭하거나 이미지를 끌어다 놓으세요</div>
+      <div style="font-size:12px;color:#6b7280;line-height:1.6">또는 이 영역을 클릭한 뒤 <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid #e9d5ff">Cmd+V</code> / <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid #e9d5ff">Ctrl+V</code>로 붙여넣기</div>
+      <input type="file" id="imgFormatFileInput" accept="image/*" style="display:none" />
+    </div>
+    <div id="imgFormatPreview" style="display:none;margin-top:14px;text-align:center"></div>
+    <div id="imgFormatResult" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeImageFormatTool()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="multiModeOverlay">
   <div class="modal" style="max-width:560px">
     <h2 style="margin-bottom:6px"><span id="multiModeCount">N</span>개 유형이 선택됐어요</h2>
@@ -1920,6 +1945,117 @@ async function processImage(file) {
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(b => b ? resolve(b) : reject(new Error('이미지 변환 실패')), 'image/png');
+  });
+}
+
+// 처리된 이미지 Blob → 로컬 다운로드 (Supabase 업로드 없이 파인더용)
+function downloadProcessedImage(blob) {
+  const filename = `image-${Math.random().toString(36).slice(2, 10)}.png`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return filename;
+}
+
+function openImageFormatTool() {
+  const ov = document.getElementById('imageFormatOverlay');
+  ov.classList.add('open');
+  const zone = document.getElementById('imgFormatDropZone');
+  zone.focus();
+  // 결과·미리보기 초기화
+  document.getElementById('imgFormatResult').style.display = 'none';
+  document.getElementById('imgFormatPreview').style.display = 'none';
+}
+
+function closeImageFormatTool() {
+  document.getElementById('imageFormatOverlay').classList.remove('open');
+}
+
+async function _handleImageFormatFile(file) {
+  if (!file || !file.type?.startsWith('image/')) {
+    _showImgFormatResult('error', '이미지 파일만 가능해요.');
+    return;
+  }
+  _showImgFormatResult('progress', '처리 중...');
+  try {
+    const blob = await processImage(file);
+    const filename = downloadProcessedImage(blob);
+    // 미리보기 표시
+    const preview = document.getElementById('imgFormatPreview');
+    const purl = URL.createObjectURL(blob);
+    preview.innerHTML = `<img src="${purl}" alt="처리 결과" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid #e5e7eb" />`;
+    preview.style.display = 'block';
+    _showImgFormatResult('success', `✅ 다운로드 완료 — <code style="background:#fff;padding:1px 6px;border-radius:4px;border:1px solid #a7f3d0">${filename}</code>`);
+  } catch (err) {
+    console.error(err);
+    _showImgFormatResult('error', '❌ 변환 실패: ' + (err.message || err));
+  }
+}
+
+function _showImgFormatResult(kind, html) {
+  const el = document.getElementById('imgFormatResult');
+  el.style.display = 'block';
+  const styles = {
+    progress: { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe' },
+    success: { bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+    error: { bg: '#fef2f2', color: '#dc2626', border: '#fca5a5' },
+  }[kind] || { bg: '#f9fafb', color: '#374151', border: '#e5e7eb' };
+  el.style.background = styles.bg;
+  el.style.color = styles.color;
+  el.style.border = `1px solid ${styles.border}`;
+  el.innerHTML = html;
+}
+
+function setupImageFormatTool() {
+  const zone = document.getElementById('imgFormatDropZone');
+  const fileInput = document.getElementById('imgFormatFileInput');
+  if (!zone || zone.dataset.ready) return;
+  zone.dataset.ready = '1';
+
+  zone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) _handleImageFormatFile(file);
+    fileInput.value = '';
+  });
+
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.style.background = '#f3e8ff';
+    zone.style.borderColor = '#7c3aed';
+  });
+  zone.addEventListener('dragleave', () => {
+    zone.style.background = '#faf5ff';
+    zone.style.borderColor = '#c4b5fd';
+  });
+  zone.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    zone.style.background = '#faf5ff';
+    zone.style.borderColor = '#c4b5fd';
+    const file = e.dataTransfer.files?.[0];
+    if (file) _handleImageFormatFile(file);
+  });
+
+  zone.addEventListener('paste', async (e) => {
+    const items = e.clipboardData?.items || [];
+    for (const item of items) {
+      if (item.type?.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) _handleImageFormatFile(file);
+        return;
+      }
+    }
+  });
+
+  // 모달 외부 클릭 시 닫기
+  document.getElementById('imageFormatOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'imageFormatOverlay') closeImageFormatTool();
   });
 }
 
@@ -4480,6 +4616,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   // 이미지 캡쳐→붙여넣기 (Canvas 자동 처리 + Supabase Storage 업로드)
   ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer', 'validateContent'].forEach(setupImagePaste);
+  setupImageFormatTool();
 
   // 가이드 탭 사이드바: smooth scroll + 현재 섹션 활성 표시
   const tocLinks = document.querySelectorAll('.guide-toc a');
