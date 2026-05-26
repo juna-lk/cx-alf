@@ -529,6 +529,7 @@
   <div class="tab" onclick="switchTab('rules')">⚙️ ALF 규칙</div>
   <div class="tab" onclick="switchTab('guide')">📖 작성 가이드</div>
   <div class="tab" onclick="switchTab('validate')">✔ 가이드라인 검증</div>
+  <div class="tab" onclick="switchTab('faqValidate')">✔ 가이드라인 검증 (FAQ)</div>
 </div>
 
 <div class="page active" id="tab-generate">
@@ -1630,6 +1631,70 @@
   </div>
 </div>
 
+<div class="page" id="tab-faqValidate">
+  <div style="margin-bottom:16px">
+    <h2 style="font-size:16px;font-weight:600">✔ 가이드라인 검증 (FAQ)</h2>
+    <p style="font-size:13px;color:#6b7280;margin-top:4px">
+      대표 질문 1개 + 변형 질문(최대 10개) + 답변(500자 이내) 구조로 작성한 FAQ를 가이드라인에 맞게 검증해요.
+    </p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:16px">
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">대표 질문 <span style="color:#9ca3af;font-weight:400">(필수)</span></label>
+      <input type="text" id="faqValidateQuestion" placeholder="예: 클래스 환불은 어떻게 하나요?" maxlength="100"
+        style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
+      <div style="font-size:11px;color:#9ca3af;margin-top:4px">최대 100자</div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label style="font-size:13px;font-weight:600;color:#374151">변형 질문 <span style="color:#9ca3af;font-weight:400">— 최대 10개, 고객이 실제로 쓴 표현으로</span></label>
+        <button type="button" onclick="addFaqValidateVariation()" id="btnAddFaqVar"
+          style="font-size:11px;padding:4px 12px;border-radius:5px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600">+ 추가</button>
+      </div>
+      <div id="faqValidateVariations" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label style="font-size:13px;font-weight:600;color:#374151">답변 (Markdown)</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button type="button" onclick="copyRichText('faqValidateAnswer')" title="HTML 서식으로 복사" style="font-size:11px;padding:4px 12px;border-radius:5px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600">🎨 서식 복사</button>
+        </div>
+      </div>
+      <textarea id="faqValidateAnswer" rows="10" maxlength="500"
+        oninput="document.getElementById('faqValidateCharCount').textContent=this.value.length"
+        placeholder="예시) 환불은 결제일로부터 7일 이내, 강의 수강 전인 경우에 가능해요. 사이트 관리 > 회원 관리에서 해당 수강생을 선택해 [환불 처리]를 누르면 환불할 수 있어요."
+        style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <div style="font-size:11px;color:#9ca3af"><span id="faqValidateCharCount">0</span>자</div>
+        <div style="font-size:11px;color:#9ca3af">FAQ 답변 한도 500자</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="resetFaqValidate()">초기화</button>
+      <button class="btn btn-secondary" onclick="saveFaqValidateDraft()" id="btnSaveFaqValidate" style="background:#ecfdf5;color:#047857;border-color:#a7f3d0">💾 저장</button>
+      <button class="btn btn-secondary" onclick="publishFaqValidateToChannelTalk()" id="btnPublishFaqValidate" style="background:#f0fdf4;color:#15803d;border-color:#86efac">📤 채널톡에 등록</button>
+      <button class="btn btn-primary" onclick="runFaqValidation()" style="padding:10px 22px">검증하기</button>
+    </div>
+  </div>
+
+  <div id="faqValidatePublishResult" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px"></div>
+  <div id="faqValidateResult" style="display:none"></div>
+
+  <div style="margin-top:24px;padding:14px 18px;background:#f9fafb;border:1px dashed #e5e7eb;border-radius:10px">
+    <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">📌 FAQ 검증 항목</div>
+    <div style="font-size:12px;color:#6b7280;line-height:1.7">
+      <strong>구조</strong>: 대표 질문 1개 · 변형 질문 1~10개 · 답변 500자 이내<br>
+      <strong>변형 질문</strong>: 대표 질문과 의미는 같되 표현이 달라야 함 (중복·매우 짧음 금지)<br>
+      <strong>톤·금지 표현</strong>: 아티클 검증과 동일 — 이모지·인사·마무리·모호 표현·1:1 사례·담당자 문의 단독 금지<br>
+      <strong>언어</strong>: 한국어만 · 메뉴 경로는 백틱 없이 화살표(&gt;)
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <h2 id="modalTitle"></h2>
@@ -2163,7 +2228,7 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['generate','search','library','applied','rules','guide','validate'][i] === name);
+    t.classList.toggle('active', ['generate','search','library','applied','rules','guide','validate','faqValidate'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
@@ -3573,6 +3638,194 @@ async function publishValidateToChannelTalk() {
   }
 }
 
+// ───── FAQ 가이드라인 검증 탭 ─────
+let _faqValidateVariations = [];
+
+function _renderFaqValidateVariations() {
+  const container = document.getElementById('faqValidateVariations');
+  if (!container) return;
+  if (_faqValidateVariations.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:8px 0">변형 질문이 없어요. 위 [+ 추가] 버튼으로 추가하세요.</div>';
+    document.getElementById('btnAddFaqVar').disabled = false;
+    return;
+  }
+  container.innerHTML = _faqValidateVariations.map((v, i) => `
+    <div style="display:flex;gap:6px;align-items:center">
+      <input type="text" value="${escapeHtml(v)}" maxlength="100" data-idx="${i}"
+        oninput="_faqValidateVariations[${i}]=this.value"
+        style="flex:1;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit" />
+      <button type="button" onclick="removeFaqValidateVariation(${i})"
+        style="font-size:12px;padding:6px 10px;border-radius:5px;background:#fff;color:#dc2626;border:1px solid #fecaca;cursor:pointer">삭제</button>
+    </div>
+  `).join('');
+  document.getElementById('btnAddFaqVar').disabled = _faqValidateVariations.length >= 10;
+}
+
+function addFaqValidateVariation() {
+  if (_faqValidateVariations.length >= 10) { alert('변형 질문은 최대 10개까지 추가할 수 있어요.'); return; }
+  _faqValidateVariations.push('');
+  _renderFaqValidateVariations();
+  // focus the new input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#faqValidateVariations input');
+    const last = inputs[inputs.length - 1];
+    if (last) last.focus();
+  }, 0);
+}
+
+function removeFaqValidateVariation(idx) {
+  _faqValidateVariations.splice(idx, 1);
+  _renderFaqValidateVariations();
+}
+
+function resetFaqValidate() {
+  document.getElementById('faqValidateQuestion').value = '';
+  document.getElementById('faqValidateAnswer').value = '';
+  document.getElementById('faqValidateCharCount').textContent = '0';
+  _faqValidateVariations = [];
+  _renderFaqValidateVariations();
+  const resultEl = document.getElementById('faqValidateResult');
+  if (resultEl) resultEl.style.display = 'none';
+  const pubEl = document.getElementById('faqValidatePublishResult');
+  if (pubEl) pubEl.style.display = 'none';
+}
+
+function _faqValidateCollect() {
+  const question = document.getElementById('faqValidateQuestion').value.trim();
+  const answer = document.getElementById('faqValidateAnswer').value.trim();
+  const variations = _faqValidateVariations.map(v => (v || '').trim()).filter(Boolean);
+  return { question, answer, variations };
+}
+
+function runFaqValidation() {
+  const { question, answer, variations } = _faqValidateCollect();
+  const resultEl = document.getElementById('faqValidateResult');
+  resultEl.style.display = 'block';
+
+  const issues = [];
+  if (!question) issues.push({ level: 'error', message: '대표 질문이 비어있어요.' });
+  if (question.length > 100) issues.push({ level: 'error', message: `대표 질문은 100자 이내여야 해요 (현재 ${question.length}자).` });
+  if (!answer) issues.push({ level: 'error', message: '답변이 비어있어요.' });
+  if (answer.length > 500) issues.push({ level: 'error', message: `답변은 500자 이내여야 해요 (현재 ${answer.length}자).` });
+  if (variations.length === 0) issues.push({ level: 'warning', message: '변형 질문이 없어요. 1개 이상 작성하면 ALF 매칭 정확도가 올라가요.' });
+  if (variations.length > 10) issues.push({ level: 'error', message: `변형 질문은 최대 10개까지에요 (현재 ${variations.length}개).` });
+  // 중복 변형 검사
+  const lowerVars = variations.map(v => v.toLowerCase());
+  const dup = lowerVars.find((v, i) => lowerVars.indexOf(v) !== i);
+  if (dup) issues.push({ level: 'warning', message: `변형 질문에 중복이 있어요: "${dup}"` });
+  // 너무 짧은 변형 검사
+  const tooShort = variations.find(v => v.length < 5);
+  if (tooShort) issues.push({ level: 'warning', message: `변형 질문이 너무 짧아요: "${tooShort}" (5자 이상 권장)` });
+  // 대표 질문과 동일
+  if (variations.some(v => v.toLowerCase() === question.toLowerCase())) {
+    issues.push({ level: 'warning', message: '변형 질문 중에 대표 질문과 완전히 동일한 항목이 있어요.' });
+  }
+
+  // 답변에 대해 article 검증 규칙 일부 재활용 (format=faq)
+  if (answer && typeof validateArticle === 'function') {
+    try {
+      const { warnings } = validateArticle(answer, question, 'faq');
+      for (const w of warnings || []) {
+        issues.push({ level: w.level || 'warning', message: `[답변] ${w.message}` });
+      }
+    } catch (_) {}
+  }
+
+  const errors = issues.filter(i => i.level === 'error');
+  const warnings = issues.filter(i => i.level !== 'error');
+  const allPass = errors.length === 0 && warnings.length === 0;
+
+  const header = allPass
+    ? `<div style="padding:14px 18px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;color:#15803d;font-size:13px;font-weight:600">✅ 합격 — 모든 FAQ 가이드라인을 통과했어요. 채널톡에 등록해도 좋아요.</div>`
+    : errors.length > 0
+      ? `<div style="padding:14px 18px;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;color:#b91c1c;font-size:13px;font-weight:600">❌ 보완 필요 — ${errors.length}개 오류, ${warnings.length}개 경고</div>`
+      : `<div style="padding:14px 18px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;color:#92400e;font-size:13px;font-weight:600">⚠️ 경고 ${warnings.length}건 — 등록 가능하지만 확인 권장</div>`;
+
+  const list = issues.map(i => {
+    const color = i.level === 'error' ? '#b91c1c' : '#92400e';
+    const bg = i.level === 'error' ? '#fef2f2' : '#fffbeb';
+    const border = i.level === 'error' ? '#fca5a5' : '#fde68a';
+    const icon = i.level === 'error' ? '❌' : '⚠️';
+    return `<div style="padding:10px 14px;background:${bg};border:1px solid ${border};border-radius:8px;color:${color};font-size:13px">${icon} ${escapeHtml(i.message)}</div>`;
+  }).join('');
+
+  resultEl.innerHTML = `${header}${list ? `<div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">${list}</div>` : ''}`;
+}
+
+async function saveFaqValidateDraft() {
+  const { question, answer, variations } = _faqValidateCollect();
+  if (!question) { alert('대표 질문을 입력해주세요.'); return; }
+  if (!answer) { alert('답변을 입력해주세요.'); return; }
+  const btn = document.getElementById('btnSaveFaqValidate');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    const res = await authFetch(`${API}/api/alf_data`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: 'save_draft', title: question, content: answer,
+        variations, format: 'faq',
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '저장 실패');
+    alert('라이브러리에 FAQ로 저장됐어요!');
+  } catch(e) {
+    alert('저장 실패: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+async function publishFaqValidateToChannelTalk() {
+  const { question, answer, variations } = _faqValidateCollect();
+  if (!question) { alert('대표 질문을 입력해주세요.'); return; }
+  if (!answer) { alert('답변을 입력해주세요.'); return; }
+  if (!confirm('채널톡에 초안(비공개)으로 등록할게요. 계속할까요?')) return;
+  // 본문 구성: ## 변형 질문 + - 변형들 + ## 답변
+  let bodyMd = '';
+  if (variations.length) {
+    bodyMd += `## 변형 질문\n${variations.map(v => `- ${v}`).join('\n')}\n\n`;
+  }
+  bodyMd += `## 답변\n${answer}`;
+  const btn = document.getElementById('btnPublishFaqValidate');
+  const resultEl = document.getElementById('faqValidatePublishResult');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '등록 중...';
+  if (resultEl) resultEl.style.display = 'none';
+  try {
+    const res = await authFetch(`${API}/api/alf_publish`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name: question, content: bodyMd, publish: false }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const statusLabel = data.published ? '게시됨' : '초안 저장됨';
+      resultEl.style.display = 'block';
+      resultEl.style.background = '#f0fdf4';
+      resultEl.style.color = '#15803d';
+      resultEl.style.border = '1px solid #86efac';
+      resultEl.innerHTML = `✅ 채널톡에 FAQ로 등록됐어요 (${statusLabel}) — 아티클 ID: <strong>${escapeHtml(data.article_id || '')}</strong>`;
+    } else {
+      resultEl.style.display = 'block';
+      resultEl.style.background = '#fef2f2';
+      resultEl.style.color = '#dc2626';
+      resultEl.style.border = '1px solid #fca5a5';
+      resultEl.innerHTML = `❌ 등록 실패: ${escapeHtml(data.error || '알 수 없는 오류')}`;
+    }
+  } catch(e) {
+    resultEl.style.display = 'block';
+    resultEl.style.background = '#fef2f2';
+    resultEl.style.color = '#dc2626';
+    resultEl.style.border = '1px solid #fca5a5';
+    resultEl.innerHTML = `❌ 오류: ${escapeHtml(e.message)}`;
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
 function downloadDraft() {
   const title = document.getElementById('draftTitle').value.trim() || state.currentDraftTitle || 'alf-draft';
   const subtitle = document.getElementById('draftSubtitle').value.trim();
@@ -4673,8 +4926,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   // 이미지 캡쳐→붙여넣기 (Canvas 자동 처리 + Supabase Storage 업로드)
-  ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer', 'validateContent'].forEach(setupImagePaste);
+  ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer', 'validateContent', 'faqValidateAnswer'].forEach(setupImagePaste);
   setupImageFormatTool();
+  if (typeof _renderFaqValidateVariations === 'function') _renderFaqValidateVariations();
 
   // 가이드 탭 사이드바: smooth scroll + 현재 섹션 활성 표시
   const tocLinks = document.querySelectorAll('.guide-toc a');
