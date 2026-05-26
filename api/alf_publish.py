@@ -122,8 +122,10 @@ class handler(_Base):
             self._respond(400, {"ok": False, "error": "본문이 비어있어요."})
             return
 
-        article_body: dict = {"name": name, "language": "ko", "bodyHtml": markdown_to_html(content)}
+        # 채널톡 Documents API: 목록의 "제목" 컬럼은 title 필드. name만 보내면 "제목 없음"으로 표시됨.
+        article_body: dict = {"title": name, "name": name, "language": "ko", "bodyHtml": markdown_to_html(content)}
         if subtitle:
+            article_body["subtitle"] = subtitle
             article_body["summary"] = subtitle
 
         try:
