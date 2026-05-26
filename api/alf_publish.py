@@ -1,14 +1,13 @@
 """채널톡 Documents Open API — 아티클 등록·게시"""
 from __future__ import annotations
-import os, sys, json, re, base64, urllib.request, urllib.error, urllib.parse
+import os, sys, json, re, urllib.request, urllib.error, urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _alf_common import make_handler_base
+from _alf_common import make_handler_base, docs_req
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 DOCS_ACCESS_KEY = os.environ.get("CHANNELTALK_DOCS_ACCESS_KEY", "")
 DOCS_ACCESS_SECRET = os.environ.get("CHANNELTALK_DOCS_ACCESS_SECRET", "")
-DOCS_BASE = "https://document-api.channel.io"
 
 
 def _escape(s: str) -> str:
@@ -63,15 +62,6 @@ def markdown_to_html(md: str) -> str:
         parts.append(f"<p>{_inline(line)}</p>")
         i += 1
     return "\n".join(parts)
-
-
-def docs_req(path: str, method: str = "GET", body=None) -> dict:
-    token = base64.b64encode(f"{DOCS_ACCESS_KEY}:{DOCS_ACCESS_SECRET}".encode()).decode()
-    headers = {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(f"{DOCS_BASE}{path}", data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.loads(r.read())
 
 
 _Base = make_handler_base()

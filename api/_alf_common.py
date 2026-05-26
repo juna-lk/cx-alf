@@ -9,6 +9,29 @@ import urllib.request
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_MODEL = "gpt-4o-mini"
 
+DOCS_BASE = "https://document-api.channel.io"
+
+
+def docs_req(path: str, method: str = "GET", body=None) -> dict:
+    """채널톡 Documents Open API 호출.
+
+    환경변수 CHANNELTALK_DOCS_ACCESS_KEY/SECRET 필수.
+    인증은 Basic auth (key:secret base64).
+    """
+    import base64
+    access_key = os.environ.get("CHANNELTALK_DOCS_ACCESS_KEY", "")
+    access_secret = os.environ.get("CHANNELTALK_DOCS_ACCESS_SECRET", "")
+    if not access_key or not access_secret:
+        raise RuntimeError("CHANNELTALK_DOCS_ACCESS_KEY/SECRET 환경변수 누락")
+    token = base64.b64encode(f"{access_key}:{access_secret}".encode()).decode()
+    headers = {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(
+        f"{DOCS_BASE}{path}", data=data, headers=headers, method=method,
+    )
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return json.loads(r.read())
+
 def is_safe_postgrest_tag(tag: str) -> bool:
     """PostgREST array literal `tags=cs.{...}` 사용에 안전한지 검증.
 
@@ -249,6 +272,27 @@ def verify_draft(content: str, format_type: str = "article", cluster_label: str 
         if not has_numbered:
             warnings.append({"rule": "단계 번호", "level": "info",
                              "message": "절차가 있다면 1./2./3. 형태로 번호화하면 ALF가 순서를 정확히 안내해요"})
+
+    # 6.7) 이미지 필요 추정 — 메뉴 경로/단계 절차가 풍부한데 이미지가 없으면 시각 자료 권장
+    if format_type == "article":
+        # 메뉴 경로 패턴: "A > B > C" 형태 (한국어/공백 포함, > 2개 이상이면 2단계 이상 경로)
+        menu_path_lines = re.findall(r"(?m)^[^\n#-]*[가-힣A-Za-z0-9].*?\s>\s.+", fixed)
+        # 단계 번호: 1./2./3. 라인 중 800자 이상 본문에서 등장
+        numbered_steps = re.findall(r"(?m)^\s*\d+\.\s+\S", fixed)
+        has_image_hint = bool(re.search(r"(이미지|스크린샷|화면|캡처|예시 화면|아래 사진)", fixed))
+        if not has_image_hint:
+            if len(menu_path_lines) >= 2:
+                warnings.append({
+                    "rule": "이미지 추천",
+                    "level": "info",
+                    "message": f"메뉴 경로 안내가 {len(menu_path_lines)}곳 있어요. 각 경로 옆에 스크린샷을 추가하면 고객이 메뉴 위치를 빠르게 찾을 수 있어요",
+                })
+            elif len(numbered_steps) >= 3 and length > 800:
+                warnings.append({
+                    "rule": "이미지 추천",
+                    "level": "info",
+                    "message": f"절차가 {len(numbered_steps)}단계 있어요. 각 단계의 결과 화면 스크린샷을 추가하면 ALF가 시각 자료와 함께 안내할 수 있어요",
+                })
 
     # 7) 제목에 클러스터 키워드 포함 (title 인자가 별도로 전달된 경우)
     if format_type == "article" and cluster_label and title:

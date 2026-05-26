@@ -1540,6 +1540,22 @@
     </div>
   </div>
 
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 20px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div>
+        <h3 style="font-size:13px;font-weight:600;color:#374151;margin:0">📚 기존 채널톡 아티클 불러오기</h3>
+        <p style="font-size:11px;color:#9ca3af;margin:2px 0 0">키워드로 채널톡 ALF에 등록된 아티클을 검색해서 본문 입력란에 채워요.</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <input type="text" id="kbSearchQuery" placeholder="예: 부가세, 환불, 진도율"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();runKbSearch();}"
+        style="flex:1;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit" />
+      <button class="btn btn-secondary" onclick="runKbSearch()" id="btnKbSearch" style="padding:7px 14px;font-size:12px">검색</button>
+    </div>
+    <div id="kbSearchResult" style="display:none;margin-top:10px"></div>
+  </div>
+
   <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:16px">
     <div style="margin-bottom:14px">
       <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">제목 <span style="color:#9ca3af;font-weight:400">(선택)</span></label>
@@ -1576,7 +1592,7 @@
         <input type="radio" name="validateFormat" value="faq" /> FAQ
       </label>
       <div style="flex:1"></div>
-      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none'">초기화</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none';document.getElementById('validateImageResult').style.display='none'">초기화</button>
       <button class="btn btn-secondary" onclick="suggestTitle()" id="btnSuggestTitle" style="padding:10px 18px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe">✨ 제목·소제목 추천</button>
       <button class="btn btn-primary" onclick="runValidation()" style="padding:10px 22px">검증하기</button>
     </div>
@@ -1584,6 +1600,7 @@
 
   <div id="validateSuggestResult" style="display:none"></div>
   <div id="validateResult" style="display:none"></div>
+  <div id="validateImageResult" style="display:none"></div>
 
   <div style="margin-top:24px;padding:14px 18px;background:#f9fafb;border:1px dashed #e5e7eb;border-radius:10px">
     <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">📌 검증 항목 (요약)</div>
@@ -2181,10 +2198,156 @@ function runValidation() {
   _lastValidationContent = content;
   renderValidationResult(warnings, length, format);
 
+  // 아티클일 때만 이미지 추천 비동기 호출 (FAQ는 짧아서 무의미)
+  if (format === 'article') {
+    runImageSuggest();
+  } else {
+    document.getElementById('validateImageResult').style.display = 'none';
+  }
+
   // 결과로 스크롤
   setTimeout(() => {
     document.getElementById('validateResult').scrollIntoView({behavior:'smooth', block:'start'});
   }, 50);
+}
+
+async function runKbSearch() {
+  const query = document.getElementById('kbSearchQuery').value.trim();
+  if (!query) { alert('검색어를 입력해주세요'); return; }
+  const btn = document.getElementById('btnKbSearch');
+  const resultDiv = document.getElementById('kbSearchResult');
+  btn.disabled = true;
+  btn.textContent = '검색 중...';
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:8px 0">채널톡에서 검색 중...</div>';
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'kb_search', query }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      resultDiv.innerHTML = `<div style="font-size:12px;color:#dc2626;padding:8px 0">검색 실패: ${escapeHtml(data.error || '알 수 없는 오류')}</div>`;
+      return;
+    }
+    const results = data.results || [];
+    if (results.length === 0) {
+      resultDiv.innerHTML = `<div style="font-size:12px;color:#9ca3af;padding:8px 0">매칭되는 아티클이 없어요 (전체 ${data.total_scanned || 0}건 중)</div>`;
+      return;
+    }
+    // 결과를 전역 캐시에 저장해서 click 시 빠르게 조회
+    window._kbSearchCache = {};
+    let html = `<div style="font-size:11px;color:#6b7280;margin-bottom:6px">${results.length}건 매칭 (전체 ${data.total_scanned}건 중) — 클릭하면 본문 입력란에 채워져요</div>`;
+    html += '<div style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto">';
+    results.forEach((a, idx) => {
+      window._kbSearchCache[idx] = a;
+      const stateLabel = a.state === 'published' ? '게시됨' : '초안';
+      const stateBg = a.state === 'published' ? '#dcfce7' : '#fef3c7';
+      const stateColor = a.state === 'published' ? '#15803d' : '#b45309';
+      html += `<div onclick="loadKbArticle(${idx})" style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;background:#fafafa" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fafafa'">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="font-weight:600;font-size:13px;color:#1f2937;flex:1">${escapeHtml(a.title || '(제목 없음)')}</div>
+          <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${stateBg};color:${stateColor};flex-shrink:0">${stateLabel}</span>
+        </div>
+        ${a.subtitle ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">${escapeHtml(a.subtitle)}</div>` : ''}
+        <div style="font-size:11px;color:#9ca3af;margin-top:4px;line-height:1.4">${escapeHtml((a.preview || '').slice(0, 130))}${(a.preview || '').length > 130 ? '…' : ''}</div>
+      </div>`;
+    });
+    html += '</div>';
+    resultDiv.innerHTML = html;
+  } catch (e) {
+    resultDiv.innerHTML = `<div style="font-size:12px;color:#dc2626;padding:8px 0">검색 실패: ${escapeHtml(String(e))}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '검색';
+  }
+}
+
+function loadKbArticle(idx) {
+  const a = (window._kbSearchCache || {})[idx];
+  if (!a) { alert('아티클 데이터를 찾을 수 없어요'); return; }
+  const md = htmlToMarkdown(a.bodyHtml || '');
+  const ta = document.getElementById('validateContent');
+  ta.value = md;
+  ta.dispatchEvent(new Event('input'));
+  if (a.title) document.getElementById('validateTitle').value = a.title;
+  document.getElementById('kbSearchResult').style.display = 'none';
+  document.getElementById('kbSearchQuery').value = '';
+  ta.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function htmlToMarkdown(html) {
+  if (!html) return '';
+  let md = html;
+  for (let i = 6; i >= 1; i--) {
+    const prefix = '#'.repeat(i);
+    md = md.replace(new RegExp(`<h${i}[^>]*>([\\s\\S]*?)<\\/h${i}>`, 'gi'),
+      (_, t) => `\n\n${prefix} ${t.replace(/<[^>]+>/g, '').trim()}\n\n`);
+  }
+  md = md.replace(/<(strong|b)[^>]*>([\s\S]*?)<\/\1>/gi, '**$2**');
+  md = md.replace(/<(em|i)[^>]*>([\s\S]*?)<\/\1>/gi, '*$2*');
+  md = md.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, '`$1`');
+  md = md.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (_, inner) =>
+    '\n' + inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_, t) => `- ${t.replace(/<[^>]+>/g, '').trim()}\n`) + '\n');
+  md = md.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_, inner) => {
+    let n = 0;
+    return '\n' + inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi,
+      (_, t) => `${++n}. ${t.replace(/<[^>]+>/g, '').trim()}\n`) + '\n';
+  });
+  md = md.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '$1\n\n');
+  md = md.replace(/<br\s*\/?>/gi, '\n');
+  md = md.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, t) =>
+    '\n' + t.replace(/<[^>]+>/g, '').trim().split('\n').map(l => `> ${l}`).join('\n') + '\n');
+  md = md.replace(/<[^>]+>/g, '');
+  md = md.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+         .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
+  md = md.replace(/\n{3,}/g, '\n\n').trim();
+  return md;
+}
+
+async function runImageSuggest() {
+  const content = document.getElementById('validateContent').value.trim();
+  const div = document.getElementById('validateImageResult');
+  if (!content) { div.style.display = 'none'; return; }
+  div.style.display = 'block';
+  div.innerHTML = '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 18px;margin-top:14px;font-size:12px;color:#9ca3af">📷 이미지 추천 위치 분석 중...</div>';
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'image_suggest', content }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      div.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:12px 16px;margin-top:14px;font-size:12px;color:#b91c1c">이미지 추천 분석 실패: ${escapeHtml(data.error || '')}</div>`;
+      return;
+    }
+    const suggestions = data.suggestions || [];
+    if (suggestions.length === 0) {
+      div.innerHTML = `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px 16px;margin-top:14px;font-size:12px;color:#15803d">📷 이미지 추천 — 본문이 텍스트만으로 충분하다고 분석됐어요</div>`;
+      return;
+    }
+    let html = `<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:12px;padding:16px 18px;margin-top:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:14px">📷</span>
+        <h4 style="font-size:13px;font-weight:600;color:#1e40af;margin:0">이미지 추천 위치 ${suggestions.length}곳</h4>
+      </div>
+      <p style="font-size:11px;color:#3b82f6;margin:0 0 10px">스크린샷이나 다이어그램이 함께 있으면 고객 이해가 빨라질 위치를 LLM이 분석했어요.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">`;
+    for (const s of suggestions) {
+      const typeIcon = s.type === 'diagram' ? '🗂' : (s.type === 'example_result' ? '✅' : '📸');
+      html += `<div style="padding:10px 12px;background:#fff;border:1px solid #c7d2fe;border-radius:8px">
+        ${s.section ? `<div style="font-size:12px;font-weight:600;color:#1e3a8a;margin-bottom:4px">${typeIcon} ${escapeHtml(s.section)}</div>` : ''}
+        ${s.position ? `<div style="font-size:12px;color:#374151;margin-bottom:4px">📍 ${escapeHtml(s.position)}</div>` : ''}
+        ${s.reason ? `<div style="font-size:11px;color:#6b7280">💡 ${escapeHtml(s.reason)}</div>` : ''}
+      </div>`;
+    }
+    html += '</div></div>';
+    div.innerHTML = html;
+  } catch (e) {
+    div.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:12px 16px;margin-top:14px;font-size:12px;color:#b91c1c">이미지 추천 분석 실패: ${escapeHtml(String(e))}</div>`;
+  }
 }
 
 function _renderValidateCard(w, bg, border, ruleColor) {

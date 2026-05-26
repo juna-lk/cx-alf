@@ -10,7 +10,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, is_safe_postgrest_tag, select_specific_tag
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, is_safe_postgrest_tag, select_specific_tag, docs_req
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -305,6 +305,152 @@ class handler(_Base):
         content_length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(content_length)) if content_length else {}
         mode = (body.get("mode") or "").strip()
+
+        # ─── 채널톡 ALF 등록 지식 키워드 검색 ────────────────────────────
+        # ALF Studio 검증 탭에서 "기존 채널톡 아티클 불러오기"용.
+        # 채널톡 도큐먼트 API의 list endpoint를 호출하고 query로 필터링.
+        if mode == "kb_search":
+            query = (body.get("query") or "").strip()
+            if not query:
+                self._respond(400, {"ok": False, "error": "query 필요"})
+                return
+            try:
+                data = docs_req(
+                    "/open/v1/spaces/$me/articles?language=ko&limit=100",
+                    method="GET",
+                )
+            except urllib.error.HTTPError as e:
+                err_body = ""
+                try:
+                    err_body = e.read().decode()
+                except Exception:
+                    pass
+                print(f"[kb_search] HTTP {e.code}: {err_body[:200]}")
+                self._respond(500, {"ok": False, "error": f"채널톡 API 오류 ({e.code})"})
+                return
+            except Exception as e:
+                print(f"[kb_search] 실패: {e}")
+                self._respond(500, {"ok": False, "error": f"채널톡 검색 실패: {e}"})
+                return
+            articles = data.get("articles") or []
+            q_lower = query.lower()
+            results = []
+            for a in articles:
+                title = (a.get("title") or a.get("name") or "")
+                subtitle = (a.get("subtitle") or a.get("summary") or "")
+                body_html = a.get("bodyHtml") or ""
+                # HTML 태그 제거해서 plain text body 만들기
+                body_text = re.sub(r"<[^>]+>", " ", body_html)
+                body_text = re.sub(r"\s+", " ", body_text).strip()
+                score = 0
+                title_l = title.lower()
+                subtitle_l = subtitle.lower()
+                body_l = body_text.lower()
+                if q_lower in title_l:
+                    score += 100
+                if q_lower in subtitle_l:
+                    score += 50
+                if q_lower in body_l:
+                    score += 10
+                # 토큰 단위 부분 매칭(공백 분리)
+                for token in q_lower.split():
+                    if len(token) < 2:
+                        continue
+                    if token in title_l:
+                        score += 20
+                    if token in subtitle_l:
+                        score += 10
+                    if token in body_l:
+                        score += 2
+                if score <= 0:
+                    continue
+                results.append({
+                    "id": a.get("id"),
+                    "title": title,
+                    "subtitle": subtitle,
+                    "state": a.get("state", ""),
+                    "slug": a.get("slug", ""),
+                    "bodyHtml": body_html,
+                    "preview": body_text[:200],
+                    "score": score,
+                    "updatedAt": a.get("updatedAt"),
+                })
+            results.sort(key=lambda x: (-x["score"], -(x.get("updatedAt") or 0)))
+            self._respond(200, {
+                "ok": True,
+                "results": results[:20],
+                "total_scanned": len(articles),
+                "matched": len(results),
+            })
+            return
+
+        # ─── 이미지 추천 위치 분석 ────────────────────────────────────────
+        # 본문을 LLM에 보내서 "스크린샷·이미지가 필요한 위치"를 분석 요청.
+        # 결과는 [{position, reason, section}] 형식. chat_ids 불필요.
+        if mode == "image_suggest":
+            user_content = (body.get("content") or "").strip()
+            if not user_content:
+                self._respond(400, {"ok": False, "error": "content 필요"})
+                return
+            if len(user_content) > 6000:
+                user_content = user_content[:6000]
+            image_prompt = f"""다음은 채널톡 ALF 지식 아티클의 본문이에요. 이 본문에 **스크린샷·이미지가 함께 있으면 고객 이해가 훨씬 쉬워질 위치**를 찾아주세요.
+
+【본문】
+\"\"\"
+{user_content}
+\"\"\"
+
+【이미지가 필요한 전형적인 위치】
+- 메뉴 경로 안내 (예: "사이트 관리 > 매출 및 정산 관리" — 이 메뉴가 어디 있는지 시각적 표시)
+- 버튼·UI 위치 안내 ("○○ 버튼을 눌러주세요" — 어디에 있는지 화면 캡처)
+- 단계별 절차 (1./2./3.로 분리된 작업 — 각 단계의 결과 화면)
+- 옵션·설정 화면 ("○○를 체크하세요" — 실제 체크박스 위치)
+- 결과 확인 ("이런 화면이 나오면 성공이에요" — 정상 결과 예시)
+
+【이미지가 불필요한 곳】
+- 정의/개념 설명 (텍스트만으로 충분)
+- 정책·약관·면책 문구
+- FAQ 짧은 답변
+
+본문에서 위 기준에 해당하는 위치를 최대 5개 찾아서 반환하세요. 본문이 짧거나 이미지가 필요 없으면 빈 배열 OK.
+
+반드시 아래 JSON 형식으로만 답변하세요 (다른 텍스트 금지):
+{{
+  "suggestions": [
+    {{
+      "section": "본문의 어느 H2 헤딩 아래 위치인지 (예: '## 부가세 신고 자료는 어디서 확인할 수 있나요?')",
+      "position": "그 섹션 안에서 정확히 어떤 문장·항목 뒤에 이미지가 들어가면 좋은지 (예: '사이트 관리 > 매출 및 정산 관리 > 부가세 신고 자료 메뉴 경로 안내 뒤')",
+      "reason": "왜 이 위치에 이미지가 필요한지 한 줄 (예: '메뉴 깊이가 3단계라 글로만 찾기 어려움')",
+      "type": "screenshot | diagram | example_result 중 하나"
+    }}
+  ]
+}}"""
+            try:
+                raw = call_anthropic(
+                    image_prompt, max_tokens=900, api_key=OPENAI_API_KEY,
+                )
+                parsed = extract_json(raw)
+                suggestions = []
+                if isinstance(parsed, dict):
+                    suggestions = parsed.get("suggestions") or []
+                # suggestions 정리: dict만 + 필수 키만 추출
+                cleaned = []
+                for s in suggestions[:5]:
+                    if not isinstance(s, dict):
+                        continue
+                    cleaned.append({
+                        "section": (s.get("section") or "").strip(),
+                        "position": (s.get("position") or "").strip(),
+                        "reason": (s.get("reason") or "").strip(),
+                        "type": (s.get("type") or "screenshot").strip(),
+                    })
+                self._respond(200, {"ok": True, "suggestions": cleaned})
+                return
+            except Exception as e:
+                print(f"[alf_generate image_suggest] 실패: {e}")
+                self._respond(500, {"ok": False, "error": "이미지 추천 분석에 실패했어요. 잠시 후 다시 시도해주세요."})
+                return
 
         # ─── 제목·소제목 추천 모드 ─────────────────────────────────────────
         # 사용자가 직접 작성한 본문을 받아 LLM이 제목·소제목 추천만 반환.
