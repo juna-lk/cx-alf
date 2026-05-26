@@ -27,7 +27,15 @@ def _inline(s: str) -> str:
         url = (m.group(2) or "").strip()
         if not _SAFE_URL_PREFIX.match(url):
             return _escape(m.group(0))
-        stash.append(f'<img src="{_escape(url)}" alt="{_escape(alt)}" />')
+        # 캡션이 있으면 <figure><img/><figcaption>로 감싸서 본문에도 노출 + ALF 색인용
+        if alt:
+            html = (
+                f'<figure><img src="{_escape(url)}" alt="{_escape(alt)}" />'
+                f'<figcaption>{_escape(alt)}</figcaption></figure>'
+            )
+        else:
+            html = f'<img src="{_escape(url)}" alt="" />'
+        stash.append(html)
         return f"\x00IMG{len(stash) - 1}\x00"
 
     def _stash_link(m: re.Match) -> str:
