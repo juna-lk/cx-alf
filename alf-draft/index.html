@@ -1605,7 +1605,7 @@
         <input type="radio" name="validateFormat" value="faq" /> FAQ
       </label>
       <div style="flex:1"></div>
-      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateSubtitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none';document.getElementById('validateImageResult').style.display='none'">초기화</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateSubtitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none';document.getElementById('validateImageResult').style.display='none';_autosaveAll()">초기화</button>
       <button class="btn btn-secondary" onclick="suggestTitle()" id="btnSuggestTitle" style="padding:10px 18px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe">✨ 제목·소제목 추천</button>
       <button class="btn btn-secondary" onclick="saveValidateDraft()" id="btnSaveValidate" style="padding:10px 18px;background:#ecfdf5;color:#047857;border-color:#a7f3d0">💾 저장</button>
       <button class="btn btn-secondary" onclick="publishValidateToChannelTalk()" id="btnPublishValidate" style="padding:10px 18px;background:#f0fdf4;color:#15803d;border-color:#86efac">📤 채널톡에 등록</button>
@@ -1879,7 +1879,80 @@ const API = '';
 const SUPA_URL = 'https://axqrhnfmrqwdmebjmsrh.supabase.co';
 const SUPA_ANON_KEY = 'sb_publishable_oNDxh87K9qCzx5gDT3gIDQ_1aZXlqtB';
 const ALLOWED_DOMAIN = 'liveklass.com';
-const SESSION_HOURS = 4;
+const SESSION_HOURS = 24;
+
+// ───── 작성 중 자동 저장 (localStorage) ─────
+// 세션 만료·새로고침·실수로 닫음 등 어떤 이유로든 input 손실되지 않도록
+// 모든 작성 input을 localStorage에 디바운스 저장하고, 페이지 로드 시 복원.
+const _AUTOSAVE_KEY = 'alf_autosave_v1';
+const _AUTOSAVE_INPUTS = [
+  'draftTitle', 'draftSubtitle', 'draftArea',
+  'validateTitle', 'validateSubtitle', 'validateContent',
+  'faqValidateQuestion', 'faqValidateAnswer',
+  'faqQuestion', 'faqAnswer',
+];
+let _autosaveTimer = null;
+function _autosaveAll() {
+  try {
+    const data = {};
+    for (const id of _AUTOSAVE_INPUTS) {
+      const el = document.getElementById(id);
+      if (el && el.value) data[id] = el.value;
+    }
+    if (typeof _faqValidateVariations !== 'undefined' && _faqValidateVariations.length) {
+      data.faqValidateVariations = _faqValidateVariations;
+    }
+    if (Object.keys(data).length === 0) {
+      localStorage.removeItem(_AUTOSAVE_KEY);
+    } else {
+      data._ts = Date.now();
+      localStorage.setItem(_AUTOSAVE_KEY, JSON.stringify(data));
+    }
+  } catch (_) {}
+}
+function _autosaveDebounced() {
+  if (_autosaveTimer) clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(_autosaveAll, 600);
+}
+function _autosaveRestore() {
+  try {
+    const raw = localStorage.getItem(_AUTOSAVE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return;
+    let restored = 0;
+    for (const id of _AUTOSAVE_INPUTS) {
+      const el = document.getElementById(id);
+      if (el && data[id]) { el.value = data[id]; restored++; }
+    }
+    if (Array.isArray(data.faqValidateVariations) && typeof _faqValidateVariations !== 'undefined') {
+      _faqValidateVariations.splice(0, _faqValidateVariations.length, ...data.faqValidateVariations);
+      if (typeof _renderFaqValidateVariations === 'function') _renderFaqValidateVariations();
+      restored++;
+    }
+    // 카운트 라벨 동기화
+    const vc = document.getElementById('validateCharCount');
+    if (vc) vc.textContent = (document.getElementById('validateContent')?.value || '').length;
+    const fc = document.getElementById('faqValidateCharCount');
+    if (fc) fc.textContent = (document.getElementById('faqValidateAnswer')?.value || '').length;
+    if (restored > 0) {
+      const ago = data._ts ? Math.round((Date.now() - data._ts) / 60000) : 0;
+      console.info(`[autosave] 복구 ${restored}개 필드 (${ago}분 전 저장)`);
+    }
+  } catch (_) {}
+}
+function _autosaveClear() {
+  try { localStorage.removeItem(_AUTOSAVE_KEY); } catch (_) {}
+}
+function _autosaveAttach() {
+  for (const id of _AUTOSAVE_INPUTS) {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.autosaveBound) continue;
+    el.dataset.autosaveBound = '1';
+    el.addEventListener('input', _autosaveDebounced);
+    el.addEventListener('change', _autosaveDebounced);
+  }
+}
 
 const _supa = window.supabase.createClient(SUPA_URL, SUPA_ANON_KEY);
 
@@ -3652,7 +3725,7 @@ function _renderFaqValidateVariations() {
   container.innerHTML = _faqValidateVariations.map((v, i) => `
     <div style="display:flex;gap:6px;align-items:center">
       <input type="text" value="${escapeHtml(v)}" maxlength="100" data-idx="${i}"
-        oninput="_faqValidateVariations[${i}]=this.value"
+        oninput="_faqValidateVariations[${i}]=this.value;_autosaveDebounced&&_autosaveDebounced()"
         style="flex:1;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit" />
       <button type="button" onclick="removeFaqValidateVariation(${i})"
         style="font-size:12px;padding:6px 10px;border-radius:5px;background:#fff;color:#dc2626;border:1px solid #fecaca;cursor:pointer">삭제</button>
@@ -3688,6 +3761,7 @@ function resetFaqValidate() {
   if (resultEl) resultEl.style.display = 'none';
   const pubEl = document.getElementById('faqValidatePublishResult');
   if (pubEl) pubEl.style.display = 'none';
+  if (typeof _autosaveAll === 'function') _autosaveAll();
 }
 
 function _faqValidateCollect() {
@@ -4929,6 +5003,9 @@ document.addEventListener('DOMContentLoaded', () => {
   ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer', 'validateContent', 'faqValidateAnswer'].forEach(setupImagePaste);
   setupImageFormatTool();
   if (typeof _renderFaqValidateVariations === 'function') _renderFaqValidateVariations();
+  // 자동 저장 복원 + 리스너 부착 (세션 만료·새로고침 대비)
+  _autosaveRestore();
+  _autosaveAttach();
 
   // 가이드 탭 사이드바: smooth scroll + 현재 섹션 활성 표시
   const tocLinks = document.querySelectorAll('.guide-toc a');
