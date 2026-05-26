@@ -1570,6 +1570,12 @@
     </div>
 
     <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">소제목 <span style="color:#9ca3af;font-weight:400">(선택)</span></label>
+      <input type="text" id="validateSubtitle" placeholder="예: 환불 절차와 처리 시간 안내"
+        style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
+    </div>
+
+    <div style="margin-bottom:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <label style="font-size:13px;font-weight:600;color:#374151">본문 (Markdown) <span style="color:#9ca3af;font-weight:400">— 본문 안에 # 제목은 넣지 말 것</span></label>
         <div style="display:flex;gap:6px;align-items:center">
@@ -1598,7 +1604,7 @@
         <input type="radio" name="validateFormat" value="faq" /> FAQ
       </label>
       <div style="flex:1"></div>
-      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none';document.getElementById('validateImageResult').style.display='none'">초기화</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('validateContent').value='';document.getElementById('validateTitle').value='';document.getElementById('validateSubtitle').value='';document.getElementById('validateCharCount').textContent='0';document.getElementById('validateResult').style.display='none';document.getElementById('validateSuggestResult').style.display='none';document.getElementById('validateImageResult').style.display='none'">초기화</button>
       <button class="btn btn-secondary" onclick="suggestTitle()" id="btnSuggestTitle" style="padding:10px 18px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe">✨ 제목·소제목 추천</button>
       <button class="btn btn-secondary" onclick="saveValidateDraft()" id="btnSaveValidate" style="padding:10px 18px;background:#ecfdf5;color:#047857;border-color:#a7f3d0">💾 저장</button>
       <button class="btn btn-secondary" onclick="publishValidateToChannelTalk()" id="btnPublishValidate" style="padding:10px 18px;background:#f0fdf4;color:#15803d;border-color:#86efac">📤 채널톡에 등록</button>
@@ -2648,15 +2654,18 @@ async function suggestTitle() {
     const subtitle = data.subtitle || '';
     const alternatives = Array.isArray(data.alternatives) ? data.alternatives : [];
 
+    // 추천 결과를 자동으로 입력 필드에 적용
+    if (title) document.getElementById('validateTitle').value = title;
+    if (subtitle) document.getElementById('validateSubtitle').value = subtitle;
+
     let html = `<div style="padding:18px 20px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:10px;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:14px">✨ AI 추천 제목·소제목</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:#6d28d9">✨ AI 추천 제목·소제목 — 자동 적용됨</div>
+        <div style="font-size:11px;color:#15803d;background:#f0fdf4;border:1px solid #86efac;padding:2px 8px;border-radius:999px;font-weight:600">✓ 입력 완료</div>
+      </div>
 
       <div style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:14px 16px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div style="font-size:11px;font-weight:700;color:#7c3aed">제목</div>
-          <button onclick="document.getElementById('validateTitle').value=${JSON.stringify(title)};document.getElementById('validateTitle').scrollIntoView({behavior:'smooth',block:'center'})"
-            style="font-size:11px;padding:4px 10px;border-radius:5px;background:#7c3aed;color:#fff;border:none;cursor:pointer;font-weight:600">적용</button>
-        </div>
+        <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:6px">제목</div>
         <div style="font-size:15px;color:#1f2937;font-weight:500;line-height:1.5">${_escapeHTML(title)}</div>
       </div>
 
@@ -2667,12 +2676,12 @@ async function suggestTitle() {
 
     if (alternatives.length > 0) {
       html += `<div style="background:#fafafa;border:1px dashed #e9d5ff;border-radius:8px;padding:12px 14px">
-        <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">다른 제목 후보</div>
+        <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">다른 제목 후보 — 클릭하면 위 제목과 교체돼요</div>
         <div style="display:flex;flex-direction:column;gap:6px">
           ${alternatives.map(alt => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
             <div style="font-size:13px;color:#374151;flex:1;line-height:1.5">${_escapeHTML(alt)}</div>
             <button onclick="document.getElementById('validateTitle').value=${JSON.stringify(alt)};document.getElementById('validateTitle').scrollIntoView({behavior:'smooth',block:'center'})"
-              style="font-size:11px;padding:3px 10px;border-radius:5px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600;flex-shrink:0">적용</button>
+              style="font-size:11px;padding:3px 10px;border-radius:5px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600;flex-shrink:0">이걸로 바꾸기</button>
           </div>`).join('')}
         </div>
       </div>`;
@@ -2740,9 +2749,13 @@ async function rewriteContent() {
       </div>`;
 
     if (suggTitle || suggSubtitle) {
-      html += `<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px">`;
+      // 재작성 결과의 추천 제목·소제목도 자동 적용
+      if (suggTitle) document.getElementById('validateTitle').value = suggTitle;
+      if (suggSubtitle) document.getElementById('validateSubtitle').value = suggSubtitle;
+      html += `<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px">
+        <div style="font-size:10px;color:#15803d;font-weight:700;margin-bottom:6px">✓ 제목·소제목 자동 적용됨</div>`;
       if (suggTitle) {
-        html += `<div style="margin-bottom:4px"><strong style="color:#9a3412">제목</strong> <button onclick="document.getElementById('validateTitle').value=${JSON.stringify(suggTitle)}" style="font-size:10px;padding:2px 8px;border-radius:4px;background:#fff;color:#ea580c;border:1px solid #fed7aa;cursor:pointer;margin-left:4px">적용</button><br><span style="color:#374151;font-size:13px;font-weight:500">${_escapeHTML(suggTitle)}</span></div>`;
+        html += `<div style="margin-bottom:4px"><strong style="color:#9a3412">제목</strong><br><span style="color:#374151;font-size:13px;font-weight:500">${_escapeHTML(suggTitle)}</span></div>`;
       }
       if (suggSubtitle) {
         html += `<div><strong style="color:#9a3412">소제목</strong><br><span style="color:#374151;font-size:13px">${_escapeHTML(suggSubtitle)}</span></div>`;
@@ -3486,6 +3499,7 @@ async function saveDraft() {
 
 async function saveValidateDraft() {
   const title = document.getElementById('validateTitle').value.trim();
+  const subtitle = document.getElementById('validateSubtitle').value.trim();
   const content = document.getElementById('validateContent').value.trim();
   if (!title) { alert('제목을 입력해주세요.'); return; }
   if (!content) { alert('본문을 입력해주세요.'); return; }
@@ -3497,7 +3511,7 @@ async function saveValidateDraft() {
     const res = await authFetch(`${API}/api/alf_data`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({action: 'save_draft', title, content, format}),
+      body: JSON.stringify({action: 'save_draft', title, subtitle, content, format}),
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '저장 실패');
@@ -3511,6 +3525,7 @@ async function saveValidateDraft() {
 
 async function publishValidateToChannelTalk() {
   const name = document.getElementById('validateTitle').value.trim();
+  const subtitle = document.getElementById('validateSubtitle').value.trim();
   const content = document.getElementById('validateContent').value.trim();
   if (!name) { alert('제목을 입력해주세요.'); return; }
   if (!content) { alert('본문이 비어있어요.'); return; }
@@ -3524,7 +3539,7 @@ async function publishValidateToChannelTalk() {
     const res = await authFetch(`${API}/api/alf_publish`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ name, content, publish: false }),
+      body: JSON.stringify({ name, subtitle, content, publish: false }),
     });
     const data = await res.json();
     if (data.ok) {
