@@ -4737,12 +4737,40 @@ function _wfRenderSelectionFooter() {
   </div>`;
 }
 
+function _wfApplyExpandResult(idx, newIds) {
+  const cluster = _wfClusters[idx];
+  if (!cluster) return;
+  const btn = document.getElementById('wfExpandBtn' + idx);
+  const countEl = document.getElementById('wfClusterCount' + idx);
+  const existing = new Set(cluster.chat_ids || []);
+  const merged = [...(cluster.chat_ids || [])];
+  let added = 0;
+  for (const cid of newIds) {
+    if (cid && !existing.has(cid)) { merged.push(cid); existing.add(cid); added++; }
+  }
+  cluster.chat_ids = merged;
+  cluster.count = merged.length;
+  cluster._expanded = true;
+  if (countEl) {
+    countEl.innerHTML = `${cluster.count}건 <span style="color:#4f46e5;font-size:10px">(+${added})</span>`;
+  }
+  if (btn) {
+    btn.textContent = `✓ +${added}건 탐색됨`;
+    btn.disabled = true;
+    btn.style.background = '#ecfdf5';
+    btn.style.color = '#059669';
+    btn.style.borderColor = '#a7f3d0';
+    btn.style.cursor = 'not-allowed';
+  }
+  if (_wfSelectedClusterSet.has(idx)) _wfRenderSelectionFooter();
+}
+
 async function _wfExpandCluster(idx) {
   const cluster = _wfClusters[idx];
   if (!cluster || cluster._expanded) return;
   const btn = document.getElementById('wfExpandBtn' + idx);
-  const countEl = document.getElementById('wfClusterCount' + idx);
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 탐색 중...'; }
+  const manual = getLLMMode() === 'manual';
+  if (btn) { btn.disabled = true; btn.textContent = manual ? '⏳ 후보 수집 중...' : '⏳ 탐색 중...'; }
   try {
     const res = await authFetch(`${API}/api/alf_expand_cluster`, {
       method: 'POST',
@@ -4751,6 +4779,7 @@ async function _wfExpandCluster(idx) {
         cluster_label: cluster.label,
         current_chat_ids: cluster.chat_ids || [],
         limit: 25,
+        prompt_only: manual,
       }),
     });
     const data = await res.json();
@@ -4759,28 +4788,32 @@ async function _wfExpandCluster(idx) {
       if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }
       return;
     }
-    const newIds = data.added_chat_ids || [];
-    const existing = new Set(cluster.chat_ids || []);
-    const merged = [...(cluster.chat_ids || [])];
-    for (const cid of newIds) {
-      if (!existing.has(cid)) { merged.push(cid); existing.add(cid); }
+    if (manual && data.prompt_only) {
+      if (!data.prompt) {
+        alert('추가 탐색 후보가 없어요.');
+        if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }
+        return;
+      }
+      // 응답을 붙여넣지 않고 모달을 닫아도 재시도 가능하도록 버튼은 미리 활성화. (콜백에서 _wfApplyExpandResult가 성공 상태로 덮어씀)
+      if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }
+      const idxMap = data.idx_to_chat_id || {};
+      const limit = Number(data.limit || 25);
+      openManualLlm(data.prompt, (parsed) => {
+        const matched = (parsed && Array.isArray(parsed.matched_indices)) ? parsed.matched_indices : [];
+        const seen = new Set();
+        const newIds = [];
+        for (const raw of matched) {
+          const i = Number(raw);
+          if (!Number.isFinite(i)) continue;
+          const cid = idxMap[String(i)];
+          if (cid && !seen.has(cid)) { seen.add(cid); newIds.push(cid); }
+          if (newIds.length >= limit) break;
+        }
+        _wfApplyExpandResult(idx, newIds);
+      });
+      return;
     }
-    cluster.chat_ids = merged;
-    cluster.count = merged.length;
-    cluster._expanded = true;
-    if (countEl) {
-      countEl.innerHTML = `${cluster.count}건 <span style="color:#4f46e5;font-size:10px">(+${newIds.length})</span>`;
-    }
-    if (btn) {
-      btn.textContent = `✓ +${newIds.length}건 탐색됨`;
-      btn.disabled = true;
-      btn.style.background = '#ecfdf5';
-      btn.style.color = '#059669';
-      btn.style.borderColor = '#a7f3d0';
-      btn.style.cursor = 'not-allowed';
-    }
-    // 선택 상태 표시(체크박스+요약) 갱신 — _wfSelectedClusterChatIdsUnion()은 호출 시 cluster.chat_ids로 다시 계산되므로 별도 캐시 불필요
-    if (_wfSelectedClusterSet.has(idx)) _wfRenderSelectionFooter();
+    _wfApplyExpandResult(idx, data.added_chat_ids || []);
   } catch (e) {
     alert('오류: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }

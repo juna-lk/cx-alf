@@ -76,16 +76,53 @@ class handler(_Base):
             self._respond(500, {"ok": False, "error": f"후보 fetch 실패: {e}"})
             return
 
-        # 3) LLM 의미 검색 → limit건 추출
-        added: list = []
-        if candidates:
-            try:
-                from alf_search import filter_by_semantic
-                added = filter_by_semantic(candidates, cluster_label)[:limit]
-            except Exception as e:
-                self._respond(500, {"ok": False,
-                                    "error": f"의미 검색 실패: {e}"})
+        prompt_only = bool(body.get("prompt_only"))
+
+        # 후보 0건이면 LLM 불필요 — 두 모드 공통 빈 결과 반환
+        if not candidates:
+            if prompt_only:
+                self._respond(200, {
+                    "ok": True, "prompt_only": True, "prompt": "",
+                    "idx_to_chat_id": {}, "limit": limit,
+                    "candidates_count": 0, "origin_tag": origin_tags[0],
+                })
+            else:
+                self._respond(200, {
+                    "ok": True, "added_chat_ids": [], "added_count": 0,
+                    "candidates_count": 0,
+                    "total_count": len(current_chat_ids),
+                    "origin_tag": origin_tags[0],
+                })
+            return
+
+        # 3) 수동 모드: 프롬프트 + idx→chat_id 매핑 반환 (프론트가 modal로 처리)
+        if prompt_only:
+            from alf_search import build_semantic_prompt
+            built = build_semantic_prompt(candidates, cluster_label)
+            if built is None:
+                self._respond(200, {
+                    "ok": True, "prompt_only": True, "prompt": "",
+                    "idx_to_chat_id": {}, "limit": limit,
+                    "candidates_count": len(candidates), "origin_tag": origin_tags[0],
+                })
                 return
+            prompt, idx_map = built
+            self._respond(200, {
+                "ok": True, "prompt_only": True, "prompt": prompt,
+                "idx_to_chat_id": {str(k): v for k, v in idx_map.items()},
+                "limit": limit,
+                "candidates_count": len(candidates), "origin_tag": origin_tags[0],
+            })
+            return
+
+        # 4) 자동 모드: 기존 LLM 의미 검색 → limit건 추출
+        try:
+            from alf_search import filter_by_semantic
+            added = filter_by_semantic(candidates, cluster_label)[:limit]
+        except Exception as e:
+            self._respond(500, {"ok": False,
+                                "error": f"의미 검색 실패: {e}"})
+            return
 
         added_chat_ids = [c.get("chat_id") for c in added if c.get("chat_id")]
 

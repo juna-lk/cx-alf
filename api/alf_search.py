@@ -85,15 +85,13 @@ CLUSTER_SAMPLE_LIMIT = 50
 SEMANTIC_SEARCH_LIMIT = 80  # LLM 의미 검색 후 반환할 최대 건수
 
 
-def filter_by_semantic(chats: list, query: str) -> list:
-    """LLM 의미 검색: 자연어 query와 의미적으로 가까운 상담을 골라 반환.
+def build_semantic_prompt(chats: list, query: str) -> tuple[str, dict[int, str]] | None:
+    """의미 검색용 프롬프트와 idx→chat_id 매핑을 생성. 샘플이 없으면 None.
 
-    실패 시 빈 리스트 대신 keyword 필터로 fallback (handler에서 처리).
+    filter_by_semantic(자동)·expand_cluster(수동) 양쪽에서 동일한 프롬프트를 쓰기 위한 헬퍼.
     """
-    if not query or not chats:
-        return chats
-    # 200건 첫 customer 메시지만 추출 (token 절약)
     samples = []
+    idx_to_chat_id: dict[int, str] = {}
     for i, c in enumerate(chats):
         first_customer = next(
             (m.get("text", "")[:120] for m in c.get("messages", []) if m.get("role") == "customer"),
@@ -101,8 +99,9 @@ def filter_by_semantic(chats: list, query: str) -> list:
         )
         if first_customer:
             samples.append(f"[{i}] {first_customer}")
+            idx_to_chat_id[i] = c.get("chat_id") or ""
     if not samples:
-        return chats
+        return None
 
     prompt = f"""사용자가 다음 상황의 CX 상담을 찾고 있습니다:
 "{query}"
@@ -115,6 +114,20 @@ def filter_by_semantic(chats: list, query: str) -> list:
 
 반드시 아래 JSON 형식으로만 답변:
 {{"matched_indices": [0, 5, 12, ...]}}"""
+    return prompt, idx_to_chat_id
+
+
+def filter_by_semantic(chats: list, query: str) -> list:
+    """LLM 의미 검색: 자연어 query와 의미적으로 가까운 상담을 골라 반환.
+
+    실패 시 빈 리스트 대신 keyword 필터로 fallback (handler에서 처리).
+    """
+    if not query or not chats:
+        return chats
+    built = build_semantic_prompt(chats, query)
+    if built is None:
+        return chats
+    prompt, _ = built
 
     try:
         raw = call_anthropic(prompt, max_tokens=1024, api_key=OPENAI_API_KEY)
