@@ -1831,7 +1831,7 @@
 
   <!-- STEP 4 -->
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 5</span>
         <span style="font-size:14px;font-weight:600;color:#111827">본문 작성</span>
@@ -1839,6 +1839,9 @@
       <div style="display:flex;gap:6px;align-items:center">
         <label style="font-size:11px;color:#6b7280;display:flex;align-items:center;gap:4px"><input type="radio" name="wfFormat" value="article" checked /> 아티클</label>
         <label style="font-size:11px;color:#6b7280;display:flex;align-items:center;gap:4px"><input type="radio" name="wfFormat" value="faq" /> FAQ</label>
+        <button class="btn btn-secondary" onclick="wfGenerateDraft()" id="btnWfGenerateDraft"
+          title="선택한 세부 유형의 채팅으로 LLM이 초안 작성 (STEP 2에서 유형을 먼저 선택해주세요)"
+          style="padding:6px 14px;font-size:12px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe;margin-left:4px">✨ AI로 초안 작성</button>
       </div>
     </div>
     <textarea id="wfContent" rows="14"
@@ -4460,12 +4463,13 @@ function _wfGetTagsAndKeywords() {
 
 // STEP 2 — 세부 유형 자동 분류
 let _wfClusters = [];
+let _wfUnclusteredIds = [];
+let _wfSelectedClusterIdx = -1;
 let _wfSelectedClusterChatIds = [];
 
 async function wfAnalyzeClusters() {
   const { tags } = _wfGetTagsAndKeywords();
   if (!tags.length) { alert('STEP 1에서 태그를 최소 1개 추가해주세요.'); return; }
-  // alf_search는 단일 tag 인자만 받음 — 여러 태그 추가됐으면 첫 번째 사용
   const tag = tags[0];
   const keyword = (document.getElementById('wfKeywords')?.value || '').trim();
   const btn = document.getElementById('btnWfClusters');
@@ -4486,6 +4490,9 @@ async function wfAnalyzeClusters() {
       return;
     }
     _wfClusters = Array.isArray(data.clusters) ? data.clusters : [];
+    _wfUnclusteredIds = Array.isArray(data.unclustered_ids) ? data.unclustered_ids : [];
+    _wfSelectedClusterIdx = -1;
+    _wfSelectedClusterChatIds = [];
     _wfRenderClusters(data);
   } catch (e) {
     resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:13px">❌ ${escapeHtml(e.message || String(e))}</div>`;
@@ -4502,25 +4509,49 @@ function _wfRenderClusters(data) {
     return;
   }
   let html = `<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#15803d;font-size:12px;margin-bottom:10px">✅ 채팅 ${data.total || 0}건 → 세부 유형 ${clusters.length}개로 분류</div>`;
-  html += `<div style="display:flex;flex-direction:column;gap:8px">${clusters.map((c, i) => `
-    <div onclick="_wfSelectCluster(${i})" id="wfCluster${i}" style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;cursor:pointer;background:#fff;transition:all .15s">
+  html += `<div style="display:flex;flex-direction:column;gap:8px">${clusters.map((c, i) => _wfClusterRowHtml(c, i)).join('')}</div>`;
+  if (_wfUnclusteredIds.length > 0) {
+    html += `<div onclick="_wfOpenChatModal('wfUnclustered', -1)" style="border:1px dashed #fcd34d;background:#fffbeb;border-radius:8px;padding:10px 14px;margin-top:8px;cursor:pointer">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:#92400e">⚠ 분류되지 않은 상담</div>
+          <div style="font-size:12px;color:#a16207;margin-top:2px">주요 패턴에 속하지 않은 상담들. 원하는 유형이 안 보이면 여기서 확인하세요.</div>
+        </div>
+        <span style="font-size:11px;color:#92400e;flex-shrink:0">${_wfUnclusteredIds.length}건</span>
+      </div>
+    </div>`;
+  }
+  html += `<div style="margin-top:8px;font-size:11px;color:#9ca3af">선택한 유형의 채팅만 STEP 3 패턴 분석에 사용돼요. 선택하지 않으면 STEP 1 태그 전체가 대상이 됩니다.</div>`;
+  resultEl.innerHTML = html;
+}
+
+function _wfClusterRowHtml(c, i) {
+  const selected = _wfSelectedClusterIdx === i;
+  const bg = selected ? '#eef2ff' : '#fff';
+  const bd = selected ? '#6366f1' : '#e5e7eb';
+  const shadow = selected ? '0 0 0 2px #c7d2fe' : 'none';
+  const countCol = c._expanded ? `${Number(c.count) || 0}건 <span style="color:#4f46e5;font-size:10px">(+확장됨)</span>` : `${Number(c.count) || 0}건`;
+  const expandBtn = c._expanded
+    ? `<button disabled style="font-size:11px;padding:4px 10px;border-radius:5px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;cursor:not-allowed;font-weight:500">✓ 확장됨</button>`
+    : `<button onclick="event.stopPropagation();_wfExpandCluster(${i})" id="wfExpandBtn${i}" title="이 유형에 대해 같은 태그에서 의미적으로 가까운 채팅 25건을 추가 수집" style="font-size:11px;padding:4px 10px;border-radius:5px;background:#eef2ff;color:#4f46e5;border:1px solid #c7d2fe;cursor:pointer;font-weight:500">🔍 +25건 탐색</button>`;
+  return `<div onclick="_wfSelectCluster(${i})" id="wfCluster${i}" style="border:1px solid ${bd};border-radius:8px;padding:10px 14px;cursor:pointer;background:${bg};transition:all .15s;box-shadow:${shadow}">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:#111827">${escapeHtml(c.label || '')}</div>
           <div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(c.description || '')}</div>
         </div>
-        <span style="font-size:11px;color:#9ca3af;flex-shrink:0">${Number(c.count) || 0}건</span>
+        <button onclick="event.stopPropagation();_wfOpenChatModal('wfCluster', ${i})" style="font-size:11px;padding:4px 10px;border-radius:5px;background:#f3f4f6;color:#4f46e5;border:1px solid #e5e7eb;cursor:pointer;font-weight:500">💬 상담 보기</button>
+        ${expandBtn}
+        <span id="wfClusterCount${i}" style="font-size:11px;color:#9ca3af;flex-shrink:0">${countCol}</span>
       </div>
-    </div>`).join('')}</div>`;
-  html += `<div style="margin-top:8px;font-size:11px;color:#9ca3af">선택한 유형의 채팅만 STEP 3 패턴 분석에 사용돼요. 선택하지 않으면 STEP 1 태그 전체가 대상이 됩니다.</div>`;
-  resultEl.innerHTML = html;
+    </div>`;
 }
 
 function _wfSelectCluster(idx) {
   const cl = _wfClusters[idx];
   if (!cl) return;
+  _wfSelectedClusterIdx = idx;
   _wfSelectedClusterChatIds = Array.isArray(cl.chat_ids) ? [...cl.chat_ids] : [];
-  // 시각 표시 (선택된 항목 강조, 나머지 흐리게)
   _wfClusters.forEach((_, i) => {
     const el = document.getElementById('wfCluster' + i);
     if (!el) return;
@@ -4534,6 +4565,75 @@ function _wfSelectCluster(idx) {
       el.style.boxShadow = 'none';
     }
   });
+}
+
+async function _wfExpandCluster(idx) {
+  const cluster = _wfClusters[idx];
+  if (!cluster || cluster._expanded) return;
+  const btn = document.getElementById('wfExpandBtn' + idx);
+  const countEl = document.getElementById('wfClusterCount' + idx);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 탐색 중...'; }
+  try {
+    const res = await authFetch(`${API}/api/alf_expand_cluster`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        cluster_label: cluster.label,
+        current_chat_ids: cluster.chat_ids || [],
+        limit: 25,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      alert('상세 탐색 실패: ' + (data.error || ''));
+      if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }
+      return;
+    }
+    const newIds = data.added_chat_ids || [];
+    const existing = new Set(cluster.chat_ids || []);
+    const merged = [...(cluster.chat_ids || [])];
+    for (const cid of newIds) {
+      if (!existing.has(cid)) { merged.push(cid); existing.add(cid); }
+    }
+    cluster.chat_ids = merged;
+    cluster.count = merged.length;
+    cluster._expanded = true;
+    if (countEl) {
+      countEl.innerHTML = `${cluster.count}건 <span style="color:#4f46e5;font-size:10px">(+${newIds.length})</span>`;
+    }
+    if (btn) {
+      btn.textContent = `✓ +${newIds.length}건 탐색됨`;
+      btn.disabled = true;
+      btn.style.background = '#ecfdf5';
+      btn.style.color = '#059669';
+      btn.style.borderColor = '#a7f3d0';
+      btn.style.cursor = 'not-allowed';
+    }
+    // 이 클러스터가 현재 선택돼 있다면 chat_ids도 갱신
+    if (_wfSelectedClusterIdx === idx) {
+      _wfSelectedClusterChatIds = [...cluster.chat_ids];
+    }
+  } catch (e) {
+    alert('오류: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }
+  }
+}
+
+// 워크플로우 클러스터 상담 보기 — 기존 openChatModal를 wfCluster/wfUnclustered 소스로 호출하기 위해 어댑터
+function _wfOpenChatModal(source, idx) {
+  // openChatModal은 state.clusters / state.unclusteredIds를 본다. 워크플로우 데이터를 임시로 주입.
+  if (source === 'wfCluster') {
+    state._origClusters = state.clusters;
+    state.clusters = _wfClusters;
+    openChatModal('cluster', idx);
+    // 모달이 닫힌 뒤 복원 (간단히 5초 뒤)
+    setTimeout(() => { if (state._origClusters !== undefined) { state.clusters = state._origClusters; delete state._origClusters; } }, 5000);
+  } else if (source === 'wfUnclustered') {
+    state._origUnclustered = state.unclusteredIds;
+    state.unclusteredIds = _wfUnclusteredIds;
+    openChatModal('unclustered', -1);
+    setTimeout(() => { if (state._origUnclustered !== undefined) { state.unclusteredIds = state._origUnclustered; delete state._origUnclustered; } }, 5000);
+  }
 }
 
 // STEP 3 — 인입 패턴 분석 (STEP 2 클러스터 선택했으면 그 chat_ids만 분석)
@@ -4701,7 +4801,50 @@ function _wfApplyTitle(data) {
   resultEl.innerHTML = html;
 }
 
-// STEP 5 — 검증
+// STEP 5 — AI 초안 작성 (선택한 클러스터의 chat_ids로 alf_generate / alf_faq_generate 호출)
+async function wfGenerateDraft() {
+  const cluster = (_wfSelectedClusterIdx >= 0) ? _wfClusters[_wfSelectedClusterIdx] : null;
+  if (!cluster || !cluster.chat_ids || !cluster.chat_ids.length) {
+    alert('STEP 2에서 세부 유형을 먼저 선택해주세요. (선택한 유형의 채팅으로 초안을 작성합니다)');
+    return;
+  }
+  if (document.getElementById('wfContent').value.trim() &&
+      !confirm('STEP 5 본문에 이미 내용이 있어요. 새 초안으로 교체할까요?')) return;
+  const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
+  const endpoint = format === 'faq' ? 'alf_faq_generate' : 'alf_generate';
+  const btn = document.getElementById('btnWfGenerateDraft');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '생성 중... (20~40초)';
+  try {
+    const res = await authFetch(`${API}/api/${endpoint}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ cluster_label: cluster.label, chat_ids: cluster.chat_ids }),
+    });
+    const data = await res.json();
+    if (!data.ok) { alert('초안 작성 실패: ' + (data.error || '')); return; }
+    if (format === 'faq') {
+      // FAQ: question, answer, variations
+      document.getElementById('wfTitle').value = data.question || '';
+      // 본문에 변형질문 + 답변 합쳐서 표시
+      const variations = Array.isArray(data.variations) ? data.variations : [];
+      const body = (variations.length ? `## 변형 질문\n${variations.map(v => `- ${v}`).join('\n')}\n\n` : '') + `## 답변\n${data.answer || ''}`;
+      document.getElementById('wfContent').value = body;
+    } else {
+      document.getElementById('wfTitle').value = data.title || '';
+      document.getElementById('wfSubtitle').value = data.subtitle || '';
+      document.getElementById('wfContent').value = data.content || '';
+    }
+    document.getElementById('wfContent').dispatchEvent(new Event('input', { bubbles: true }));
+    alert('AI 초안이 STEP 4/5 필드에 채워졌어요. 검토 후 STEP 6 검증으로 진행하세요.');
+  } catch (e) {
+    alert('오류: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+// STEP 6 — 검증
 function wfValidate() {
   const title = document.getElementById('wfTitle').value.trim();
   const content = document.getElementById('wfContent').value.trim();
