@@ -529,7 +529,8 @@
 </button>
 
 <div class="tab-bar">
-  <div class="tab active" onclick="switchTab('generate')">초안 생성</div>
+  <div class="tab active" onclick="switchTab('workflow')">🚀 워크플로우</div>
+  <div class="tab" onclick="switchTab('generate')">초안 생성</div>
   <div class="tab" onclick="switchTab('search')">🔍 인입 검색</div>
   <div class="tab" onclick="switchTab('library')">📝 작성 중인 초안</div>
   <div class="tab" onclick="switchTab('applied')">✅ ALF 적용 가이드</div>
@@ -538,10 +539,9 @@
   <div class="tab" onclick="switchTab('validate')">✔ 가이드라인 검증</div>
   <div class="tab" onclick="switchTab('faqValidate')">✔ 가이드라인 검증 (FAQ)</div>
   <div class="tab" onclick="switchTab('customerResearch')">📊 고객 인입 리서치</div>
-  <div class="tab" onclick="switchTab('workflow')">🚀 워크플로우</div>
 </div>
 
-<div class="page active" id="tab-generate">
+<div class="page" id="tab-generate">
   <div class="input-card">
     <div class="input-row">
       <div class="field">
@@ -1736,7 +1736,7 @@
   <div id="researchResult" style="display:none"></div>
 </div>
 
-<div class="page" id="tab-workflow">
+<div class="page active" id="tab-workflow">
   <div style="margin-bottom:16px">
     <h2 style="font-size:16px;font-weight:600">🚀 워크플로우 — 인입 분석부터 채널톡 등록까지</h2>
     <p style="font-size:13px;color:#6b7280;margin-top:4px">
@@ -1746,13 +1746,33 @@
 
   <!-- STEP 1 -->
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
       <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 1</span>
       <span style="font-size:14px;font-weight:600;color:#111827">주제·키워드</span>
     </div>
-    <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:6px">키워드 또는 채널톡 태그(쉼표 구분)</label>
-    <input type="text" id="wfKeywords" placeholder="예: 플랜 변경, 지원항목/비즈팀/플랜다운그레이드"
-      style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
+
+    <div style="margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;font-weight:600;margin-bottom:6px">
+        채널톡 태그 <span style="color:#9ca3af;font-weight:400">— 클릭해서 추가, 여러 개 선택 가능</span>
+      </label>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <input type="text" id="wfTagSearch" list="wfTagList" placeholder="태그 검색·선택 (예: 지원항목/비즈팀)" autocomplete="off"
+          oninput="_wfMaybeAddTag(event)" onkeydown="if(event.key==='Enter'){event.preventDefault();_wfAddTagFromInput()}"
+          style="flex:1;padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit" />
+        <datalist id="wfTagList"></datalist>
+        <button type="button" onclick="_wfAddTagFromInput()" style="padding:8px 14px;border-radius:6px;background:#4f46e5;color:#fff;border:none;cursor:pointer;font-size:12px;font-weight:600">+ 추가</button>
+      </div>
+      <div id="wfSelectedTags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px"></div>
+    </div>
+
+    <div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;font-weight:600;margin-bottom:6px">
+        키워드 <span style="color:#9ca3af;font-weight:400">— 자유 입력 (쉼표 <code style="background:#f3f4f6;padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace">,</code> 로 구분, 예: 플랜 변경, 환불)</span>
+      </label>
+      <input type="text" id="wfKeywords" placeholder="예: 플랜 변경, 환불, 정산"
+        style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
+      <div style="font-size:11px;color:#9ca3af;margin-top:4px">태그가 정확하면 매칭이 더 좋아요. 키워드는 태그 후보가 명확하지 않을 때 보조로 사용하세요.</div>
+    </div>
   </div>
 
   <!-- STEP 2 -->
@@ -2080,6 +2100,9 @@ function _autosaveAll() {
     if (typeof _faqValidateVariations !== 'undefined' && _faqValidateVariations.length) {
       data.faqValidateVariations = _faqValidateVariations;
     }
+    if (typeof _wfSelectedTags !== 'undefined' && _wfSelectedTags.length) {
+      data.wfSelectedTags = _wfSelectedTags;
+    }
     if (Object.keys(data).length === 0) {
       localStorage.removeItem(_AUTOSAVE_KEY);
     } else {
@@ -2106,6 +2129,11 @@ function _autosaveRestore() {
     if (Array.isArray(data.faqValidateVariations) && typeof _faqValidateVariations !== 'undefined') {
       _faqValidateVariations.splice(0, _faqValidateVariations.length, ...data.faqValidateVariations);
       if (typeof _renderFaqValidateVariations === 'function') _renderFaqValidateVariations();
+      restored++;
+    }
+    if (Array.isArray(data.wfSelectedTags) && typeof _wfSelectedTags !== 'undefined') {
+      _wfSelectedTags.splice(0, _wfSelectedTags.length, ...data.wfSelectedTags);
+      if (typeof _wfRenderSelectedTags === 'function') _wfRenderSelectedTags();
       restored++;
     }
     // 카운트 라벨 동기화
@@ -2481,7 +2509,7 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch','workflow'][i] === name);
+    t.classList.toggle('active', ['workflow','generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
@@ -4352,16 +4380,67 @@ function _copyAllResearchHeadings(headings) {
 // ───── 🚀 통합 워크플로우 (Step 1~6) ─────
 let _wfResearchContext = null;
 let _wfResearchData = null;
+let _wfSelectedTags = [];
 
-function _wfGetKeywords() {
-  const raw = (document.getElementById('wfKeywords')?.value || '').trim();
-  return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+function _wfPopulateTagList() {
+  const dl = document.getElementById('wfTagList');
+  if (!dl || !state || !Array.isArray(state.allTags)) return;
+  dl.innerHTML = state.allTags.map(t => `<option value="${escapeHtml(t)}">`).join('');
+}
+
+function _wfRenderSelectedTags() {
+  const el = document.getElementById('wfSelectedTags');
+  if (!el) return;
+  if (!_wfSelectedTags.length) {
+    el.innerHTML = '<span style="font-size:11px;color:#9ca3af">선택된 태그가 없어요. 위 입력창에서 검색해서 추가하세요.</span>';
+    return;
+  }
+  el.innerHTML = _wfSelectedTags.map(t => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;font-size:12px;font-weight:500">${escapeHtml(t)}<button onclick="_wfRemoveTag(${JSON.stringify(t)})" style="background:none;border:none;color:#6366f1;cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 2px">×</button></span>`).join('');
+}
+
+function _wfAddTag(tag) {
+  tag = (tag || '').trim();
+  if (!tag) return;
+  if (_wfSelectedTags.includes(tag)) return;
+  _wfSelectedTags.push(tag);
+  _wfRenderSelectedTags();
+  if (typeof _autosaveDebounced === 'function') _autosaveDebounced();
+}
+
+function _wfRemoveTag(tag) {
+  _wfSelectedTags = _wfSelectedTags.filter(t => t !== tag);
+  _wfRenderSelectedTags();
+  if (typeof _autosaveDebounced === 'function') _autosaveDebounced();
+}
+
+function _wfAddTagFromInput() {
+  const inp = document.getElementById('wfTagSearch');
+  if (!inp) return;
+  const v = inp.value.trim();
+  if (!v) return;
+  _wfAddTag(v);
+  inp.value = '';
+}
+
+function _wfMaybeAddTag(e) {
+  // datalist에서 선택했을 때 (정확히 일치)는 자동 추가
+  const v = e.target.value;
+  if (state && Array.isArray(state.allTags) && state.allTags.includes(v)) {
+    _wfAddTag(v);
+    e.target.value = '';
+  }
+}
+
+function _wfGetTagsAndKeywords() {
+  const kwRaw = (document.getElementById('wfKeywords')?.value || '').trim();
+  const keywords = kwRaw ? kwRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  return { tags: [..._wfSelectedTags], keywords };
 }
 
 // STEP 2 — 인입 패턴 분석
 async function wfRunResearch() {
-  const keywords = _wfGetKeywords();
-  if (!keywords.length) { alert('STEP 1에서 키워드/태그를 입력해주세요.'); return; }
+  const { tags, keywords } = _wfGetTagsAndKeywords();
+  if (!tags.length && !keywords.length) { alert('STEP 1에서 태그 또는 키워드를 입력해주세요.'); return; }
   const btn = document.getElementById('btnWfResearch');
   const resultEl = document.getElementById('wfResearchResult');
   const orig = btn.textContent;
@@ -4373,7 +4452,7 @@ async function wfRunResearch() {
     const res = await authFetch(`${API}/api/alf_generate`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ mode: 'customer_patterns', keywords, limit: 200, prompt_only: manual }),
+      body: JSON.stringify({ mode: 'customer_patterns', tags, keywords, limit: 200, prompt_only: manual }),
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '분석 실패');
@@ -5747,6 +5826,7 @@ async function loadTags() {
     state.allTags = data.tags || [];
     const dl = document.getElementById('tagList');
     dl.innerHTML = state.allTags.map(t => `<option value="${escapeHtml(t)}">`).join('');
+    if (typeof _wfPopulateTagList === 'function') _wfPopulateTagList();
     console.log(`[tags] ${state.allTags.length}개 로드됨`);
   } catch(e) { console.warn('태그 로드 실패:', e); }
 }
@@ -5771,6 +5851,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer', 'validateContent', 'faqValidateAnswer', 'wfContent'].forEach(setupImagePaste);
   setupImageFormatTool();
   if (typeof _renderFaqValidateVariations === 'function') _renderFaqValidateVariations();
+  if (typeof _wfRenderSelectedTags === 'function') _wfRenderSelectedTags();
   // 자동 저장 복원 + 리스너 부착 (세션 만료·새로고침 대비)
   _autosaveRestore();
   _autosaveAttach();
