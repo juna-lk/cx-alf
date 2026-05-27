@@ -4395,7 +4395,7 @@ function _wfRenderSelectedTags() {
     el.innerHTML = '<span style="font-size:11px;color:#9ca3af">선택된 태그가 없어요. 위 입력창에서 검색해서 추가하세요.</span>';
     return;
   }
-  el.innerHTML = _wfSelectedTags.map(t => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;font-size:12px;font-weight:500">${escapeHtml(t)}<button onclick="_wfRemoveTag(${JSON.stringify(t)})" style="background:none;border:none;color:#6366f1;cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 2px">×</button></span>`).join('');
+  el.innerHTML = _wfSelectedTags.map(t => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;font-size:12px;font-weight:500">${escapeHtml(t)}<button onclick="_wfRemoveTag('${escapeJs(t)}')" style="background:none;border:none;color:#6366f1;cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 2px">×</button></span>`).join('');
 }
 
 function _wfAddTag(tag) {
