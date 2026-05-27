@@ -2235,14 +2235,36 @@ function _autosaveAttach() {
 
 const _supa = window.supabase.createClient(SUPA_URL, SUPA_ANON_KEY);
 
-// 인증 헤더 포함 fetch — 401/403 시 로그인 화면 표시
+// 인증 헤더 포함 fetch — 만료 임박 토큰은 사전 refresh, 401/403 시 로그인 화면 표시
+async function _getValidAccessToken() {
+  let { data: { session } } = await _supa.auth.getSession();
+  // expires_at(초)이 지났거나 60초 이내면 refresh 시도. autoRefresh 타이머가 백그라운드 throttle 등으로 누락된 경우 대비.
+  const expSec = session?.expires_at || 0;
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (session && expSec && expSec - nowSec < 60) {
+    try {
+      const { data, error } = await _supa.auth.refreshSession();
+      if (!error && data?.session) session = data.session;
+    } catch (_) {}
+  }
+  return session?.access_token || '';
+}
+
 async function authFetch(url, options = {}) {
-  const { data: { session } } = await _supa.auth.getSession();
-  const token = session?.access_token || '';
+  let token = await _getValidAccessToken();
   if (!token) { showLogin(); throw new Error('인증 필요'); }
-  const headers = Object.assign({}, options.headers || {});
-  headers['Authorization'] = 'Bearer ' + token;
-  const res = await fetch(url, Object.assign({}, options, {headers}));
+  const buildHeaders = (t) => Object.assign({}, options.headers || {}, { 'Authorization': 'Bearer ' + t });
+  let res = await fetch(url, Object.assign({}, options, { headers: buildHeaders(token) }));
+  // 401/403 — 토큰 만료를 우리가 못 잡았을 가능성: refresh 후 1회 재시도
+  if (res.status === 401 || res.status === 403) {
+    try {
+      const { data, error } = await _supa.auth.refreshSession();
+      if (!error && data?.session?.access_token) {
+        token = data.session.access_token;
+        res = await fetch(url, Object.assign({}, options, { headers: buildHeaders(token) }));
+      }
+    } catch (_) {}
+  }
   if (res.status === 401 || res.status === 403) {
     let msg = '인증 실패';
     try { const j = await res.clone().json(); msg = j.error || msg; } catch(_) {}
