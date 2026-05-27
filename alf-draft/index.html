@@ -4569,12 +4569,13 @@ async function wfAnalyzeClusters() {
   const tag = tags[0];
   const keyword = (document.getElementById('wfKeywords')?.value || '').trim();
   const aiSearch = !!document.getElementById('wfAiSearch')?.checked;
+  const manual = getLLMMode() === 'manual';
   const btn = document.getElementById('btnWfClusters');
   const resultEl = document.getElementById('wfClusterResult');
   const progressEl = document.getElementById('wfClusterProgress');
   const fmtEl = document.getElementById('wfFormatBanner');
   const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '분류 중...';
+  btn.disabled = true; btn.textContent = manual ? '채팅 조회 중...' : '분류 중...';
   progressEl.style.display = 'block';
   progressEl.innerHTML = '🔄 <b>1 상담 수집</b> → 2 유형 분류 → 3 포맷 추천';
   resultEl.style.display = 'none';
@@ -4584,19 +4585,66 @@ async function wfAnalyzeClusters() {
     const res = await authFetch(`${API}/api/alf_search`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ tag, keyword, ai_search: aiSearch }),
+      body: JSON.stringify({ tag, keyword, ai_search: aiSearch, prompt_only: manual }),
     });
     const data = await res.json();
-    if (!data.ok || (data.total || 0) === 0) {
+    if (!data.ok) {
       progressEl.style.display = 'none';
       resultEl.style.display = 'block';
-      resultEl.innerHTML = `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px">⚠️ 관련 상담을 찾지 못했어요.</div>`;
+      resultEl.innerHTML = `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px">⚠️ ${escapeHtml(data.error || '관련 상담을 찾지 못했어요.')}</div>`;
       return;
     }
-    _wfClusters = Array.isArray(data.clusters) ? data.clusters : [];
-    _wfUnclusteredIds = Array.isArray(data.unclustered_ids) ? data.unclustered_ids : [];
-    _wfSelectedClusterSet = new Set();
-    _wfFormatRecommended = (data.recommended_format || '').toLowerCase();
+    if (manual && data.prompt_only) {
+      progressEl.innerHTML = '⏸ 1 상담 수집 완료 → <b>모달에서 Claude Code 응답 붙여넣기</b>';
+      openManualLlm(data.prompt, (parsed, ctx) => {
+        // parsed.clusters: [{label, description, chat_indices: [0,2,5,...]}, ...]
+        const order = (ctx && ctx.chat_id_order) || [];
+        const unclusteredTail = (ctx && ctx.unclustered_ids_tail) || [];
+        const rawClusters = (parsed && Array.isArray(parsed.clusters)) ? parsed.clusters : [];
+        // chat_indices → chat_ids
+        const assigned = new Set();
+        const clusters = rawClusters.map(cl => {
+          const indices = Array.isArray(cl.chat_indices) ? cl.chat_indices : [];
+          const ids = [];
+          for (const idx of indices) {
+            const i = parseInt(idx, 10);
+            if (Number.isFinite(i) && i >= 0 && i < order.length && !assigned.has(i)) {
+              ids.push(order[i]);
+              assigned.add(i);
+            }
+          }
+          return { label: cl.label || '', description: cl.description || '', chat_ids: ids, count: ids.length };
+        });
+        const unclustered = [];
+        for (let i = 0; i < order.length; i++) if (!assigned.has(i)) unclustered.push(order[i]);
+        unclustered.push(...unclusteredTail);
+        _wfFinishClusters({ total: ctx.total || order.length, clusters, unclustered_ids: unclustered, recommended_format: parsed.recommended_format || '' });
+      }, data.context || {});
+      return;
+    }
+    _wfFinishClusters(data);
+  } catch (e) {
+    progressEl.style.display = 'none';
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:13px">❌ ${escapeHtml(e.message || String(e))}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function _wfFinishClusters(data) {
+  const progressEl = document.getElementById('wfClusterProgress');
+  const fmtEl = document.getElementById('wfFormatBanner');
+  const resultEl = document.getElementById('wfClusterResult');
+  if (!data || (data.total || 0) === 0) {
+    if (progressEl) progressEl.style.display = 'none';
+    if (resultEl) { resultEl.style.display = 'block'; resultEl.innerHTML = `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px">⚠️ 관련 상담을 찾지 못했어요.</div>`; }
+    return;
+  }
+  _wfClusters = Array.isArray(data.clusters) ? data.clusters : [];
+  _wfUnclusteredIds = Array.isArray(data.unclustered_ids) ? data.unclustered_ids : [];
+  _wfSelectedClusterSet = new Set();
+  _wfFormatRecommended = (data.recommended_format || '').toLowerCase();
     progressEl.innerHTML = '✅ 1 상담 수집 → 2 유형 분류 → <b>3 포맷 추천 완료</b>';
     setTimeout(() => { progressEl.style.display = 'none'; }, 1500);
     if (_wfFormatRecommended === 'article' || _wfFormatRecommended === 'faq') {
@@ -4607,15 +4655,8 @@ async function wfAnalyzeClusters() {
       const radio = document.querySelector(`input[name=wfFormat][value=${_wfFormatRecommended}]`);
       if (radio) radio.checked = true;
     }
-    resultEl.style.display = 'block';
-    _wfRenderClusters(data);
-  } catch (e) {
-    progressEl.style.display = 'none';
-    resultEl.style.display = 'block';
-    resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:13px">❌ ${escapeHtml(e.message || String(e))}</div>`;
-  } finally {
-    btn.disabled = false; btn.textContent = orig;
-  }
+  resultEl.style.display = 'block';
+  _wfRenderClusters(data);
 }
 
 function _wfRenderClusters(data) {

@@ -251,6 +251,21 @@ class handler(_Base):
 
         # Claude로 클러스터링
         prompt, _sample_indices = build_cluster_prompt(filtered, tag or keyword)
+
+        # 수동 모드: 프롬프트만 반환. 클라이언트가 응답을 다시 보내면 그때 매핑.
+        if body.get("prompt_only"):
+            # 응답에서 chat_indices를 chat_ids로 매핑할 수 있게 chat_id 순서 함께 반환
+            chat_id_order = [c["chat_id"] for c in filtered[:CLUSTER_SAMPLE_LIMIT]]
+            self._respond(200, {
+                "ok": True, "prompt_only": True, "prompt": prompt,
+                "context": {
+                    "total": len(filtered),
+                    "chat_id_order": chat_id_order,
+                    "unclustered_ids_tail": [c["chat_id"] for c in filtered[CLUSTER_SAMPLE_LIMIT:]] if len(filtered) > CLUSTER_SAMPLE_LIMIT else [],
+                },
+            })
+            return
+
         raw = call_anthropic(prompt, max_tokens=1024, api_key=OPENAI_API_KEY)
 
         try:
