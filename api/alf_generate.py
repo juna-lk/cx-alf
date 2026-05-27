@@ -605,6 +605,140 @@ class handler(_Base):
                 self._respond(500, {"ok": False, "error": "재작성에 실패했어요. 잠시 후 다시 시도해주세요."})
                 return
 
+        # ─── 고객 인입 패턴 리서치 모드 ────────────────────────────────────────
+        # 키워드/태그/아티클 본문 중 하나 이상으로 관련 채팅을 조회한 뒤
+        # 워크플로 버튼·봇 멘트를 제외한 첫 고객 자연어 멘트만 모음.
+        # LLM에게 패턴 요약 + 추천 헤딩 생성 요청.
+        if mode == "customer_patterns":
+            import re as _re_cp
+            keywords = body.get("keywords") or []
+            tags = body.get("tags") or []
+            article_content = (body.get("content") or "").strip()
+            try:
+                limit = min(int(body.get("limit") or 200), 500)
+            except (TypeError, ValueError):
+                limit = 200
+
+            if not keywords and not tags and not article_content:
+                self._respond(400, {"ok": False, "error": "keywords, tags, content 중 최소 하나는 필요해요."})
+                return
+
+            # article_content만 있으면 LLM이 키워드 추출
+            if article_content and not keywords and not tags:
+                kw_prompt = (
+                    "다음은 채널톡 ALF 지식 아티클의 본문이에요. 이 아티클이 다루는 주제와 관련된 "
+                    "채널톡 상담 태그 후보 또는 한국어 키워드를 3~5개 뽑아주세요. 슬래시 계층 태그가 있다면 우선.\n\n"
+                    "【본문】\n" + article_content[:2000] + "\n\n"
+                    "반드시 아래 JSON 형식으로만 답변:\n"
+                    '{"keywords": ["키워드1", "키워드2"]}'
+                )
+                try:
+                    raw = call_anthropic(kw_prompt, max_tokens=200, api_key=OPENAI_API_KEY)
+                    parsed_kw = extract_json(raw)
+                    if isinstance(parsed_kw, dict):
+                        keywords = parsed_kw.get("keywords") or []
+                except Exception as e:
+                    print(f"[customer_patterns] keyword extract 실패: {e}")
+
+            # 태그/키워드를 PostgREST cs로 OR 조합해 cx_full_messages 조회
+            search_terms = []
+            for t in tags:
+                if is_safe_postgrest_tag(t):
+                    search_terms.append(t)
+            for k in keywords:
+                if is_safe_postgrest_tag(k) and k not in search_terms:
+                    search_terms.append(k)
+
+            chats = []
+            if search_terms:
+                or_clauses = ",".join('tags.cs.{"' + t + '"}' for t in search_terms[:8])
+                url = (
+                    f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+                    f"?or=({or_clauses})&limit={limit}"
+                    f"&select=chat_id,tags,messages,date&order=date.desc"
+                )
+                try:
+                    chats = supabase_get(url, SUPABASE_SERVICE_KEY)
+                except Exception as e:
+                    print(f"[customer_patterns] supabase query 실패: {e}")
+
+            if not chats:
+                self._respond(200, {
+                    "ok": True, "samples": [], "patterns": [], "suggested_headings": [],
+                    "keywords_used": keywords, "tags_used": tags, "total_chats": 0,
+                    "warning": "관련 채팅을 찾지 못했어요. 다른 키워드/태그로 시도해보세요.",
+                })
+                return
+
+            # 첫 비-워크플로 고객 메시지 추출
+            samples = []
+            for chat in chats:
+                msgs = chat.get("messages") or []
+                cust_msgs = [m for m in msgs if m.get("role") == "customer"]
+                for m in cust_msgs:
+                    t = (m.get("text") or "").strip()
+                    if not t:
+                        continue
+                    if len(t) < 50:
+                        # 한글/영문/숫자가 아닌 문자(이모지 등)로 시작 → 워크플로 버튼으로 간주
+                        if _re_cp.match(r"^[^\w가-힣]", t):
+                            continue
+                        if t in ("플랜 변경", "플랜 상담", "FAQ", "문의", "도움말", "상담사 연결"):
+                            continue
+                    samples.append({
+                        "chat_id": chat.get("chat_id"),
+                        "tags": chat.get("tags") or [],
+                        "text": t[:400],
+                    })
+                    break
+
+            sample_texts = [s["text"] for s in samples[:20]]
+            if not sample_texts:
+                self._respond(200, {
+                    "ok": True, "samples": samples, "patterns": [], "suggested_headings": [],
+                    "keywords_used": keywords, "tags_used": tags, "total_chats": len(chats),
+                    "warning": "워크플로 버튼만 있고 실제 자연어 멘트가 없어요.",
+                })
+                return
+
+            sample_joined = "\n".join("- " + t for t in sample_texts)
+            pattern_prompt = (
+                "다음은 라이브클래스 고객들이 채널톡에 직접 작성한 실제 첫 인입 멘트들이에요. "
+                "이 멘트들에서 자주 등장하는 표현·키워드 패턴을 정리하고, 채널톡 ALF가 검색·매칭하기 좋은 "
+                "아티클 헤딩(질문형, ## 마크다운)을 추천해주세요.\n\n"
+                "【고객 실제 멘트】\n" + sample_joined + "\n\n"
+                "【작성 가이드】\n"
+                "- 헤딩은 고객이 실제로 쓰는 자연어 표현을 살리되, 채널톡 가이드 친근체(-어요, -하나요?)로 마무리\n"
+                "- '업그레이드/다운그레이드' 같은 내부 용어는 노출 금지. '더 큰 플랜/무료 플랜으로 변경' 같이 풀어 쓰기\n"
+                "- 5~10개 헤딩으로 의도를 나눠 추천\n\n"
+                "반드시 아래 JSON 형식으로만 답변 (다른 텍스트 금지):\n"
+                '{\n'
+                '  "patterns": [\n'
+                '    {"phrase": "공통 표현", "count_hint": "약 N건", "note": "어떤 의도에서 자주 나오는지"}\n'
+                '  ],\n'
+                '  "suggested_headings": ["## 헤딩 예시 1?", "## 헤딩 예시 2?"]\n'
+                '}'
+            )
+            try:
+                raw = call_anthropic(pattern_prompt, max_tokens=1500, api_key=OPENAI_API_KEY)
+                parsed = extract_json(raw)
+                if not isinstance(parsed, dict):
+                    parsed = {}
+                self._respond(200, {
+                    "ok": True,
+                    "keywords_used": keywords,
+                    "tags_used": tags,
+                    "total_chats": len(chats),
+                    "samples": samples[:50],
+                    "patterns": parsed.get("patterns") or [],
+                    "suggested_headings": parsed.get("suggested_headings") or [],
+                })
+                return
+            except Exception as e:
+                print(f"[customer_patterns] LLM 실패: {e}")
+                self._respond(500, {"ok": False, "error": "패턴 분석에 실패했어요. 잠시 후 다시 시도해주세요."})
+                return
+
         cluster_label = (body.get("cluster_label") or "").strip()
         chat_ids = body.get("chat_ids", [])
         single_chat = bool(body.get("single_chat", False))

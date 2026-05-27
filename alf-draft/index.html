@@ -530,6 +530,7 @@
   <div class="tab" onclick="switchTab('guide')">📖 작성 가이드</div>
   <div class="tab" onclick="switchTab('validate')">✔ 가이드라인 검증</div>
   <div class="tab" onclick="switchTab('faqValidate')">✔ 가이드라인 검증 (FAQ)</div>
+  <div class="tab" onclick="switchTab('customerResearch')">📊 고객 인입 리서치</div>
 </div>
 
 <div class="page active" id="tab-generate">
@@ -1695,6 +1696,38 @@
   </div>
 </div>
 
+<div class="page" id="tab-customerResearch">
+  <div style="margin-bottom:16px">
+    <h2 style="font-size:16px;font-weight:600">📊 고객 인입 리서치</h2>
+    <p style="font-size:13px;color:#6b7280;margin-top:4px">
+      채널톡 채팅 DB에서 실제 고객 인입 멘트(워크플로 버튼 제외)를 모아 자연어 패턴을 정리하고, ALF가 매칭하기 좋은 헤딩을 추천해요.
+    </p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:16px">
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">키워드 또는 태그 <span style="color:#9ca3af;font-weight:400">(쉼표로 구분, 채널톡 태그 형식 가능)</span></label>
+      <input type="text" id="researchKeywords" placeholder="예: 플랜, 구독, 지원항목/비즈팀/플랜다운그레이드"
+        style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
+      <div style="font-size:11px;color:#9ca3af;margin-top:4px">슬래시 계층 채널톡 태그를 그대로 넣으면 가장 정확해요.</div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">아티클 본문 <span style="color:#9ca3af;font-weight:400">(선택 — 키워드 비워두면 본문에서 자동 추출)</span></label>
+      <textarea id="researchArticle" rows="6"
+        placeholder="아티클 본문을 붙여넣으면 관련 키워드를 LLM이 자동 추출해서 채팅을 검색해요."
+        style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="document.getElementById('researchKeywords').value='';document.getElementById('researchArticle').value='';document.getElementById('researchResult').style.display='none'">초기화</button>
+      <button class="btn btn-primary" onclick="runCustomerResearch()" id="btnCustomerResearch" style="padding:10px 22px">분석 시작</button>
+    </div>
+  </div>
+
+  <div id="researchResult" style="display:none"></div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <h2 id="modalTitle"></h2>
@@ -2301,7 +2334,7 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['generate','search','library','applied','rules','guide','validate','faqValidate'][i] === name);
+    t.classList.toggle('active', ['generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
@@ -3898,6 +3931,121 @@ async function publishFaqValidateToChannelTalk() {
   } finally {
     btn.disabled = false; btn.textContent = orig;
   }
+}
+
+// ───── 고객 인입 리서치 ─────
+async function runCustomerResearch() {
+  const kwRaw = document.getElementById('researchKeywords').value.trim();
+  const article = document.getElementById('researchArticle').value.trim();
+  if (!kwRaw && !article) {
+    alert('키워드 또는 아티클 본문 중 하나는 입력해주세요.');
+    return;
+  }
+  const keywords = kwRaw ? kwRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const btn = document.getElementById('btnCustomerResearch');
+  const resultEl = document.getElementById('researchResult');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '분석 중...';
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<div style="padding:14px 18px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;color:#1e40af;font-size:13px">🔍 채팅 DB 조회 + 패턴 분석 중... (10~20초)</div>`;
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mode: 'customer_patterns', keywords, content: article, limit: 200 }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '분석 실패');
+    _renderCustomerResearchResult(data);
+  } catch (e) {
+    resultEl.innerHTML = `<div style="padding:14px 18px;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;color:#b91c1c;font-size:13px">❌ ${escapeHtml(e.message || String(e))}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function _renderCustomerResearchResult(data) {
+  const resultEl = document.getElementById('researchResult');
+  const samples = data.samples || [];
+  const patterns = data.patterns || [];
+  const headings = data.suggested_headings || [];
+  const tagsUsed = (data.tags_used || []).concat(data.keywords_used || []).filter(Boolean);
+
+  let html = `<div style="padding:14px 18px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;color:#15803d;font-size:13px;margin-bottom:16px">
+    ✅ 분석 완료 — 전체 ${data.total_chats || 0}건 채팅 중 실제 자연어 멘트 ${samples.length}건 추출
+    ${tagsUsed.length ? `<div style="font-size:11px;color:#15803d;opacity:.8;margin-top:4px">검색 기준: ${tagsUsed.map(t => escapeHtml(t)).join(', ')}</div>` : ''}
+  </div>`;
+
+  if (data.warning) {
+    html += `<div style="padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px;margin-bottom:14px">⚠️ ${escapeHtml(data.warning)}</div>`;
+  }
+
+  if (headings.length) {
+    html += `<div style="background:#fff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:10px">✨ 추천 헤딩 — 클릭하면 검증 탭 본문에 복사</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${headings.map(h => `<button onclick="_applyResearchHeading(${JSON.stringify(h)})" style="text-align:left;background:#faf5ff;border:1px solid #ddd6fe;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:13px;color:#1f2937;font-family:inherit">${escapeHtml(h)}</button>`).join('')}
+      </div>
+      <div style="font-size:11px;color:#9ca3af;margin-top:8px">전체 복사하려면 아래 버튼</div>
+      <button onclick="_copyAllResearchHeadings(${JSON.stringify(headings).replace(/"/g,'&quot;')})" style="margin-top:6px;font-size:12px;padding:5px 12px;border-radius:5px;background:#7c3aed;color:#fff;border:none;cursor:pointer;font-weight:600">📋 헤딩 전체 복사</button>
+    </div>`;
+  }
+
+  if (patterns.length) {
+    html += `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px">📌 패턴 요약</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${patterns.map(p => `<div style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px">
+          <div style="font-size:13px;color:#111827;font-weight:600">${escapeHtml(p.phrase || '')}${p.count_hint ? `<span style="font-size:11px;color:#9ca3af;font-weight:400;margin-left:8px">${escapeHtml(p.count_hint)}</span>` : ''}</div>
+          ${p.note ? `<div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(p.note)}</div>` : ''}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  if (samples.length) {
+    const previewN = 10;
+    const visible = samples.slice(0, previewN);
+    const hidden = samples.slice(previewN);
+    html += `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:#374151">💬 고객 실제 멘트 (${samples.length}건)</div>
+        ${hidden.length ? `<button onclick="document.getElementById('researchSamplesHidden').style.display='block';this.style.display='none'" style="font-size:11px;padding:3px 10px;border-radius:5px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600">+${hidden.length}건 더 보기</button>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${visible.map(s => _sampleHtml(s)).join('')}
+      </div>
+      ${hidden.length ? `<div id="researchSamplesHidden" style="display:none;flex-direction:column;gap:6px;margin-top:6px">${hidden.map(s => _sampleHtml(s)).join('')}</div>` : ''}
+    </div>`;
+  }
+
+  resultEl.innerHTML = html;
+}
+
+function _sampleHtml(s) {
+  const tags = (s.tags || []).slice(0, 2).map(t => `<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb">${escapeHtml(t)}</span>`).join(' ');
+  const url = `https://desk.channel.io/liveklass/user-chats/${escapeHtml(s.chat_id || '')}`;
+  return `<div style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;color:#374151;line-height:1.5">
+    <div>${escapeHtml(s.text || '').replace(/\n/g,'<br>')}</div>
+    <div style="margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tags}<a href="${url}" target="_blank" style="font-size:10px;color:#7c3aed">채널톡 보기 →</a></div>
+  </div>`;
+}
+
+function _applyResearchHeading(h) {
+  const ta = document.getElementById('validateContent');
+  if (!ta) { alert('검증 탭이 없어요.'); return; }
+  const cursor = ta.selectionStart || ta.value.length;
+  const before = ta.value.slice(0, cursor);
+  const after = ta.value.slice(cursor);
+  const insert = (before.endsWith('\n') || before === '' ? '' : '\n') + h + '\n';
+  ta.value = before + insert + after;
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  alert('검증 탭 본문에 추가했어요.');
+}
+
+function _copyAllResearchHeadings(headings) {
+  const text = headings.join('\n\n');
+  navigator.clipboard.writeText(text).then(() => alert(`헤딩 ${headings.length}개 복사 완료`));
 }
 
 function downloadDraft() {
