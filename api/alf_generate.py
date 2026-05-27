@@ -657,7 +657,10 @@ class handler(_Base):
 
             chats = []
             if search_terms:
-                or_clauses = ",".join('tags.cs.{"' + t + '"}' for t in search_terms[:8])
+                # PostgREST는 array contains 시 {} 안에서 element를 quote하고, URL은 percent-encode 필요
+                import urllib.parse as _up_cp
+                quoted_terms = [_up_cp.quote('tags.cs.{"' + t + '"}', safe='') for t in search_terms[:8]]
+                or_clauses = ",".join(quoted_terms)
                 url = (
                     f"{SUPABASE_URL}/rest/v1/cx_full_messages"
                     f"?or=({or_clauses})&limit={limit}"
