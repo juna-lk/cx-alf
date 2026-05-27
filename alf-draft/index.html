@@ -6334,11 +6334,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // LLM 모드 토글 UI 동기화
   if (typeof _updateLLMModeUI === 'function') _updateLLMModeUI();
   // 수동 LLM 모달 외부 클릭 시 닫기
-  const mlOv = document.getElementById('manualLlmOverlay');
-  if (mlOv && !mlOv.dataset.bound) {
-    mlOv.dataset.bound = '1';
-    mlOv.addEventListener('click', (e) => { if (e.target.id === 'manualLlmOverlay') closeManualLlm(); });
-  }
+  // 수동 LLM 모달은 외부 클릭으로 닫지 않음 — [닫기] 버튼으로만 닫혀야 응답 작성 중 실수로 사라지지 않음
 
   // 가이드 탭 사이드바: smooth scroll + 현재 섹션 활성 표시
   const tocLinks = document.querySelectorAll('.guide-toc a');

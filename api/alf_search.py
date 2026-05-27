@@ -178,16 +178,16 @@ def build_cluster_prompt(chats: list, tag: str) -> tuple[str, list[int]]:
     sample_indices = []
     for i, c in enumerate(chats[:CLUSTER_SAMPLE_LIMIT]):
         all_customer_msgs = [m for m in c.get("messages", []) if m.get("role") == "customer"]
-        # 워크플로 버튼 응답을 제외한 실제 자연어 메시지만
+        # 워크플로 버튼 응답을 제외한 실제 자연어 메시지만 (전체 맥락 파악 위해 최대 5개·각 500자까지)
         real_msgs = [
-            (m.get("text") or "")[:300]
+            (m.get("text") or "")[:500]
             for m in all_customer_msgs
             if not _is_workflow_button_text(m.get("text", ""))
-        ][:3]
+        ][:5]
         if not real_msgs:
-            # 실제 자연어 메시지가 하나도 없는 채팅은 클러스터링 대상에서 제외 (노이즈)
             continue
-        samples.append(f"[상담 {i}] {' / '.join(real_msgs)}")
+        chat_url = f"https://desk.channel.io/liveklass/user-chats/{c.get('chat_id', '')}"
+        samples.append(f"[상담 {i}] ({chat_url})\n  " + "\n  ".join(real_msgs))
         sample_indices.append(i)
 
     prompt = f"""아래는 '{tag}' 관련 실제 고객 상담 샘플입니다 (총 {len(chats)}건 중 {len(samples)}건 발췌).
