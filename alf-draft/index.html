@@ -1775,11 +1775,28 @@
     </div>
   </div>
 
-  <!-- STEP 2 -->
+  <!-- STEP 2 — 세부 유형 분류 -->
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 2</span>
+        <span style="font-size:14px;font-weight:600;color:#111827">세부 유형 자동 분류</span>
+        <span style="font-size:11px;color:#9ca3af">(선택, 권장)</span>
+      </div>
+      <button class="btn btn-secondary" onclick="wfAnalyzeClusters()" id="btnWfClusters"
+        style="padding:7px 14px;font-size:12px;background:#f5f3ff;color:#5b21b6;border-color:#ddd6fe">🧩 유형 분류</button>
+    </div>
+    <div style="font-size:11.5px;color:#6b7280;background:#f9fafb;border-left:3px solid #c7d2fe;padding:6px 10px;margin-bottom:12px;border-radius:0 4px 4px 0">
+      💡 태그로 모은 채팅을 LLM이 의미별로 2~5개 세부 유형으로 자동 분류해줘요. 그중 하나를 골라 다음 단계로 진행하면 그 유형 채팅들만 집중적으로 분석돼요.
+    </div>
+    <div id="wfClusterResult" style="display:none"></div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 3</span>
         <span style="font-size:14px;font-weight:600;color:#111827">고객 인입 패턴 분석</span>
         <span style="font-size:11px;color:#9ca3af">(선택, 권장)</span>
       </div>
@@ -1787,8 +1804,8 @@
         style="padding:7px 14px;font-size:12px;background:#eff6ff;color:#1e40af;border-color:#bfdbfe">📊 패턴 분석</button>
     </div>
     <div style="font-size:11.5px;color:#6b7280;background:#f9fafb;border-left:3px solid #c7d2fe;padding:6px 10px;margin-bottom:12px;border-radius:0 4px 4px 0">
-      💡 STEP 1에서 태그/키워드를 정한 뒤 <b>[📊 패턴 분석]</b>을 누르면, 그 조건에 맞는 실제 고객 멘트에서 자주 쓰는 표현 패턴과 ALF가 매칭하기 좋은 아티클 헤딩을 자동으로 뽑아줘요.<br>
-      추천된 헤딩을 클릭하면 STEP 4 본문 영역에 자동으로 삽입되고, 그 아래 답변만 채워 넣으면 됩니다.
+      💡 STEP 2에서 세부 유형을 선택했다면 그 유형 채팅만, 아니라면 STEP 1 태그/키워드 전체에서 실제 고객 멘트의 자주 쓰는 표현 패턴과 ALF가 매칭하기 좋은 아티클 헤딩을 뽑아줘요.<br>
+      추천된 헤딩을 클릭하면 STEP 5 본문 영역에 자동으로 삽입돼요.
     </div>
     <div id="wfResearchResult" style="display:none"></div>
   </div>
@@ -1797,7 +1814,7 @@
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 3</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 4</span>
         <span style="font-size:14px;font-weight:600;color:#111827">제목·소제목</span>
       </div>
       <button class="btn btn-secondary" onclick="wfSuggestTitle()" id="btnWfSuggestTitle"
@@ -1816,7 +1833,7 @@
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 4</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 5</span>
         <span style="font-size:14px;font-weight:600;color:#111827">본문 작성</span>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -1826,7 +1843,7 @@
     </div>
     <textarea id="wfContent" rows="14"
       oninput="document.getElementById('wfCharCount').textContent=this.value.length"
-      placeholder="STEP 2에서 추천된 헤딩을 클릭하면 여기 자동 삽입돼요. 또는 직접 작성하세요."
+      placeholder="STEP 3에서 추천된 헤딩을 클릭하면 여기 자동 삽입돼요. 또는 직접 작성하세요."
       style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
       <div style="font-size:11px;color:#9ca3af"><span id="wfCharCount">0</span>자</div>
@@ -1838,7 +1855,7 @@
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 5</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 6</span>
         <span style="font-size:14px;font-weight:600;color:#111827">검증 · 재작성</span>
       </div>
       <div style="display:flex;gap:6px">
@@ -1855,7 +1872,7 @@
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 6</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 7</span>
         <span style="font-size:14px;font-weight:600;color:#111827">저장·채널톡 등록</span>
       </div>
       <div style="display:flex;gap:6px">
@@ -4441,22 +4458,104 @@ function _wfGetTagsAndKeywords() {
   return { tags: [..._wfSelectedTags], keywords };
 }
 
-// STEP 2 — 인입 패턴 분석
+// STEP 2 — 세부 유형 자동 분류
+let _wfClusters = [];
+let _wfSelectedClusterChatIds = [];
+
+async function wfAnalyzeClusters() {
+  const { tags } = _wfGetTagsAndKeywords();
+  if (!tags.length) { alert('STEP 1에서 태그를 최소 1개 추가해주세요.'); return; }
+  // alf_search는 단일 tag 인자만 받음 — 여러 태그 추가됐으면 첫 번째 사용
+  const tag = tags[0];
+  const keyword = (document.getElementById('wfKeywords')?.value || '').trim();
+  const btn = document.getElementById('btnWfClusters');
+  const resultEl = document.getElementById('wfClusterResult');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '분류 중...';
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<div style="padding:12px 16px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;color:#5b21b6;font-size:13px">🧩 채팅 수집 + LLM 분류 중... (10~20초)</div>`;
+  try {
+    const res = await authFetch(`${API}/api/alf_search`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ tag, keyword }),
+    });
+    const data = await res.json();
+    if (!data.ok || (data.total || 0) === 0) {
+      resultEl.innerHTML = `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px">⚠️ 관련 상담을 찾지 못했어요.</div>`;
+      return;
+    }
+    _wfClusters = Array.isArray(data.clusters) ? data.clusters : [];
+    _wfRenderClusters(data);
+  } catch (e) {
+    resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:13px">❌ ${escapeHtml(e.message || String(e))}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function _wfRenderClusters(data) {
+  const resultEl = document.getElementById('wfClusterResult');
+  const clusters = _wfClusters;
+  if (!clusters.length) {
+    resultEl.innerHTML = `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px">⚠️ 분류된 유형이 없어요.</div>`;
+    return;
+  }
+  let html = `<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#15803d;font-size:12px;margin-bottom:10px">✅ 채팅 ${data.total || 0}건 → 세부 유형 ${clusters.length}개로 분류</div>`;
+  html += `<div style="display:flex;flex-direction:column;gap:8px">${clusters.map((c, i) => `
+    <div onclick="_wfSelectCluster(${i})" id="wfCluster${i}" style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;cursor:pointer;background:#fff;transition:all .15s">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:#111827">${escapeHtml(c.label || '')}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(c.description || '')}</div>
+        </div>
+        <span style="font-size:11px;color:#9ca3af;flex-shrink:0">${Number(c.count) || 0}건</span>
+      </div>
+    </div>`).join('')}</div>`;
+  html += `<div style="margin-top:8px;font-size:11px;color:#9ca3af">선택한 유형의 채팅만 STEP 3 패턴 분석에 사용돼요. 선택하지 않으면 STEP 1 태그 전체가 대상이 됩니다.</div>`;
+  resultEl.innerHTML = html;
+}
+
+function _wfSelectCluster(idx) {
+  const cl = _wfClusters[idx];
+  if (!cl) return;
+  _wfSelectedClusterChatIds = Array.isArray(cl.chat_ids) ? [...cl.chat_ids] : [];
+  // 시각 표시 (선택된 항목 강조, 나머지 흐리게)
+  _wfClusters.forEach((_, i) => {
+    const el = document.getElementById('wfCluster' + i);
+    if (!el) return;
+    if (i === idx) {
+      el.style.background = '#eef2ff';
+      el.style.borderColor = '#6366f1';
+      el.style.boxShadow = '0 0 0 2px #c7d2fe';
+    } else {
+      el.style.background = '#fff';
+      el.style.borderColor = '#e5e7eb';
+      el.style.boxShadow = 'none';
+    }
+  });
+}
+
+// STEP 3 — 인입 패턴 분석 (STEP 2 클러스터 선택했으면 그 chat_ids만 분석)
 async function wfRunResearch() {
   const { tags, keywords } = _wfGetTagsAndKeywords();
-  if (!tags.length && !keywords.length) { alert('STEP 1에서 태그 또는 키워드를 입력해주세요.'); return; }
+  const usingCluster = _wfSelectedClusterChatIds && _wfSelectedClusterChatIds.length > 0;
+  if (!tags.length && !keywords.length && !usingCluster) { alert('STEP 1에서 태그·키워드를 입력하거나 STEP 2에서 세부 유형을 선택해주세요.'); return; }
   const btn = document.getElementById('btnWfResearch');
   const resultEl = document.getElementById('wfResearchResult');
   const orig = btn.textContent;
   const manual = getLLMMode() === 'manual';
   btn.disabled = true; btn.textContent = manual ? '채팅 조회 중...' : '분석 중...';
   resultEl.style.display = 'block';
-  resultEl.innerHTML = `<div style="padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e40af;font-size:13px">🔍 채팅 DB 조회${manual ? ' (LLM은 Claude Code에서 처리)' : ' + 패턴 분석'} 중...</div>`;
+  const scopeLabel = usingCluster ? '선택한 세부 유형' : '태그·키워드';
+  resultEl.innerHTML = `<div style="padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e40af;font-size:13px">🔍 ${scopeLabel} 채팅 DB 조회${manual ? ' (LLM은 Claude Code에서 처리)' : ' + 패턴 분석'} 중...</div>`;
+  const payload = { mode: 'customer_patterns', tags, keywords, limit: 200, prompt_only: manual };
+  if (usingCluster) payload.chat_ids = _wfSelectedClusterChatIds;
   try {
     const res = await authFetch(`${API}/api/alf_generate`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ mode: 'customer_patterns', tags, keywords, limit: 200, prompt_only: manual }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '분석 실패');

@@ -656,11 +656,25 @@ class handler(_Base):
 
             # 태그: PostgREST cs OR 조합으로 후보 채팅 fetch
             # 키워드: messages 본문에 대한 ilike 필터 (PostgREST가 jsonb에 ilike 미지원이라 백엔드 post-filter)
+            # chat_ids: 특정 클러스터의 채팅만 한정해서 분석 (워크플로우 STEP 2 세부 유형 선택 결과)
             import urllib.parse as _up_cp
             safe_tags = [t for t in tags if is_safe_postgrest_tag(t)]
+            chat_ids_filter = body.get("chat_ids") or []
 
             chats = []
-            if safe_tags:
+            if chat_ids_filter:
+                # 클러스터의 chat_ids로만 조회 (태그·키워드 무시)
+                ids_quoted = ",".join('"' + str(c).replace('"', '') + '"' for c in chat_ids_filter[:300])
+                url = (
+                    f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+                    f"?chat_id=in.({ids_quoted})&limit={limit}"
+                    f"&select=chat_id,tags,messages,date&order=date.desc"
+                )
+                try:
+                    chats = supabase_get(url, SUPABASE_SERVICE_KEY)
+                except Exception as e:
+                    print(f"[customer_patterns] chat_ids fetch 실패: {e}")
+            elif safe_tags:
                 quoted_terms = [_up_cp.quote('tags.cs.{"' + t + '"}', safe='') for t in safe_tags[:8]]
                 or_clauses = ",".join(quoted_terms)
                 url = (
