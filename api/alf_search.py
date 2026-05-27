@@ -176,6 +176,7 @@ def build_cluster_prompt(chats: list, tag: str) -> tuple[str, list[int]]:
     """
     samples = []
     sample_indices = []
+    id_map_lines = []
     for i, c in enumerate(chats[:CLUSTER_SAMPLE_LIMIT]):
         all_customer_msgs = [m for m in c.get("messages", []) if m.get("role") == "customer"]
         # 워크플로 버튼 응답을 제외한 실제 자연어 메시지만 (전체 맥락 파악 위해 최대 5개·각 500자까지)
@@ -186,13 +187,22 @@ def build_cluster_prompt(chats: list, tag: str) -> tuple[str, list[int]]:
         ][:5]
         if not real_msgs:
             continue
-        chat_url = f"https://desk.channel.io/liveklass/user-chats/{c.get('chat_id', '')}"
+        chat_id = c.get("chat_id", "")
+        chat_url = f"https://desk.channel.io/liveklass/user-chats/{chat_id}"
         samples.append(f"[상담 {i}] ({chat_url})\n  " + "\n  ".join(real_msgs))
         sample_indices.append(i)
+        id_map_lines.append(f"  {i}: {chat_id}")
+
+    id_map_block = "\n".join(id_map_lines)
 
     prompt = f"""아래는 '{tag}' 관련 실제 고객 상담 샘플입니다 (총 {len(chats)}건 중 {len(samples)}건 발췌).
 
 {chr(10).join(samples)}
+
+---
+**참고용 chat_id 매핑 (Supabase `cx_full_messages` 테이블에서 풀 메시지 조회 가능):**
+{id_map_block}
+---
 
 위 상담들을 고객이 처한 **구체적인 상황**을 기준으로 **2~8개 그룹**으로 분류해주세요.
 각 그룹은 ALF 지식 아티클 1개로 만들 수 있는 단위여야 합니다.
