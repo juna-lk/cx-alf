@@ -646,20 +646,14 @@ class handler(_Base):
                 except Exception as e:
                     print(f"[customer_patterns] keyword extract 실패: {e}")
 
-            # 태그/키워드를 PostgREST cs로 OR 조합해 cx_full_messages 조회
-            search_terms = []
-            for t in tags:
-                if is_safe_postgrest_tag(t):
-                    search_terms.append(t)
-            for k in keywords:
-                if is_safe_postgrest_tag(k) and k not in search_terms:
-                    search_terms.append(k)
+            # 태그: PostgREST cs OR 조합으로 후보 채팅 fetch
+            # 키워드: messages 본문에 대한 ilike 필터 (PostgREST가 jsonb에 ilike 미지원이라 백엔드 post-filter)
+            import urllib.parse as _up_cp
+            safe_tags = [t for t in tags if is_safe_postgrest_tag(t)]
 
             chats = []
-            if search_terms:
-                # PostgREST는 array contains 시 {} 안에서 element를 quote하고, URL은 percent-encode 필요
-                import urllib.parse as _up_cp
-                quoted_terms = [_up_cp.quote('tags.cs.{"' + t + '"}', safe='') for t in search_terms[:8]]
+            if safe_tags:
+                quoted_terms = [_up_cp.quote('tags.cs.{"' + t + '"}', safe='') for t in safe_tags[:8]]
                 or_clauses = ",".join(quoted_terms)
                 url = (
                     f"{SUPABASE_URL}/rest/v1/cx_full_messages"
@@ -669,7 +663,31 @@ class handler(_Base):
                 try:
                     chats = supabase_get(url, SUPABASE_SERVICE_KEY)
                 except Exception as e:
-                    print(f"[customer_patterns] supabase query 실패: {e}")
+                    print(f"[customer_patterns] tag query 실패: {e}")
+            elif keywords:
+                # 태그 없이 키워드만 → 최근 채팅 N건을 가져와서 client-side 필터
+                url = (
+                    f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+                    f"?limit={min(limit * 3, 1000)}"
+                    f"&select=chat_id,tags,messages,date&order=date.desc"
+                )
+                try:
+                    chats = supabase_get(url, SUPABASE_SERVICE_KEY)
+                except Exception as e:
+                    print(f"[customer_patterns] recent fetch 실패: {e}")
+
+            # 키워드 post-filter: 메시지 텍스트(고객·매니저 포함)에 키워드 중 하나라도 들어가면 매칭
+            if keywords and chats:
+                kw_lower = [k.lower() for k in keywords if k]
+                def _chat_has_keyword(chat):
+                    msgs = chat.get("messages") or []
+                    for m in msgs:
+                        t = (m.get("text") or "").lower()
+                        if any(k in t for k in kw_lower):
+                            return True
+                    return False
+                chats = [c for c in chats if _chat_has_keyword(c)]
+                chats = chats[:limit]
 
             if not chats:
                 self._respond(200, {
