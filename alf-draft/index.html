@@ -4986,7 +4986,8 @@ async function wfFromUrl() {
       !confirm('STEP 5 본문에 이미 내용이 있어요. 새 초안으로 교체할까요?')) return;
   const btn = document.getElementById('btnWfFromUrl');
   const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '생성 중... (20~40초)';
+  const manual = getLLMMode() === 'manual';
+  btn.disabled = true; btn.textContent = manual ? '프롬프트 준비 중...' : '생성 중... (20~40초)';
   const refUrl = (document.getElementById('wfRefUrl')?.value || '').trim();
   const refDoc = (document.getElementById('wfRefDoc')?.value || '').trim();
   const refParams = {};
@@ -4996,22 +4997,15 @@ async function wfFromUrl() {
     const res = await authFetch(`${API}/api/${endpoint}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ chat_ids: [chatId], single_chat: true, similar_search: similar, cluster_label: 'URL 직접 지정', ...refParams }),
+      body: JSON.stringify({ chat_ids: [chatId], single_chat: true, similar_search: similar, cluster_label: 'URL 직접 지정', prompt_only: manual, ...refParams }),
     });
     const data = await res.json();
     if (!data.ok) { alert('생성 실패: ' + (data.error || '')); return; }
-    if (format === 'faq') {
-      document.getElementById('wfTitle').value = data.question || '';
-      const variations = Array.isArray(data.variations) ? data.variations : [];
-      const body = (variations.length ? `## 변형 질문\n${variations.map(v => `- ${v}`).join('\n')}\n\n` : '') + `## 답변\n${data.answer || ''}`;
-      document.getElementById('wfContent').value = body;
-    } else {
-      document.getElementById('wfTitle').value = data.title || '';
-      document.getElementById('wfSubtitle').value = data.subtitle || '';
-      document.getElementById('wfContent').value = data.content || '';
+    if (manual && data.prompt_only) {
+      openManualLlm(data.prompt, (parsed) => _wfApplyGenerated(format, parsed));
+      return;
     }
-    document.getElementById('wfContent').dispatchEvent(new Event('input', { bubbles: true }));
-    alert('URL 채팅으로 초안이 생성됐어요. STEP 6 검증으로 진행하세요.');
+    _wfApplyGenerated(format, data);
   } catch (e) {
     alert('오류: ' + e.message);
   } finally {
@@ -5034,8 +5028,8 @@ async function wfGenerateDraft() {
   const btn = document.getElementById('btnWfGenerateDraft');
   const orig = btn.textContent;
   const isMerged = selected.length >= 2;
-  btn.disabled = true; btn.textContent = isMerged ? '통합 아티클 생성 중... (30~60초)' : '생성 중... (20~40초)';
-  // cluster_label: 단일이면 그 label, 다중이면 합쳐서
+  const manual = getLLMMode() === 'manual';
+  btn.disabled = true; btn.textContent = manual ? '프롬프트 준비 중...' : (isMerged ? '통합 아티클 생성 중... (30~60초)' : '생성 중... (20~40초)');
   const mergedLabel = isMerged ? selected.map(c => c.label).join(' + ') : selected[0].label;
   const refUrl = (document.getElementById('wfRefUrl')?.value || '').trim();
   const refDoc = (document.getElementById('wfRefDoc')?.value || '').trim();
@@ -5046,11 +5040,25 @@ async function wfGenerateDraft() {
     const res = await authFetch(`${API}/api/${endpoint}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ cluster_label: mergedLabel, chat_ids: chatIds, ...refParams }),
+      body: JSON.stringify({ cluster_label: mergedLabel, chat_ids: chatIds, prompt_only: manual, ...refParams }),
     });
     const data = await res.json();
     if (!data.ok) { alert('초안 작성 실패: ' + (data.error || '')); return; }
-    if (format === 'faq') {
+    if (manual && data.prompt_only) {
+      openManualLlm(data.prompt, (parsed) => _wfApplyGenerated(format, parsed));
+      return;
+    }
+    _wfApplyGenerated(format, data);
+    return;
+  } catch (e) {
+    alert('오류: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function _wfApplyGenerated(format, data) {
+  if (format === 'faq') {
       // FAQ: question, answer, variations
       document.getElementById('wfTitle').value = data.question || '';
       // 본문에 변형질문 + 답변 합쳐서 표시
@@ -5062,13 +5070,8 @@ async function wfGenerateDraft() {
       document.getElementById('wfSubtitle').value = data.subtitle || '';
       document.getElementById('wfContent').value = data.content || '';
     }
-    document.getElementById('wfContent').dispatchEvent(new Event('input', { bubbles: true }));
-    alert('AI 초안이 STEP 4/5 필드에 채워졌어요. 검토 후 STEP 6 검증으로 진행하세요.');
-  } catch (e) {
-    alert('오류: ' + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = orig;
-  }
+  document.getElementById('wfContent').dispatchEvent(new Event('input', { bubbles: true }));
+  alert('AI 초안이 STEP 4/5 필드에 채워졌어요. 검토 후 STEP 6 검증으로 진행하세요.');
 }
 
 // STEP 6 — 검증

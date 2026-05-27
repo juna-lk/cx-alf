@@ -234,6 +234,14 @@ class handler(_Base):
             self._respond(400, {"ok": False,
                                 "error": "매니저 답변이 없거나 처리할 수 없어요. 다른 상담을 선택해주세요."})
             return
+        if body.get("prompt_only"):
+            combined_prompt = FAQ_SYSTEM_PROMPT + "\n\n" + prompt
+            self._respond(200, {
+                "ok": True, "prompt_only": True, "prompt": combined_prompt,
+                "expected_schema": {"question": "str", "variations": "list[str]", "answer": "str"},
+                "context": {"cluster_label": cluster_label, "analyzed_chat_count": len(chats)},
+            })
+            return
         raw = call_anthropic(
             prompt, system=FAQ_SYSTEM_PROMPT,
             max_tokens=1500, api_key=OPENAI_API_KEY,

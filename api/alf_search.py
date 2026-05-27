@@ -139,23 +139,55 @@ def filter_by_semantic(chats: list, query: str) -> list:
         return chats  # LLM 실패 시 전체 반환 (handler에서 keyword fallback 가능)
 
 
+_WORKFLOW_BUTTON_PHRASES = (
+    "상담 시작하기", "사용 방법", "상담 연결", "환불 요청", "정산 안내",
+    "플랜 변경", "플랜 상담", "처음으로 돌아가기", "이전으로", "담당자 연결",
+    "상담원 연결", "플랜에 대해 알고", "사이트를 만들고", "FAQ", "문의", "도움말",
+    "수강 신청 건수", "사이트 이용 방법",
+)
+
+
+def _is_workflow_button_text(t: str) -> bool:
+    """채널톡 워크플로 quick-reply 버튼 응답 여부 판별.
+
+    버튼 응답은 보통: 짧고(50자 미만), 이모지로 시작하거나, 알려진 메뉴 문구를 포함.
+    이런 메시지는 실제 고객 인입 내용이 아니라 클러스터링 노이즈가 됨.
+    """
+    import re as _re_wb
+    t = (t or "").strip()
+    if not t:
+        return True
+    if len(t) >= 50:
+        return False
+    # 한글/영문/숫자가 아닌 문자(이모지 등)로 시작
+    if _re_wb.match(r"^[^\w가-힣]", t):
+        return True
+    if any(p in t for p in _WORKFLOW_BUTTON_PHRASES):
+        return True
+    return False
+
+
 def build_cluster_prompt(chats: list, tag: str) -> tuple[str, list[int]]:
     """클러스터링용 Claude 프롬프트 생성.
 
     반환: (prompt, sample_indices)
     sample_indices: 프롬프트에 포함된 chats 배열 인덱스 (LLM이 반환하는 chat_indices와 매핑)
+    워크플로 버튼 응답은 제외하고 실제 고객 자연어 메시지만 사용.
     """
     samples = []
     sample_indices = []
     for i, c in enumerate(chats[:CLUSTER_SAMPLE_LIMIT]):
-        customer_msgs = [
-            m.get("text", "")[:200]
-            for m in c.get("messages", [])
-            if m.get("role") == "customer"
+        all_customer_msgs = [m for m in c.get("messages", []) if m.get("role") == "customer"]
+        # 워크플로 버튼 응답을 제외한 실제 자연어 메시지만
+        real_msgs = [
+            (m.get("text") or "")[:300]
+            for m in all_customer_msgs
+            if not _is_workflow_button_text(m.get("text", ""))
         ][:3]
-        if not customer_msgs:
+        if not real_msgs:
+            # 실제 자연어 메시지가 하나도 없는 채팅은 클러스터링 대상에서 제외 (노이즈)
             continue
-        samples.append(f"[상담 {i}] {' / '.join(customer_msgs)}")
+        samples.append(f"[상담 {i}] {' / '.join(real_msgs)}")
         sample_indices.append(i)
 
     prompt = f"""아래는 '{tag}' 관련 실제 고객 상담 샘플입니다 (총 {len(chats)}건 중 {len(samples)}건 발췌).
