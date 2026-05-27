@@ -487,6 +487,12 @@ class handler(_Base):
   "subtitle": "추천 소제목",
   "alternatives": ["대체 제목 1", "대체 제목 2"]
 }}"""
+            if body.get("prompt_only"):
+                self._respond(200, {
+                    "ok": True, "prompt_only": True, "prompt": suggest_prompt,
+                    "expected_schema": {"title": "str", "subtitle": "str", "alternatives": "list[str]"},
+                })
+                return
             try:
                 raw = call_anthropic(
                     suggest_prompt, max_tokens=400, api_key=OPENAI_API_KEY,
@@ -702,6 +708,12 @@ class handler(_Base):
                 return
 
             sample_joined = "\n".join("- " + t for t in sample_texts)
+            _cp_context = {
+                "keywords_used": keywords,
+                "tags_used": tags,
+                "total_chats": len(chats),
+                "samples": samples[:50],
+            }
             pattern_prompt = (
                 "다음은 라이브클래스 고객들이 채널톡에 직접 작성한 실제 첫 인입 멘트들이에요. "
                 "이 멘트들에서 자주 등장하는 표현·키워드 패턴을 정리하고, 채널톡 ALF가 검색·매칭하기 좋은 "
@@ -719,6 +731,13 @@ class handler(_Base):
                 '  "suggested_headings": ["## 헤딩 예시 1?", "## 헤딩 예시 2?"]\n'
                 '}'
             )
+            if body.get("prompt_only"):
+                self._respond(200, {
+                    "ok": True, "prompt_only": True, "prompt": pattern_prompt,
+                    "context": _cp_context,
+                    "expected_schema": {"patterns": "list", "suggested_headings": "list[str]"},
+                })
+                return
             try:
                 raw = call_anthropic(pattern_prompt, max_tokens=1500, api_key=OPENAI_API_KEY)
                 parsed = extract_json(raw)
