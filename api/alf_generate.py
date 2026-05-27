@@ -583,6 +583,14 @@ class handler(_Base):
   "subtitle": "추천 소제목 (50자 이내, 본문 한 줄 요약)",
   "changes": ["주요 변경 사항 1", "주요 변경 사항 2", "..."]
 }}"""
+            if body.get("prompt_only"):
+                # 수동 모드: 시스템 프롬프트를 사용자 프롬프트 위에 합쳐서 한 번에 복붙 가능하게
+                combined_prompt = ALF_SYSTEM_PROMPT + "\n\n" + rewrite_prompt
+                self._respond(200, {
+                    "ok": True, "prompt_only": True, "prompt": combined_prompt,
+                    "expected_schema": {"content": "str", "title": "str", "subtitle": "str", "changes": "list[str]"},
+                })
+                return
             try:
                 raw = call_anthropic(
                     rewrite_prompt, system=ALF_SYSTEM_PROMPT,
