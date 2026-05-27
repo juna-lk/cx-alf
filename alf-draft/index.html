@@ -1742,6 +1742,7 @@
     <p style="font-size:13px;color:#6b7280;margin-top:4px">
       고객 인입 패턴 분석 → 헤딩 추천 → 본문 작성 → 검증 → 채널톡 등록을 한 화면에서 순서대로 진행해요.
     </p>
+    <div id="wfModeBanner" style="display:none;margin-top:10px;padding:8px 14px;border-radius:8px;font-size:12px"></div>
   </div>
 
   <!-- STEP 1 -->
@@ -1765,7 +1766,7 @@
       <div id="wfSelectedTags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px"></div>
     </div>
 
-    <div>
+    <div style="margin-bottom:14px">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;font-weight:600;margin-bottom:6px">
         키워드 <span style="color:#9ca3af;font-weight:400">— 자유 입력 (쉼표 <code style="background:#f3f4f6;padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace">,</code> 로 구분, 예: 플랜 변경, 환불)</span>
       </label>
@@ -1773,6 +1774,27 @@
         style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
       <div style="font-size:11px;color:#9ca3af;margin-top:4px">태그가 정확하면 매칭이 더 좋아요. 키워드는 태그 후보가 명확하지 않을 때 보조로 사용하세요.</div>
     </div>
+
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#374151;padding:8px 10px;background:#f9fafb;border-radius:6px;margin-bottom:10px">
+      <input type="checkbox" id="wfAiSearch" style="margin:0;cursor:pointer" />
+      <label for="wfAiSearch" style="cursor:pointer">🤖 AI 의미 검색 — 태그·키워드와 의미가 비슷한 채팅도 함께 찾기 (조금 더 느림)</label>
+    </div>
+
+    <details style="border-top:1px dashed #e5e7eb;padding-top:12px">
+      <summary style="font-size:12px;color:#6b7280;cursor:pointer;font-weight:500">또는 ✏ 특정 채팅 URL로 시작 (선택)</summary>
+      <div style="margin-top:10px">
+        <input type="text" id="wfChatUrl" placeholder="https://desk.channel.io/liveklass/user-chats/..."
+          style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;margin-bottom:8px" />
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:11px;color:#6b7280;display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="wfUrlSimilar" style="margin:0" />
+            의미적으로 가까운 채팅도 함께 사용
+          </label>
+          <button onclick="wfFromUrl()" id="btnWfFromUrl" style="margin-left:auto;font-size:12px;padding:6px 12px;border-radius:6px;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;cursor:pointer;font-weight:500">URL로 STEP 5 초안 작성</button>
+        </div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:6px">이 모드는 STEP 2~3을 건너뛰고 단일 채팅(혹은 유사 채팅)으로 곧장 초안을 만들어요.</div>
+      </div>
+    </details>
   </div>
 
   <!-- STEP 2 — 세부 유형 분류 -->
@@ -1787,8 +1809,10 @@
         style="padding:7px 14px;font-size:12px;background:#f5f3ff;color:#5b21b6;border-color:#ddd6fe">🧩 유형 분류</button>
     </div>
     <div style="font-size:11.5px;color:#6b7280;background:#f9fafb;border-left:3px solid #c7d2fe;padding:6px 10px;margin-bottom:12px;border-radius:0 4px 4px 0">
-      💡 태그로 모은 채팅을 LLM이 의미별로 2~5개 세부 유형으로 자동 분류해줘요. 그중 하나를 골라 다음 단계로 진행하면 그 유형 채팅들만 집중적으로 분석돼요.
+      💡 태그로 모은 채팅을 LLM이 의미별로 2~5개 세부 유형으로 자동 분류해줘요. <b>여러 유형을 선택할 수 있고</b>, STEP 5에서 통합 아티클 1개로 합치거나 STEP 3 패턴 분석으로 넘어갈 수 있어요.
     </div>
+    <div id="wfClusterProgress" style="display:none;padding:10px 14px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;color:#5b21b6;font-size:12px;margin-bottom:10px"></div>
+    <div id="wfFormatBanner" style="display:none;padding:10px 14px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;color:#065f46;font-size:12px;margin-bottom:10px"></div>
     <div id="wfClusterResult" style="display:none"></div>
   </div>
 
@@ -1844,6 +1868,15 @@
           style="padding:6px 14px;font-size:12px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe;margin-left:4px">✨ AI로 초안 작성</button>
       </div>
     </div>
+    <details style="margin-bottom:10px;padding:8px 12px;background:#fafafa;border:1px dashed #e5e7eb;border-radius:6px">
+      <summary style="font-size:12px;color:#374151;cursor:pointer;font-weight:500">📚 참고 가이드 (선택) — AI 초안 작성 시 함께 참고할 운영 가이드 URL·본문</summary>
+      <div style="margin-top:8px">
+        <input type="url" id="wfRefUrl" placeholder="https://guide-kr.liveklass.com/... (URL 입력 시 서버에서 자동 fetch)"
+          style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:inherit;margin-bottom:6px" />
+        <textarea id="wfRefDoc" rows="3" placeholder="또는 운영 가이드 본문을 직접 붙여넣기 (URL과 본문 둘 다 입력 시 본문 우선)"
+          style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;line-height:1.5;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+      </div>
+    </details>
     <textarea id="wfContent" rows="14"
       oninput="document.getElementById('wfCharCount').textContent=this.value.length"
       placeholder="STEP 3에서 추천된 헤딩을 클릭하면 여기 자동 삽입돼요. 또는 직접 작성하세요."
@@ -2112,6 +2145,7 @@ const _AUTOSAVE_INPUTS = [
   'faqValidateQuestion', 'faqValidateAnswer',
   'faqQuestion', 'faqAnswer',
   'wfKeywords', 'wfTitle', 'wfSubtitle', 'wfContent',
+  'wfChatUrl', 'wfRefUrl', 'wfRefDoc',
 ];
 let _autosaveTimer = null;
 function _autosaveAll() {
@@ -4170,19 +4204,38 @@ function _updateLLMModeUI() {
   const icon = document.getElementById('llmModeIcon');
   const label = document.getElementById('llmModeLabel');
   const btn = document.getElementById('btnLLMModeToggle');
-  if (!icon || !label || !btn) return;
-  if (mode === 'manual') {
-    icon.textContent = '🛠';
-    label.textContent = '수동 (Claude Code)';
-    btn.style.background = '#fef3c7';
-    btn.style.color = '#92400e';
-    btn.style.borderColor = '#fde68a';
-  } else {
-    icon.textContent = '⚡';
-    label.textContent = '자동';
-    btn.style.background = '#fff';
-    btn.style.color = '#374151';
-    btn.style.borderColor = '#e5e7eb';
+  const banner = document.getElementById('wfModeBanner');
+  if (icon && label && btn) {
+    if (mode === 'manual') {
+      icon.textContent = '🛠';
+      label.textContent = '수동 (Claude Code)';
+      btn.style.background = '#f59e0b';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#d97706';
+      btn.style.boxShadow = '0 8px 22px rgba(245,158,11,0.4)';
+    } else {
+      icon.textContent = '⚡';
+      label.textContent = '자동 (API 호출)';
+      btn.style.background = '#fff';
+      btn.style.color = '#374151';
+      btn.style.borderColor = '#e5e7eb';
+      btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+    }
+  }
+  if (banner) {
+    if (mode === 'manual') {
+      banner.style.display = 'block';
+      banner.innerHTML = '🛠 <b>수동 모드</b> — LLM 호출 시 모달이 열려요. 프롬프트를 Claude Code에 붙여넣고 응답을 다시 모달에 붙여넣으면 적용됩니다. (OpenAI API 토큰 사용 X)';
+      banner.style.background = '#fef3c7';
+      banner.style.border = '1px solid #fde68a';
+      banner.style.color = '#92400e';
+    } else {
+      banner.style.display = 'block';
+      banner.innerHTML = '⚡ <b>자동 모드</b> — LLM 호출 시 백엔드가 OpenAI API를 직접 호출 (본인 API 토큰 사용). 빠르지만 토큰 비용 발생.';
+      banner.style.background = '#eff6ff';
+      banner.style.border = '1px solid #bfdbfe';
+      banner.style.color = '#1e40af';
+    }
   }
 }
 
@@ -4461,40 +4514,75 @@ function _wfGetTagsAndKeywords() {
   return { tags: [..._wfSelectedTags], keywords };
 }
 
-// STEP 2 — 세부 유형 자동 분류
+// STEP 2 — 세부 유형 자동 분류 (다중 선택 지원)
 let _wfClusters = [];
 let _wfUnclusteredIds = [];
-let _wfSelectedClusterIdx = -1;
-let _wfSelectedClusterChatIds = [];
+let _wfSelectedClusterSet = new Set();  // 선택된 cluster index 모음
+let _wfFormatRecommended = '';
+
+function _wfSelectedClusters() {
+  return [..._wfSelectedClusterSet].map(i => _wfClusters[i]).filter(Boolean);
+}
+
+function _wfSelectedClusterChatIdsUnion() {
+  const ids = new Set();
+  for (const i of _wfSelectedClusterSet) {
+    const c = _wfClusters[i];
+    if (!c) continue;
+    for (const cid of (c.chat_ids || [])) ids.add(cid);
+  }
+  return [...ids];
+}
 
 async function wfAnalyzeClusters() {
   const { tags } = _wfGetTagsAndKeywords();
   if (!tags.length) { alert('STEP 1에서 태그를 최소 1개 추가해주세요.'); return; }
   const tag = tags[0];
   const keyword = (document.getElementById('wfKeywords')?.value || '').trim();
+  const aiSearch = !!document.getElementById('wfAiSearch')?.checked;
   const btn = document.getElementById('btnWfClusters');
   const resultEl = document.getElementById('wfClusterResult');
+  const progressEl = document.getElementById('wfClusterProgress');
+  const fmtEl = document.getElementById('wfFormatBanner');
   const orig = btn.textContent;
   btn.disabled = true; btn.textContent = '분류 중...';
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = `<div style="padding:12px 16px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;color:#5b21b6;font-size:13px">🧩 채팅 수집 + LLM 분류 중... (10~20초)</div>`;
+  progressEl.style.display = 'block';
+  progressEl.innerHTML = '🔄 <b>1 상담 수집</b> → 2 유형 분류 → 3 포맷 추천';
+  resultEl.style.display = 'none';
+  fmtEl.style.display = 'none';
   try {
+    progressEl.innerHTML = '🔄 1 상담 수집 → <b>2 유형 분류</b> → 3 포맷 추천';
     const res = await authFetch(`${API}/api/alf_search`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ tag, keyword }),
+      body: JSON.stringify({ tag, keyword, ai_search: aiSearch }),
     });
     const data = await res.json();
     if (!data.ok || (data.total || 0) === 0) {
+      progressEl.style.display = 'none';
+      resultEl.style.display = 'block';
       resultEl.innerHTML = `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px">⚠️ 관련 상담을 찾지 못했어요.</div>`;
       return;
     }
     _wfClusters = Array.isArray(data.clusters) ? data.clusters : [];
     _wfUnclusteredIds = Array.isArray(data.unclustered_ids) ? data.unclustered_ids : [];
-    _wfSelectedClusterIdx = -1;
-    _wfSelectedClusterChatIds = [];
+    _wfSelectedClusterSet = new Set();
+    _wfFormatRecommended = (data.recommended_format || '').toLowerCase();
+    progressEl.innerHTML = '✅ 1 상담 수집 → 2 유형 분류 → <b>3 포맷 추천 완료</b>';
+    setTimeout(() => { progressEl.style.display = 'none'; }, 1500);
+    if (_wfFormatRecommended === 'article' || _wfFormatRecommended === 'faq') {
+      const label = _wfFormatRecommended === 'faq' ? '💬 FAQ' : '📄 아티클';
+      fmtEl.style.display = 'block';
+      fmtEl.innerHTML = `🤖 LLM이 추천하는 포맷: <b>${label}</b> — STEP 5의 라디오가 자동 선택돼요. <button onclick="document.querySelector('input[name=wfFormat][value=${_wfFormatRecommended}]').checked=true;this.parentElement.querySelector('b').style.color='#15803d'" style="margin-left:6px;font-size:11px;padding:2px 8px;border-radius:4px;background:#fff;color:#065f46;border:1px solid #a7f3d0;cursor:pointer">자동 적용</button>`;
+      // 자동 적용
+      const radio = document.querySelector(`input[name=wfFormat][value=${_wfFormatRecommended}]`);
+      if (radio) radio.checked = true;
+    }
+    resultEl.style.display = 'block';
     _wfRenderClusters(data);
   } catch (e) {
+    progressEl.style.display = 'none';
+    resultEl.style.display = 'block';
     resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:13px">❌ ${escapeHtml(e.message || String(e))}</div>`;
   } finally {
     btn.disabled = false; btn.textContent = orig;
@@ -4508,25 +4596,26 @@ function _wfRenderClusters(data) {
     resultEl.innerHTML = `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px">⚠️ 분류된 유형이 없어요.</div>`;
     return;
   }
-  let html = `<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#15803d;font-size:12px;margin-bottom:10px">✅ 채팅 ${data.total || 0}건 → 세부 유형 ${clusters.length}개로 분류</div>`;
+  let html = `<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#15803d;font-size:12px;margin-bottom:10px">✅ 채팅 ${data.total || 0}건 → 세부 유형 ${clusters.length}개로 분류 · <b>체크박스로 1개 이상 선택하세요</b></div>`;
   html += `<div style="display:flex;flex-direction:column;gap:8px">${clusters.map((c, i) => _wfClusterRowHtml(c, i)).join('')}</div>`;
   if (_wfUnclusteredIds.length > 0) {
     html += `<div onclick="_wfOpenChatModal('wfUnclustered', -1)" style="border:1px dashed #fcd34d;background:#fffbeb;border-radius:8px;padding:10px 14px;margin-top:8px;cursor:pointer">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:#92400e">⚠ 분류되지 않은 상담</div>
-          <div style="font-size:12px;color:#a16207;margin-top:2px">주요 패턴에 속하지 않은 상담들. 원하는 유형이 안 보이면 여기서 확인하세요.</div>
+          <div style="font-size:12px;color:#a16207;margin-top:2px">주요 패턴에 속하지 않은 상담들. 클릭해서 개별 채팅 보기 + 선택 가능.</div>
         </div>
         <span style="font-size:11px;color:#92400e;flex-shrink:0">${_wfUnclusteredIds.length}건</span>
       </div>
     </div>`;
   }
-  html += `<div style="margin-top:8px;font-size:11px;color:#9ca3af">선택한 유형의 채팅만 STEP 3 패턴 분석에 사용돼요. 선택하지 않으면 STEP 1 태그 전체가 대상이 됩니다.</div>`;
+  html += `<div id="wfSelectionFooter" style="margin-top:10px"></div>`;
   resultEl.innerHTML = html;
+  _wfRenderSelectionFooter();
 }
 
 function _wfClusterRowHtml(c, i) {
-  const selected = _wfSelectedClusterIdx === i;
+  const selected = _wfSelectedClusterSet.has(i);
   const bg = selected ? '#eef2ff' : '#fff';
   const bd = selected ? '#6366f1' : '#e5e7eb';
   const shadow = selected ? '0 0 0 2px #c7d2fe' : 'none';
@@ -4534,8 +4623,9 @@ function _wfClusterRowHtml(c, i) {
   const expandBtn = c._expanded
     ? `<button disabled style="font-size:11px;padding:4px 10px;border-radius:5px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;cursor:not-allowed;font-weight:500">✓ 확장됨</button>`
     : `<button onclick="event.stopPropagation();_wfExpandCluster(${i})" id="wfExpandBtn${i}" title="이 유형에 대해 같은 태그에서 의미적으로 가까운 채팅 25건을 추가 수집" style="font-size:11px;padding:4px 10px;border-radius:5px;background:#eef2ff;color:#4f46e5;border:1px solid #c7d2fe;cursor:pointer;font-weight:500">🔍 +25건 탐색</button>`;
-  return `<div onclick="_wfSelectCluster(${i})" id="wfCluster${i}" style="border:1px solid ${bd};border-radius:8px;padding:10px 14px;cursor:pointer;background:${bg};transition:all .15s;box-shadow:${shadow}">
+  return `<div onclick="_wfToggleCluster(${i})" id="wfCluster${i}" style="border:1px solid ${bd};border-radius:8px;padding:10px 14px;cursor:pointer;background:${bg};transition:all .15s;box-shadow:${shadow}">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <input type="checkbox" id="wfClusterCb${i}" ${selected ? 'checked' : ''} onclick="event.stopPropagation();_wfToggleCluster(${i})" style="margin:0;cursor:pointer;flex-shrink:0" />
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:#111827">${escapeHtml(c.label || '')}</div>
           <div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(c.description || '')}</div>
@@ -4547,24 +4637,34 @@ function _wfClusterRowHtml(c, i) {
     </div>`;
 }
 
-function _wfSelectCluster(idx) {
-  const cl = _wfClusters[idx];
-  if (!cl) return;
-  _wfSelectedClusterIdx = idx;
-  _wfSelectedClusterChatIds = Array.isArray(cl.chat_ids) ? [...cl.chat_ids] : [];
-  _wfClusters.forEach((_, i) => {
-    const el = document.getElementById('wfCluster' + i);
-    if (!el) return;
-    if (i === idx) {
-      el.style.background = '#eef2ff';
-      el.style.borderColor = '#6366f1';
-      el.style.boxShadow = '0 0 0 2px #c7d2fe';
-    } else {
-      el.style.background = '#fff';
-      el.style.borderColor = '#e5e7eb';
-      el.style.boxShadow = 'none';
-    }
-  });
+function _wfToggleCluster(idx) {
+  if (_wfSelectedClusterSet.has(idx)) _wfSelectedClusterSet.delete(idx);
+  else _wfSelectedClusterSet.add(idx);
+  // 시각 갱신
+  const cb = document.getElementById('wfClusterCb' + idx);
+  if (cb) cb.checked = _wfSelectedClusterSet.has(idx);
+  const el = document.getElementById('wfCluster' + idx);
+  if (el) {
+    const sel = _wfSelectedClusterSet.has(idx);
+    el.style.background = sel ? '#eef2ff' : '#fff';
+    el.style.borderColor = sel ? '#6366f1' : '#e5e7eb';
+    el.style.boxShadow = sel ? '0 0 0 2px #c7d2fe' : 'none';
+  }
+  _wfRenderSelectionFooter();
+}
+
+function _wfRenderSelectionFooter() {
+  const el = document.getElementById('wfSelectionFooter');
+  if (!el) return;
+  const n = _wfSelectedClusterSet.size;
+  if (n === 0) {
+    el.innerHTML = `<div style="font-size:11px;color:#9ca3af">선택된 유형 0개 — STEP 3 패턴 분석은 STEP 1 태그 전체 대상이 됩니다.</div>`;
+    return;
+  }
+  const totalChats = _wfSelectedClusterChatIdsUnion().length;
+  el.innerHTML = `<div style="padding:8px 12px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;font-size:12px;color:#3730a3;display:flex;align-items:center;justify-content:space-between;gap:8px">
+    <span>✓ <b>${n}개 유형</b> 선택됨 · 채팅 ${totalChats}건. STEP 5의 [✨ AI로 초안 작성] 클릭 시 ${n >= 2 ? '<b>여러 유형을 합쳐 통합 아티클 1개</b>를 생성' : '선택한 유형으로 초안을 생성'}해요.</span>
+  </div>`;
 }
 
 async function _wfExpandCluster(idx) {
@@ -4636,10 +4736,11 @@ function _wfOpenChatModal(source, idx) {
   }
 }
 
-// STEP 3 — 인입 패턴 분석 (STEP 2 클러스터 선택했으면 그 chat_ids만 분석)
+// STEP 3 — 인입 패턴 분석 (STEP 2에서 선택한 클러스터들의 chat_ids 합집합 사용)
 async function wfRunResearch() {
   const { tags, keywords } = _wfGetTagsAndKeywords();
-  const usingCluster = _wfSelectedClusterChatIds && _wfSelectedClusterChatIds.length > 0;
+  const clusterChatIds = _wfSelectedClusterChatIdsUnion();
+  const usingCluster = clusterChatIds.length > 0;
   if (!tags.length && !keywords.length && !usingCluster) { alert('STEP 1에서 태그·키워드를 입력하거나 STEP 2에서 세부 유형을 선택해주세요.'); return; }
   const btn = document.getElementById('btnWfResearch');
   const resultEl = document.getElementById('wfResearchResult');
@@ -4647,10 +4748,10 @@ async function wfRunResearch() {
   const manual = getLLMMode() === 'manual';
   btn.disabled = true; btn.textContent = manual ? '채팅 조회 중...' : '분석 중...';
   resultEl.style.display = 'block';
-  const scopeLabel = usingCluster ? '선택한 세부 유형' : '태그·키워드';
+  const scopeLabel = usingCluster ? `선택한 ${_wfSelectedClusterSet.size}개 유형 (채팅 ${clusterChatIds.length}건)` : '태그·키워드';
   resultEl.innerHTML = `<div style="padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e40af;font-size:13px">🔍 ${scopeLabel} 채팅 DB 조회${manual ? ' (LLM은 Claude Code에서 처리)' : ' + 패턴 분석'} 중...</div>`;
   const payload = { mode: 'customer_patterns', tags, keywords, limit: 200, prompt_only: manual };
-  if (usingCluster) payload.chat_ids = _wfSelectedClusterChatIds;
+  if (usingCluster) payload.chat_ids = clusterChatIds;
   try {
     const res = await authFetch(`${API}/api/alf_generate`, {
       method: 'POST',
@@ -4801,11 +4902,59 @@ function _wfApplyTitle(data) {
   resultEl.innerHTML = html;
 }
 
-// STEP 5 — AI 초안 작성 (선택한 클러스터의 chat_ids로 alf_generate / alf_faq_generate 호출)
+// STEP 1 보조 — URL 단일 채팅에서 초안 작성 (STEP 2~3 건너뛰기)
+async function wfFromUrl() {
+  const url = (document.getElementById('wfChatUrl')?.value || '').trim();
+  if (!url) { alert('채팅 URL을 입력해주세요.'); return; }
+  const m = url.match(/user-chats\/([A-Za-z0-9_-]+)/);
+  if (!m) { alert('올바른 채널톡 채팅 URL이 아니에요.'); return; }
+  const chatId = m[1];
+  const similar = !!document.getElementById('wfUrlSimilar')?.checked;
+  const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
+  const endpoint = format === 'faq' ? 'alf_faq_generate' : 'alf_generate';
+  if (document.getElementById('wfContent').value.trim() &&
+      !confirm('STEP 5 본문에 이미 내용이 있어요. 새 초안으로 교체할까요?')) return;
+  const btn = document.getElementById('btnWfFromUrl');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '생성 중... (20~40초)';
+  const refUrl = (document.getElementById('wfRefUrl')?.value || '').trim();
+  const refDoc = (document.getElementById('wfRefDoc')?.value || '').trim();
+  const refParams = {};
+  if (refUrl) refParams.reference_url = refUrl;
+  if (refDoc) refParams.reference_doc = refDoc;
+  try {
+    const res = await authFetch(`${API}/api/${endpoint}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chat_ids: [chatId], single_chat: true, similar_search: similar, cluster_label: 'URL 직접 지정', ...refParams }),
+    });
+    const data = await res.json();
+    if (!data.ok) { alert('생성 실패: ' + (data.error || '')); return; }
+    if (format === 'faq') {
+      document.getElementById('wfTitle').value = data.question || '';
+      const variations = Array.isArray(data.variations) ? data.variations : [];
+      const body = (variations.length ? `## 변형 질문\n${variations.map(v => `- ${v}`).join('\n')}\n\n` : '') + `## 답변\n${data.answer || ''}`;
+      document.getElementById('wfContent').value = body;
+    } else {
+      document.getElementById('wfTitle').value = data.title || '';
+      document.getElementById('wfSubtitle').value = data.subtitle || '';
+      document.getElementById('wfContent').value = data.content || '';
+    }
+    document.getElementById('wfContent').dispatchEvent(new Event('input', { bubbles: true }));
+    alert('URL 채팅으로 초안이 생성됐어요. STEP 6 검증으로 진행하세요.');
+  } catch (e) {
+    alert('오류: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+// STEP 5 — AI 초안 작성 (선택한 클러스터들의 chat_ids 합집합으로 호출. 2개 이상이면 통합 아티클)
 async function wfGenerateDraft() {
-  const cluster = (_wfSelectedClusterIdx >= 0) ? _wfClusters[_wfSelectedClusterIdx] : null;
-  if (!cluster || !cluster.chat_ids || !cluster.chat_ids.length) {
-    alert('STEP 2에서 세부 유형을 먼저 선택해주세요. (선택한 유형의 채팅으로 초안을 작성합니다)');
+  const selected = _wfSelectedClusters();
+  const chatIds = _wfSelectedClusterChatIdsUnion();
+  if (!selected.length || !chatIds.length) {
+    alert('STEP 2에서 세부 유형을 1개 이상 선택해주세요.');
     return;
   }
   if (document.getElementById('wfContent').value.trim() &&
@@ -4814,12 +4963,20 @@ async function wfGenerateDraft() {
   const endpoint = format === 'faq' ? 'alf_faq_generate' : 'alf_generate';
   const btn = document.getElementById('btnWfGenerateDraft');
   const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '생성 중... (20~40초)';
+  const isMerged = selected.length >= 2;
+  btn.disabled = true; btn.textContent = isMerged ? '통합 아티클 생성 중... (30~60초)' : '생성 중... (20~40초)';
+  // cluster_label: 단일이면 그 label, 다중이면 합쳐서
+  const mergedLabel = isMerged ? selected.map(c => c.label).join(' + ') : selected[0].label;
+  const refUrl = (document.getElementById('wfRefUrl')?.value || '').trim();
+  const refDoc = (document.getElementById('wfRefDoc')?.value || '').trim();
+  const refParams = {};
+  if (refUrl) refParams.reference_url = refUrl;
+  if (refDoc) refParams.reference_doc = refDoc;
   try {
     const res = await authFetch(`${API}/api/${endpoint}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ cluster_label: cluster.label, chat_ids: cluster.chat_ids }),
+      body: JSON.stringify({ cluster_label: mergedLabel, chat_ids: chatIds, ...refParams }),
     });
     const data = await res.json();
     if (!data.ok) { alert('초안 작성 실패: ' + (data.error || '')); return; }
