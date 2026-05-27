@@ -735,15 +735,23 @@ class handler(_Base):
                 "total_chats": len(chats),
                 "samples": samples[:50],
             }
+            context_label_parts = []
+            if tags:
+                context_label_parts.append("태그: " + ", ".join(tags))
+            if keywords:
+                context_label_parts.append("키워드: " + ", ".join(keywords))
+            context_label = " / ".join(context_label_parts) if context_label_parts else "(없음)"
             pattern_prompt = (
                 "다음은 라이브클래스 고객들이 채널톡에 직접 작성한 실제 첫 인입 멘트들이에요. "
-                "이 멘트들에서 자주 등장하는 표현·키워드 패턴을 정리하고, 채널톡 ALF가 검색·매칭하기 좋은 "
-                "아티클 헤딩(질문형, ## 마크다운)을 추천해주세요.\n\n"
+                "이 데이터는 다음 검색 조건으로 모았어요: " + context_label + "\n\n"
+                "이 검색 조건의 주제에 직접 관련된 표현·키워드 패턴만 정리하고, 채널톡 ALF가 검색·매칭하기 좋은 "
+                "아티클 헤딩(질문형, ## 마크다운)을 추천해주세요. 검색 조건과 무관한 일반적 패턴(예: 상담사 연결, 문의 인사)은 빼주세요.\n\n"
                 "【고객 실제 멘트】\n" + sample_joined + "\n\n"
                 "【작성 가이드】\n"
                 "- 헤딩은 고객이 실제로 쓰는 자연어 표현을 살리되, 채널톡 가이드 친근체(-어요, -하나요?)로 마무리\n"
                 "- '업그레이드/다운그레이드' 같은 내부 용어는 노출 금지. '더 큰 플랜/무료 플랜으로 변경' 같이 풀어 쓰기\n"
-                "- 5~10개 헤딩으로 의도를 나눠 추천\n\n"
+                "- 검색 조건 주제에 직접 맞닿은 헤딩만 5~8개 추천 (관련성 낮으면 적게)\n"
+                "- 너무 짧은 헤딩(5자 이하) 또는 너무 광범위한 헤딩 금지\n\n"
                 "반드시 아래 JSON 형식으로만 답변 (다른 텍스트 금지):\n"
                 '{\n'
                 '  "patterns": [\n'

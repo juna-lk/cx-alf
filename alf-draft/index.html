@@ -1777,7 +1777,7 @@
 
   <!-- STEP 2 -->
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 2</span>
         <span style="font-size:14px;font-weight:600;color:#111827">고객 인입 패턴 분석</span>
@@ -1785,6 +1785,10 @@
       </div>
       <button class="btn btn-secondary" onclick="wfRunResearch()" id="btnWfResearch"
         style="padding:7px 14px;font-size:12px;background:#eff6ff;color:#1e40af;border-color:#bfdbfe">📊 패턴 분석</button>
+    </div>
+    <div style="font-size:11.5px;color:#6b7280;background:#f9fafb;border-left:3px solid #c7d2fe;padding:6px 10px;margin-bottom:12px;border-radius:0 4px 4px 0">
+      💡 STEP 1에서 태그/키워드를 정한 뒤 <b>[📊 패턴 분석]</b>을 누르면, 그 조건에 맞는 실제 고객 멘트에서 자주 쓰는 표현 패턴과 ALF가 매칭하기 좋은 아티클 헤딩을 자동으로 뽑아줘요.<br>
+      추천된 헤딩을 클릭하면 STEP 4 본문 영역에 자동으로 삽입되고, 그 아래 답변만 채워 넣으면 됩니다.
     </div>
     <div id="wfResearchResult" style="display:none"></div>
   </div>
@@ -3056,7 +3060,7 @@ function _renderTitleSuggestion(title, subtitle, alternatives, resultEl) {
         <div style="display:flex;flex-direction:column;gap:6px">
           ${alternatives.map(alt => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
             <div style="font-size:13px;color:#374151;flex:1;line-height:1.5">${_escapeHTML(alt)}</div>
-            <button onclick="document.getElementById('validateTitle').value=${JSON.stringify(alt)};document.getElementById('validateTitle').scrollIntoView({behavior:'smooth',block:'center'})"
+            <button onclick="document.getElementById('validateTitle').value='${escapeJs(alt)}';document.getElementById('validateTitle').scrollIntoView({behavior:'smooth',block:'center'})"
               style="font-size:11px;padding:3px 10px;border-radius:5px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600;flex-shrink:0">이걸로 바꾸기</button>
           </div>`).join('')}
         </div>
@@ -4313,7 +4317,7 @@ function _renderCustomerResearchResult(data) {
     html += `<div style="background:#fff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 18px;margin-bottom:14px">
       <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:10px">✨ 추천 헤딩 — 클릭하면 검증 탭 본문에 복사</div>
       <div style="display:flex;flex-direction:column;gap:6px">
-        ${headings.map(h => `<button onclick="_applyResearchHeading(${JSON.stringify(h)})" style="text-align:left;background:#faf5ff;border:1px solid #ddd6fe;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:13px;color:#1f2937;font-family:inherit">${escapeHtml(h)}</button>`).join('')}
+        ${headings.map(h => `<button onclick="_applyResearchHeading('${escapeJs(h)}')" style="text-align:left;background:#faf5ff;border:1px solid #ddd6fe;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:13px;color:#1f2937;font-family:inherit">${escapeHtml(h)}</button>`).join('')}
       </div>
       <div style="font-size:11px;color:#9ca3af;margin-top:8px">전체 복사하려면 아래 버튼</div>
       <button onclick="_copyAllResearchHeadings(${JSON.stringify(headings).replace(/"/g,'&quot;')})" style="margin-top:6px;font-size:12px;padding:5px 12px;border-radius:5px;background:#7c3aed;color:#fff;border:none;cursor:pointer;font-weight:600">📋 헤딩 전체 복사</button>
@@ -4491,7 +4495,7 @@ function _wfRenderResearch(data) {
     html += `<div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px 14px;margin-bottom:10px">
       <div style="font-size:12px;font-weight:700;color:#6d28d9;margin-bottom:8px">✨ 추천 헤딩 — 클릭하면 STEP 4 본문에 삽입</div>
       <div style="display:flex;flex-direction:column;gap:5px">
-        ${headings.map(h => `<button onclick="_wfInsertHeading(${JSON.stringify(h)})" style="text-align:left;background:#fff;border:1px solid #ddd6fe;border-radius:5px;padding:6px 10px;cursor:pointer;font-size:13px;color:#1f2937;font-family:inherit">${escapeHtml(h)}</button>`).join('')}
+        ${headings.map(h => `<button onclick="_wfInsertHeading('${escapeJs(h)}')" style="text-align:left;background:#fff;border:1px solid #ddd6fe;border-radius:5px;padding:6px 10px;cursor:pointer;font-size:13px;color:#1f2937;font-family:inherit">${escapeHtml(h)}</button>`).join('')}
       </div>
       <button onclick="_wfInsertAllHeadings()" style="margin-top:8px;font-size:11px;padding:4px 10px;border-radius:5px;background:#7c3aed;color:#fff;border:none;cursor:pointer;font-weight:600">+ 모든 헤딩 본문에 삽입</button>
     </div>`;
@@ -4590,7 +4594,7 @@ function _wfApplyTitle(data) {
       <div style="display:flex;flex-direction:column;gap:4px">
         ${alternatives.map(a => `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
           <span style="color:#374151;flex:1">${escapeHtml(a)}</span>
-          <button onclick="document.getElementById('wfTitle').value=${JSON.stringify(a)}" style="font-size:10px;padding:2px 8px;border-radius:4px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer">교체</button>
+          <button onclick="document.getElementById('wfTitle').value='${escapeJs(a)}'" style="font-size:10px;padding:2px 8px;border-radius:4px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer">교체</button>
         </div>`).join('')}
       </div>
     </div>`;
