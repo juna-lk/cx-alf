@@ -538,6 +538,7 @@
   <div class="tab" onclick="switchTab('validate')">✔ 가이드라인 검증</div>
   <div class="tab" onclick="switchTab('faqValidate')">✔ 가이드라인 검증 (FAQ)</div>
   <div class="tab" onclick="switchTab('customerResearch')">📊 고객 인입 리서치</div>
+  <div class="tab" onclick="switchTab('workflow')">🚀 워크플로우</div>
 </div>
 
 <div class="page active" id="tab-generate">
@@ -1735,6 +1736,115 @@
   <div id="researchResult" style="display:none"></div>
 </div>
 
+<div class="page" id="tab-workflow">
+  <div style="margin-bottom:16px">
+    <h2 style="font-size:16px;font-weight:600">🚀 워크플로우 — 인입 분석부터 채널톡 등록까지</h2>
+    <p style="font-size:13px;color:#6b7280;margin-top:4px">
+      고객 인입 패턴 분석 → 헤딩 추천 → 본문 작성 → 검증 → 채널톡 등록을 한 화면에서 순서대로 진행해요.
+    </p>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 1</span>
+      <span style="font-size:14px;font-weight:600;color:#111827">주제·키워드</span>
+    </div>
+    <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:6px">키워드 또는 채널톡 태그(쉼표 구분)</label>
+    <input type="text" id="wfKeywords" placeholder="예: 플랜 변경, 지원항목/비즈팀/플랜다운그레이드"
+      style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 2</span>
+        <span style="font-size:14px;font-weight:600;color:#111827">고객 인입 패턴 분석</span>
+        <span style="font-size:11px;color:#9ca3af">(선택, 권장)</span>
+      </div>
+      <button class="btn btn-secondary" onclick="wfRunResearch()" id="btnWfResearch"
+        style="padding:7px 14px;font-size:12px;background:#eff6ff;color:#1e40af;border-color:#bfdbfe">📊 패턴 분석</button>
+    </div>
+    <div id="wfResearchResult" style="display:none"></div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 3</span>
+        <span style="font-size:14px;font-weight:600;color:#111827">제목·소제목</span>
+      </div>
+      <button class="btn btn-secondary" onclick="wfSuggestTitle()" id="btnWfSuggestTitle"
+        style="padding:7px 14px;font-size:12px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe">✨ AI 추천</button>
+    </div>
+    <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:6px">제목</label>
+    <input type="text" id="wfTitle" placeholder="예: 플랜을 변경하고 싶어요."
+      style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:10px" />
+    <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:6px">소제목 <span style="color:#9ca3af">(선택)</span></label>
+    <input type="text" id="wfSubtitle" placeholder="예: 플랜 변경 방법과 적용 시점"
+      style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit" />
+    <div id="wfTitleResult" style="display:none;margin-top:10px"></div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 4</span>
+        <span style="font-size:14px;font-weight:600;color:#111827">본문 작성</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="font-size:11px;color:#6b7280;display:flex;align-items:center;gap:4px"><input type="radio" name="wfFormat" value="article" checked /> 아티클</label>
+        <label style="font-size:11px;color:#6b7280;display:flex;align-items:center;gap:4px"><input type="radio" name="wfFormat" value="faq" /> FAQ</label>
+      </div>
+    </div>
+    <textarea id="wfContent" rows="14"
+      oninput="document.getElementById('wfCharCount').textContent=this.value.length"
+      placeholder="STEP 2에서 추천된 헤딩을 클릭하면 여기 자동 삽입돼요. 또는 직접 작성하세요."
+      style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+      <div style="font-size:11px;color:#9ca3af"><span id="wfCharCount">0</span>자</div>
+      <div style="font-size:11px;color:#9ca3af">아티클 한도 2,000자 / FAQ 한도 500자</div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 5</span>
+        <span style="font-size:14px;font-weight:600;color:#111827">검증 · 재작성</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary" onclick="wfRewrite()" id="btnWfRewrite"
+          style="padding:7px 14px;font-size:12px;background:#fff7ed;color:#9a3412;border-color:#fed7aa">🔧 가이드 기반 재작성</button>
+        <button class="btn btn-primary" onclick="wfValidate()" id="btnWfValidate"
+          style="padding:7px 18px;font-size:12px">✔ 검증하기</button>
+      </div>
+    </div>
+    <div id="wfValidateResult" style="display:none"></div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 6</span>
+        <span style="font-size:14px;font-weight:600;color:#111827">저장·채널톡 등록</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary" onclick="wfSave()" id="btnWfSave"
+          style="padding:7px 14px;font-size:12px;background:#ecfdf5;color:#047857;border-color:#a7f3d0">💾 라이브러리에 저장</button>
+        <button class="btn btn-secondary" onclick="wfPublish()" id="btnWfPublish"
+          style="padding:7px 14px;font-size:12px;background:#f0fdf4;color:#15803d;border-color:#86efac">📤 채널톡에 등록 (비공개)</button>
+      </div>
+    </div>
+    <div id="wfPublishResult" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <h2 id="modalTitle"></h2>
@@ -1957,6 +2067,7 @@ const _AUTOSAVE_INPUTS = [
   'validateTitle', 'validateSubtitle', 'validateContent',
   'faqValidateQuestion', 'faqValidateAnswer',
   'faqQuestion', 'faqAnswer',
+  'wfKeywords', 'wfTitle', 'wfSubtitle', 'wfContent',
 ];
 let _autosaveTimer = null;
 function _autosaveAll() {
@@ -2002,6 +2113,8 @@ function _autosaveRestore() {
     if (vc) vc.textContent = (document.getElementById('validateContent')?.value || '').length;
     const fc = document.getElementById('faqValidateCharCount');
     if (fc) fc.textContent = (document.getElementById('faqValidateAnswer')?.value || '').length;
+    const wc = document.getElementById('wfCharCount');
+    if (wc) wc.textContent = (document.getElementById('wfContent')?.value || '').length;
     if (restored > 0) {
       const ago = data._ts ? Math.round((Date.now() - data._ts) / 60000) : 0;
       console.info(`[autosave] 복구 ${restored}개 필드 (${ago}분 전 저장)`);
@@ -2368,7 +2481,7 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch'][i] === name);
+    t.classList.toggle('active', ['generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch','workflow'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
@@ -4236,6 +4349,325 @@ function _copyAllResearchHeadings(headings) {
   navigator.clipboard.writeText(text).then(() => alert(`헤딩 ${headings.length}개 복사 완료`));
 }
 
+// ───── 🚀 통합 워크플로우 (Step 1~6) ─────
+let _wfResearchContext = null;
+let _wfResearchData = null;
+
+function _wfGetKeywords() {
+  const raw = (document.getElementById('wfKeywords')?.value || '').trim();
+  return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+}
+
+// STEP 2 — 인입 패턴 분석
+async function wfRunResearch() {
+  const keywords = _wfGetKeywords();
+  if (!keywords.length) { alert('STEP 1에서 키워드/태그를 입력해주세요.'); return; }
+  const btn = document.getElementById('btnWfResearch');
+  const resultEl = document.getElementById('wfResearchResult');
+  const orig = btn.textContent;
+  const manual = getLLMMode() === 'manual';
+  btn.disabled = true; btn.textContent = manual ? '채팅 조회 중...' : '분석 중...';
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<div style="padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e40af;font-size:13px">🔍 채팅 DB 조회${manual ? ' (LLM은 Claude Code에서 처리)' : ' + 패턴 분석'} 중...</div>`;
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mode: 'customer_patterns', keywords, limit: 200, prompt_only: manual }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '분석 실패');
+    if (manual && data.prompt_only) {
+      resultEl.innerHTML = `<div style="padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px">🛠 모달에서 프롬프트 복사 → Claude Code 응답 붙여넣기</div>`;
+      openManualLlm(data.prompt, (parsed, ctx) => {
+        _wfRenderResearch({
+          ok: true,
+          keywords_used: (ctx && ctx.keywords_used) || keywords,
+          tags_used: (ctx && ctx.tags_used) || [],
+          total_chats: (ctx && ctx.total_chats) || 0,
+          samples: (ctx && ctx.samples) || [],
+          patterns: parsed.patterns || [],
+          suggested_headings: parsed.suggested_headings || [],
+        });
+      }, data.context || {});
+      return;
+    }
+    _wfRenderResearch(data);
+  } catch (e) {
+    resultEl.innerHTML = `<div style="padding:12px 16px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:13px">❌ ${escapeHtml(e.message || String(e))}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function _wfRenderResearch(data) {
+  _wfResearchData = data;
+  const resultEl = document.getElementById('wfResearchResult');
+  const samples = data.samples || [];
+  const patterns = data.patterns || [];
+  const headings = data.suggested_headings || [];
+  let html = `<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#15803d;font-size:12px;margin-bottom:10px">✅ ${data.total_chats || 0}건 채팅 분석 / 자연어 멘트 ${samples.length}건</div>`;
+
+  if (headings.length) {
+    html += `<div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;color:#6d28d9;margin-bottom:8px">✨ 추천 헤딩 — 클릭하면 STEP 4 본문에 삽입</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${headings.map(h => `<button onclick="_wfInsertHeading(${JSON.stringify(h)})" style="text-align:left;background:#fff;border:1px solid #ddd6fe;border-radius:5px;padding:6px 10px;cursor:pointer;font-size:13px;color:#1f2937;font-family:inherit">${escapeHtml(h)}</button>`).join('')}
+      </div>
+      <button onclick="_wfInsertAllHeadings()" style="margin-top:8px;font-size:11px;padding:4px 10px;border-radius:5px;background:#7c3aed;color:#fff;border:none;cursor:pointer;font-weight:600">+ 모든 헤딩 본문에 삽입</button>
+    </div>`;
+  }
+
+  if (patterns.length) {
+    html += `<details style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin-bottom:10px">
+      <summary style="font-size:12px;font-weight:600;color:#374151;cursor:pointer">📌 패턴 요약 (${patterns.length})</summary>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+        ${patterns.map(p => `<div style="padding:6px 10px;background:#f9fafb;border-radius:5px;font-size:12px">
+          <strong>${escapeHtml(p.phrase || '')}</strong>${p.count_hint ? `<span style="color:#9ca3af;margin-left:6px">${escapeHtml(p.count_hint)}</span>` : ''}
+          ${p.note ? `<div style="color:#6b7280;margin-top:2px">${escapeHtml(p.note)}</div>` : ''}
+        </div>`).join('')}
+      </div>
+    </details>`;
+  }
+
+  if (samples.length) {
+    html += `<details style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px">
+      <summary style="font-size:12px;font-weight:600;color:#374151;cursor:pointer">💬 고객 실제 멘트 (${samples.length})</summary>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto">
+        ${samples.map(s => {
+          const url = `https://desk.channel.io/liveklass/user-chats/${escapeHtml(s.chat_id || '')}`;
+          return `<div style="padding:6px 10px;background:#f9fafb;border-radius:5px;font-size:12px;color:#374151">
+            ${escapeHtml(s.text || '').replace(/\n/g,'<br>')}
+            <a href="${url}" target="_blank" style="font-size:10px;color:#7c3aed;margin-left:6px">원본 →</a>
+          </div>`;
+        }).join('')}
+      </div>
+    </details>`;
+  }
+  resultEl.innerHTML = html;
+}
+
+function _wfInsertHeading(h) {
+  const ta = document.getElementById('wfContent');
+  if (!ta) return;
+  const cur = ta.value;
+  const sep = (cur && !cur.endsWith('\n\n')) ? (cur.endsWith('\n') ? '\n' : '\n\n') : '';
+  ta.value = cur + sep + h + '\n\n';
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function _wfInsertAllHeadings() {
+  const headings = (_wfResearchData && _wfResearchData.suggested_headings) || [];
+  if (!headings.length) return;
+  const ta = document.getElementById('wfContent');
+  const cur = ta.value;
+  const block = headings.map(h => `${h}\n\n(여기에 답변 작성)`).join('\n\n');
+  ta.value = (cur && !cur.endsWith('\n\n') ? cur + '\n\n' : cur) + block + '\n';
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// STEP 3 — 제목·소제목 추천
+async function wfSuggestTitle() {
+  const content = (document.getElementById('wfContent')?.value || '').trim();
+  if (!content || content.length < 30) { alert('STEP 4에서 본문을 30자 이상 작성한 뒤 다시 시도해주세요.'); return; }
+  const btn = document.getElementById('btnWfSuggestTitle');
+  const resultEl = document.getElementById('wfTitleResult');
+  const orig = btn.textContent;
+  const manual = getLLMMode() === 'manual';
+  btn.disabled = true; btn.textContent = '추천 중...';
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<div style="padding:10px 14px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;color:#7c3aed;font-size:12px">✨ AI 추천 ${manual ? '(수동 모드)' : '생성 중...'}</div>`;
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mode: 'title_suggest', content, prompt_only: manual }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '실패');
+    if (manual && data.prompt_only) {
+      openManualLlm(data.prompt, (parsed) => _wfApplyTitle(parsed));
+      return;
+    }
+    _wfApplyTitle(data);
+  } catch (e) {
+    resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12px">❌ ${escapeHtml(e.message || String(e))}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function _wfApplyTitle(data) {
+  const title = (data.title || '').trim();
+  const subtitle = (data.subtitle || '').trim();
+  const alternatives = data.alternatives || [];
+  if (title) document.getElementById('wfTitle').value = title;
+  if (subtitle) document.getElementById('wfSubtitle').value = subtitle;
+  const resultEl = document.getElementById('wfTitleResult');
+  let html = `<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#15803d;font-size:12px;margin-bottom:8px">✓ 제목·소제목 자동 적용됨</div>`;
+  if (alternatives.length) {
+    html += `<div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:10px 12px;font-size:12px">
+      <div style="font-weight:700;color:#7c3aed;margin-bottom:6px">다른 제목 후보</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${alternatives.map(a => `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span style="color:#374151;flex:1">${escapeHtml(a)}</span>
+          <button onclick="document.getElementById('wfTitle').value=${JSON.stringify(a)}" style="font-size:10px;padding:2px 8px;border-radius:4px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer">교체</button>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  resultEl.innerHTML = html;
+}
+
+// STEP 5 — 검증
+function wfValidate() {
+  const title = document.getElementById('wfTitle').value.trim();
+  const content = document.getElementById('wfContent').value.trim();
+  const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
+  if (!content) { alert('STEP 4에서 본문을 작성해주세요.'); return; }
+  const resultEl = document.getElementById('wfValidateResult');
+  resultEl.style.display = 'block';
+  if (typeof validateArticle !== 'function') {
+    resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12px">검증 함수가 로드되지 않았어요.</div>`;
+    return;
+  }
+  const { warnings, length } = validateArticle(content, title, format);
+  const errors = (warnings || []).filter(w => (w.level || '') === 'error');
+  const warns = (warnings || []).filter(w => (w.level || '') !== 'error');
+  const header = errors.length === 0 && warns.length === 0
+    ? `<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#15803d;font-size:13px;font-weight:600">✅ 합격 — 모든 가이드라인 통과 (${length}자)</div>`
+    : errors.length > 0
+      ? `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:13px;font-weight:600">❌ 보완 필요 — 오류 ${errors.length}건 / 경고 ${warns.length}건</div>`
+      : `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px;font-weight:600">⚠️ 경고 ${warns.length}건 — 등록 가능하지만 확인 권장</div>`;
+  const list = (warnings || []).map(w => {
+    const isErr = (w.level || '') === 'error';
+    const bg = isErr ? '#fef2f2' : '#fffbeb';
+    const bd = isErr ? '#fca5a5' : '#fde68a';
+    const cl = isErr ? '#b91c1c' : '#92400e';
+    const ic = isErr ? '❌' : '⚠️';
+    return `<div style="padding:8px 12px;background:${bg};border:1px solid ${bd};border-radius:6px;color:${cl};font-size:12px">${ic} <strong>${escapeHtml(w.rule || '')}</strong>: ${escapeHtml(w.message || '')}</div>`;
+  }).join('');
+  resultEl.innerHTML = header + (list ? `<div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">${list}</div>` : '');
+  _wfLastValidationWarnings = warnings || [];
+}
+
+let _wfLastValidationWarnings = [];
+
+// STEP 5 — 가이드 기반 재작성
+async function wfRewrite() {
+  const title = document.getElementById('wfTitle').value.trim();
+  const content = document.getElementById('wfContent').value.trim();
+  if (!content) { alert('STEP 4에서 본문을 작성해주세요.'); return; }
+  const btn = document.getElementById('btnWfRewrite');
+  const resultEl = document.getElementById('wfValidateResult');
+  const orig = btn.textContent;
+  const manual = getLLMMode() === 'manual';
+  btn.disabled = true; btn.textContent = '재작성 중...';
+  if (!resultEl.style.display || resultEl.style.display === 'none') resultEl.style.display = 'block';
+  const placeholder = `<div style="padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#9a3412;font-size:12px;margin-top:8px">🔧 ${manual ? '수동 모드 — 모달 확인' : '재작성 중...'}</div>`;
+  resultEl.innerHTML = resultEl.innerHTML + placeholder;
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mode: 'rewrite', content, title, warnings: _wfLastValidationWarnings, prompt_only: manual }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '재작성 실패');
+    if (manual && data.prompt_only) {
+      openManualLlm(data.prompt, (parsed) => _wfApplyRewrite(parsed));
+      return;
+    }
+    _wfApplyRewrite(data);
+  } catch (e) {
+    alert('재작성 실패: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function _wfApplyRewrite(data) {
+  const revised = data.content || '';
+  if (revised) {
+    document.getElementById('wfContent').value = revised;
+    document.getElementById('wfContent').dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  if (data.title) document.getElementById('wfTitle').value = data.title;
+  if (data.subtitle) document.getElementById('wfSubtitle').value = data.subtitle;
+  alert('재작성 본문이 STEP 4에 반영됐어요. 다시 검증해주세요.');
+}
+
+// STEP 6 — 저장
+async function wfSave() {
+  const title = document.getElementById('wfTitle').value.trim();
+  const subtitle = document.getElementById('wfSubtitle').value.trim();
+  const content = document.getElementById('wfContent').value.trim();
+  const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
+  if (!title) { alert('제목을 입력해주세요.'); return; }
+  if (!content) { alert('본문을 입력해주세요.'); return; }
+  const btn = document.getElementById('btnWfSave');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    const res = await authFetch(`${API}/api/alf_data`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'save_draft', title, subtitle, content, format }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '저장 실패');
+    alert('라이브러리에 저장됐어요!');
+  } catch (e) {
+    alert('저장 실패: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+// STEP 6 — 채널톡 등록
+async function wfPublish() {
+  const name = document.getElementById('wfTitle').value.trim();
+  const subtitle = document.getElementById('wfSubtitle').value.trim();
+  const content = document.getElementById('wfContent').value.trim();
+  if (!name) { alert('제목을 입력해주세요.'); return; }
+  if (!content) { alert('본문이 비어있어요.'); return; }
+  if (!confirm('채널톡에 초안(비공개)으로 등록할게요. 계속할까요?')) return;
+  const btn = document.getElementById('btnWfPublish');
+  const resultEl = document.getElementById('wfPublishResult');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '등록 중...';
+  resultEl.style.display = 'none';
+  try {
+    const res = await authFetch(`${API}/api/alf_publish`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, subtitle, content, publish: false }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      resultEl.style.display = 'block';
+      resultEl.style.background = '#f0fdf4';
+      resultEl.style.border = '1px solid #86efac';
+      resultEl.style.color = '#15803d';
+      resultEl.innerHTML = `✅ 채널톡 초안 등록 완료 — 아티클 ID: <strong>${escapeHtml(data.article_id || '')}</strong>`;
+    } else {
+      resultEl.style.display = 'block';
+      resultEl.style.background = '#fef2f2';
+      resultEl.style.border = '1px solid #fca5a5';
+      resultEl.style.color = '#b91c1c';
+      resultEl.innerHTML = `❌ 등록 실패: ${escapeHtml(data.error || '')}`;
+    }
+  } catch (e) {
+    resultEl.style.display = 'block';
+    resultEl.style.background = '#fef2f2';
+    resultEl.style.border = '1px solid #fca5a5';
+    resultEl.style.color = '#b91c1c';
+    resultEl.innerHTML = `❌ 오류: ${escapeHtml(e.message || String(e))}`;
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
 function downloadDraft() {
   const title = document.getElementById('draftTitle').value.trim() || state.currentDraftTitle || 'alf-draft';
   const subtitle = document.getElementById('draftSubtitle').value.trim();
@@ -5336,7 +5768,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   // 이미지 캡쳐→붙여넣기 (Canvas 자동 처리 + Supabase Storage 업로드)
-  ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer', 'validateContent', 'faqValidateAnswer'].forEach(setupImagePaste);
+  ['draftArea', 'editArticleContent', 'faqAnswer', 'editFaqAnswer', 'validateContent', 'faqValidateAnswer', 'wfContent'].forEach(setupImagePaste);
   setupImageFormatTool();
   if (typeof _renderFaqValidateVariations === 'function') _renderFaqValidateVariations();
   // 자동 저장 복원 + 리스너 부착 (세션 만료·새로고침 대비)
