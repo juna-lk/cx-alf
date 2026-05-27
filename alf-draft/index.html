@@ -4779,10 +4779,8 @@ async function _wfExpandCluster(idx) {
       btn.style.borderColor = '#a7f3d0';
       btn.style.cursor = 'not-allowed';
     }
-    // 이 클러스터가 현재 선택돼 있다면 chat_ids도 갱신
-    if (_wfSelectedClusterIdx === idx) {
-      _wfSelectedClusterChatIds = [...cluster.chat_ids];
-    }
+    // 선택 상태 표시(체크박스+요약) 갱신 — _wfSelectedClusterChatIdsUnion()은 호출 시 cluster.chat_ids로 다시 계산되므로 별도 캐시 불필요
+    if (_wfSelectedClusterSet.has(idx)) _wfRenderSelectionFooter();
   } catch (e) {
     alert('오류: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = '🔍 +25건 탐색'; }
