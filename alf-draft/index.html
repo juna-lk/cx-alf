@@ -1879,6 +1879,9 @@
         <button class="btn btn-secondary" onclick="wfGenerateDraft()" id="btnWfGenerateDraft"
           title="선택한 세부 유형의 채팅으로 LLM이 초안 작성 (STEP 2에서 유형을 먼저 선택해주세요)"
           style="padding:6px 14px;font-size:12px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe;margin-left:4px">✨ AI로 초안 작성</button>
+        <button class="btn btn-secondary" onclick="wfClearDraft()" id="btnWfClearDraft"
+          title="제목·소제목·본문·검증 결과를 모두 비웁니다 (다른 STEP의 결과는 유지)"
+          style="padding:6px 12px;font-size:12px;background:#fff;color:#6b7280;border-color:#e5e7eb">🧹 비우기</button>
       </div>
     </div>
     <details style="margin-bottom:10px;padding:8px 12px;background:#fafafa;border:1px dashed #e5e7eb;border-radius:6px">
@@ -5159,6 +5162,43 @@ function _wfApplyGenerated(format, data) {
     }
   document.getElementById('wfContent').dispatchEvent(new Event('input', { bubbles: true }));
   alert('AI 초안이 STEP 4/5 필드에 채워졌어요. 검토 후 STEP 6 검증으로 진행하세요.');
+}
+
+// STEP 5/6 — 본문·제목·검증 결과 비우기 (다른 STEP 결과는 유지)
+function wfClearDraft() {
+  const content = document.getElementById('wfContent')?.value || '';
+  const title = document.getElementById('wfTitle')?.value || '';
+  if ((content.trim() || title.trim()) && !confirm('제목·소제목·본문·검증 결과를 모두 비울게요. 진행할까요?')) return;
+  ['wfTitle','wfSubtitle','wfContent','wfRefUrl','wfRefDoc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // 결과·diff 영역 정리
+  ['wfTitleResult','wfValidateResult'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.innerHTML = ''; el.style.display = 'none'; }
+  });
+  document.getElementById('_wfRewriteDiff')?.remove();
+  document.getElementById('_wfRewriteLoading')?.remove();
+  window._wfPendingRewrite = null;
+  _wfLastValidationWarnings = [];
+  // 글자수 카운터
+  const cc = document.getElementById('wfCharCount');
+  if (cc) cc.textContent = '0';
+  // 재작성 버튼 상태 복구
+  const rewriteBtn = document.getElementById('btnWfRewrite');
+  if (rewriteBtn) {
+    rewriteBtn.dataset.passLocked = '';
+    rewriteBtn.style.opacity = '';
+    rewriteBtn.style.cursor = '';
+    rewriteBtn.title = '';
+  }
+  // autosave 키 정리 (작성 중 자동 저장 기능)
+  try {
+    Object.keys(localStorage).filter(k => /^alf_(wf_|workflow_)?(title|subtitle|content|refUrl|refDoc)/i.test(k)).forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
+  // 포커스 제목으로
+  document.getElementById('wfTitle')?.focus();
 }
 
 // STEP 6 — 검증 (인라인 풍부 렌더링 · renderValidationResult 외부 의존 제거)
