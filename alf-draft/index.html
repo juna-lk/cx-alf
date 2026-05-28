@@ -5161,7 +5161,7 @@ function _wfApplyGenerated(format, data) {
   alert('AI 초안이 STEP 4/5 필드에 채워졌어요. 검토 후 STEP 6 검증으로 진행하세요.');
 }
 
-// STEP 6 — 검증
+// STEP 6 — 검증 (인라인 풍부 렌더링 · renderValidationResult 외부 의존 제거)
 function wfValidate() {
   try {
     const title = document.getElementById('wfTitle').value.trim();
@@ -5173,14 +5173,59 @@ function wfValidate() {
     // 이전 diff·placeholder 정리
     document.getElementById('_wfRewriteDiff')?.remove();
     document.getElementById('_wfRewriteLoading')?.remove();
-    if (typeof validateArticle !== 'function' || typeof renderValidationResult !== 'function') {
+    if (typeof validateArticle !== 'function') {
       resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12px">검증 함수가 로드되지 않았어요.</div>`;
       return;
     }
     const { warnings, length } = validateArticle(content, title, format);
     _wfLastValidationWarnings = warnings || [];
-    // 검증 탭과 동일한 풍부 렌더링 재사용 (재작성 카드는 STEP 6 자체 버튼이 있어 숨김)
-    renderValidationResult(warnings || [], length, format, { targetId: 'wfValidateResult', showRewriteCard: false });
+    const errors = (warnings || []).filter(w => w.level === 'error');
+    const warns = (warnings || []).filter(w => w.level === 'warning');
+    const infos = (warnings || []).filter(w => w.level === 'info');
+    const status = errors.length > 0 ? 'fail' : (warns.length > 0 ? 'warn' : 'pass');
+    const statusStyles = {
+      pass: {bg:'#f0fdf4', border:'#86efac', color:'#15803d', label:'✅ 합격', desc:'모든 가이드라인 통과 — 채널톡에 등록해도 좋아요'},
+      warn: {bg:'#fffbeb', border:'#fcd34d', color:'#b45309', label:'⚠️ 경고', desc:`${warns.length}건 개선 권장${infos.length > 0 ? ` · 참고 ${infos.length}건` : ''}`},
+      fail: {bg:'#fef2f2', border:'#fca5a5', color:'#b91c1c', label:'❌ 실패', desc:`${errors.length}건 수정 필수${warns.length > 0 ? ` · 경고 ${warns.length}건` : ''}${infos.length > 0 ? ` · 참고 ${infos.length}건` : ''}`},
+    };
+    const s = statusStyles[status];
+    let html = '';
+    html += `<div style="padding:14px 18px;border-radius:10px;background:${s.bg};border:1px solid ${s.border};margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:18px;font-weight:700;color:${s.color}">${s.label}</div>
+      <div style="font-size:13px;color:${s.color};opacity:.85">${s.desc}</div>
+      <div style="flex:1"></div>
+      <div style="font-size:12px;color:${s.color};font-weight:600">본문 ${length}자 (${format === 'article' ? '아티클' : 'FAQ'})</div>
+    </div>`;
+    const renderCard = (w, bg, bd, cl) => `<div style="padding:10px 14px;background:${bg};border:1px solid ${bd};border-radius:8px;color:${cl};font-size:13px">
+      <div style="font-weight:700;margin-bottom:3px">${escapeHtml(w.rule || '')}</div>
+      <div style="font-size:12px;opacity:.9">${escapeHtml(w.message || '')}</div>
+    </div>`;
+    if (errors.length > 0) {
+      html += `<div style="margin-bottom:16px">
+        <h3 style="font-size:14px;font-weight:700;color:#b91c1c;margin:0 0 8px">❌ 실패 (수정 필수) — ${errors.length}건</h3>
+        <div style="display:flex;flex-direction:column;gap:6px">${errors.map(w=>renderCard(w,'#fef2f2','#fecaca','#b91c1c')).join('')}</div>
+      </div>`;
+    }
+    if (warns.length > 0) {
+      html += `<div style="margin-bottom:16px">
+        <h3 style="font-size:14px;font-weight:700;color:#b45309;margin:0 0 8px">⚠️ 경고 (개선 권장) — ${warns.length}건</h3>
+        <div style="display:flex;flex-direction:column;gap:6px">${warns.map(w=>renderCard(w,'#fffbeb','#fde68a','#b45309')).join('')}</div>
+      </div>`;
+    }
+    if (infos.length > 0) {
+      html += `<div style="margin-bottom:16px">
+        <h3 style="font-size:14px;font-weight:700;color:#1e40af;margin:0 0 8px">💡 참고 — ${infos.length}건</h3>
+        <div style="display:flex;flex-direction:column;gap:6px">${infos.map(w=>renderCard(w,'#eff6ff','#bfdbfe','#1e40af')).join('')}</div>
+      </div>`;
+    }
+    if ((warnings || []).length === 0) {
+      html += `<div style="padding:28px 24px;text-align:center;background:#f0fdf4;border:1px dashed #86efac;border-radius:10px">
+        <div style="font-size:28px;margin-bottom:8px">🎉</div>
+        <div style="font-size:14px;font-weight:700;color:#15803d;margin-bottom:4px">완벽해요!</div>
+        <div style="font-size:12px;color:#15803d;opacity:.8">검증한 17개 가이드라인 모두 통과. 채널톡 등록해도 좋아요.</div>
+      </div>`;
+    }
+    resultEl.innerHTML = html;
   } catch (e) {
     console.error('wfValidate error:', e);
     const resultEl = document.getElementById('wfValidateResult');
