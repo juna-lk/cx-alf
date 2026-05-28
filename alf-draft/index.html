@@ -4226,6 +4226,14 @@ async function publishFaqValidateToChannelTalk() {
 }
 
 // ───── LLM 호출 모드 (자동/수동) ─────
+// 1회 마이그레이션 — 기존 사용자의 저장된 모드를 'auto'로 reset (2026-05-28)
+// 이후엔 사용자가 토글한 값을 그대로 유지
+(function _migrateLLMMode() {
+  if (!localStorage.getItem('alf_llm_mode_migration_v1')) {
+    localStorage.setItem('alf_llm_mode', 'auto');
+    localStorage.setItem('alf_llm_mode_migration_v1', 'done');
+  }
+})();
 function getLLMMode() { return localStorage.getItem('alf_llm_mode') || 'auto'; }
 function setLLMMode(m) {
   localStorage.setItem('alf_llm_mode', m);
@@ -5029,8 +5037,8 @@ function _wfApplyTitle(data) {
 async function wfFromUrl() {
   const url = (document.getElementById('wfChatUrl')?.value || '').trim();
   if (!url) { alert('채팅 URL을 입력해주세요.'); return; }
-  const m = url.match(/user-chats\/([A-Za-z0-9_-]+)/);
-  if (!m) { alert('올바른 채널톡 채팅 URL이 아니에요.'); return; }
+  const m = url.match(/user-chats\/([^/?#]+)/i);
+  if (!m) { alert('올바른 채널톡 채팅 URL이 아니에요.\n예: https://desk.channel.io/liveklass/user-chats/...'); return; }
   const chatId = m[1];
   const similar = !!document.getElementById('wfUrlSimilar')?.checked;
   const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
