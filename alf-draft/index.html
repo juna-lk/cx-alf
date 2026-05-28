@@ -5226,6 +5226,15 @@ function wfValidate() {
       </div>`;
     }
     resultEl.innerHTML = html;
+    // 합격이면 재작성 버튼 비활성화 (수정할 게 없는데 LLM 호출 방지)
+    const rewriteBtn = document.getElementById('btnWfRewrite');
+    if (rewriteBtn) {
+      const pass = (warnings || []).length === 0;
+      rewriteBtn.disabled = pass;
+      rewriteBtn.style.opacity = pass ? '0.4' : '';
+      rewriteBtn.style.cursor = pass ? 'not-allowed' : '';
+      rewriteBtn.title = pass ? '수정할 게 없어요 — 모든 가이드라인을 통과했습니다' : '';
+    }
   } catch (e) {
     console.error('wfValidate error:', e);
     const resultEl = document.getElementById('wfValidateResult');
@@ -5242,7 +5251,16 @@ let _wfLastValidationWarnings = [];
 async function wfRewrite() {
   const title = document.getElementById('wfTitle').value.trim();
   const content = document.getElementById('wfContent').value.trim();
+  const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
   if (!content) { alert('STEP 5에서 본문을 작성해주세요.'); return; }
+  // 가드: 수정할 게 없으면(가이드라인 모두 통과) 재작성 불필요
+  if (typeof validateArticle === 'function') {
+    const v = validateArticle(content, title, format);
+    if ((v.warnings || []).length === 0) {
+      alert('수정할 게 없어요. 모든 가이드라인을 통과한 상태입니다.\n(검증하기를 먼저 눌러 위반 항목을 확인한 뒤 재작성해주세요.)');
+      return;
+    }
+  }
   const btn = document.getElementById('btnWfRewrite');
   const resultEl = document.getElementById('wfValidateResult');
   const orig = btn.textContent;
