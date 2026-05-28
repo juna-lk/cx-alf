@@ -2946,7 +2946,8 @@ function _renderValidateCard(w, bg, border, ruleColor) {
   </div>`;
 }
 
-function renderValidationResult(warnings, length, format) {
+function renderValidationResult(warnings, length, format, opts = {}) {
+  const { targetId = 'validateResult', showRewriteCard = true } = opts;
   const errors = warnings.filter(w => w.level === 'error');
   const warns = warnings.filter(w => w.level === 'warning');
   const infos = warnings.filter(w => w.level === 'info');
@@ -2967,8 +2968,8 @@ function renderValidationResult(warnings, length, format) {
     <div style="font-size:12px;color:${s.color};font-weight:600">본문 ${length}자 (${format === 'article' ? '아티클' : 'FAQ'})</div>
   </div>`;
 
-  // 재작성 버튼 — 경고/실패 있을 때만
-  if (warnings.length > 0) {
+  // 재작성 버튼 — 경고/실패 있을 때만 (검증 탭에서만 사용 · 워크플로우 STEP 6은 자체 버튼 보유)
+  if (warnings.length > 0 && showRewriteCard) {
     html += `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:200px">
         <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:2px">🔧 AI가 가이드에 맞게 다시 작성해드릴까요?</div>
@@ -5143,48 +5144,41 @@ function wfValidate() {
   const title = document.getElementById('wfTitle').value.trim();
   const content = document.getElementById('wfContent').value.trim();
   const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
-  if (!content) { alert('STEP 4에서 본문을 작성해주세요.'); return; }
+  if (!content) { alert('STEP 5에서 본문을 작성해주세요.'); return; }
   const resultEl = document.getElementById('wfValidateResult');
   resultEl.style.display = 'block';
-  if (typeof validateArticle !== 'function') {
+  if (typeof validateArticle !== 'function' || typeof renderValidationResult !== 'function') {
     resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12px">검증 함수가 로드되지 않았어요.</div>`;
     return;
   }
   const { warnings, length } = validateArticle(content, title, format);
-  const errors = (warnings || []).filter(w => (w.level || '') === 'error');
-  const warns = (warnings || []).filter(w => (w.level || '') !== 'error');
-  const header = errors.length === 0 && warns.length === 0
-    ? `<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;color:#15803d;font-size:13px;font-weight:600">✅ 합격 — 모든 가이드라인 통과 (${length}자)</div>`
-    : errors.length > 0
-      ? `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:13px;font-weight:600">❌ 보완 필요 — 오류 ${errors.length}건 / 경고 ${warns.length}건</div>`
-      : `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:13px;font-weight:600">⚠️ 경고 ${warns.length}건 — 등록 가능하지만 확인 권장</div>`;
-  const list = (warnings || []).map(w => {
-    const isErr = (w.level || '') === 'error';
-    const bg = isErr ? '#fef2f2' : '#fffbeb';
-    const bd = isErr ? '#fca5a5' : '#fde68a';
-    const cl = isErr ? '#b91c1c' : '#92400e';
-    const ic = isErr ? '❌' : '⚠️';
-    return `<div style="padding:8px 12px;background:${bg};border:1px solid ${bd};border-radius:6px;color:${cl};font-size:12px">${ic} <strong>${escapeHtml(w.rule || '')}</strong>: ${escapeHtml(w.message || '')}</div>`;
-  }).join('');
-  resultEl.innerHTML = header + (list ? `<div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">${list}</div>` : '');
   _wfLastValidationWarnings = warnings || [];
+  // 검증 탭과 동일한 풍부 렌더링 재사용 (재작성 카드는 STEP 6 자체 버튼이 있어 숨김)
+  renderValidationResult(warnings || [], length, format, { targetId: 'wfValidateResult', showRewriteCard: false });
 }
 
 let _wfLastValidationWarnings = [];
 
-// STEP 5 — 가이드 기반 재작성
+// STEP 6 — 가이드 기반 재작성 (전후 비교 → 적용 결정)
 async function wfRewrite() {
   const title = document.getElementById('wfTitle').value.trim();
   const content = document.getElementById('wfContent').value.trim();
-  if (!content) { alert('STEP 4에서 본문을 작성해주세요.'); return; }
+  if (!content) { alert('STEP 5에서 본문을 작성해주세요.'); return; }
   const btn = document.getElementById('btnWfRewrite');
   const resultEl = document.getElementById('wfValidateResult');
   const orig = btn.textContent;
   const manual = getLLMMode() === 'manual';
   btn.disabled = true; btn.textContent = '재작성 중...';
   if (!resultEl.style.display || resultEl.style.display === 'none') resultEl.style.display = 'block';
-  const placeholder = `<div style="padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#9a3412;font-size:12px;margin-top:8px">🔧 ${manual ? '수동 모드 — 모달 확인' : '재작성 중...'}</div>`;
-  resultEl.innerHTML = resultEl.innerHTML + placeholder;
+  // 이전 diff·placeholder 제거
+  document.getElementById('_wfRewriteDiff')?.remove();
+  document.getElementById('_wfRewriteLoading')?.remove();
+  // 로딩 placeholder를 고유 ID로 추가 — finally에서 정확히 제거
+  const ph = document.createElement('div');
+  ph.id = '_wfRewriteLoading';
+  ph.style.cssText = 'padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#9a3412;font-size:12px;margin-top:8px';
+  ph.textContent = manual ? '🔧 수동 모드 — 모달 확인 후 응답을 붙여넣어주세요.' : '🔧 재작성 중... (10~20초)';
+  resultEl.appendChild(ph);
   try {
     const res = await authFetch(`${API}/api/alf_generate`, {
       method: 'POST',
@@ -5194,26 +5188,68 @@ async function wfRewrite() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '재작성 실패');
     if (manual && data.prompt_only) {
-      openManualLlm(data.prompt, (parsed) => _wfApplyRewrite(parsed));
+      openManualLlm(data.prompt, (parsed) => _wfShowRewriteDiff(content, title, parsed));
       return;
     }
-    _wfApplyRewrite(data);
+    _wfShowRewriteDiff(content, title, data);
   } catch (e) {
     alert('재작성 실패: ' + (e.message || e));
   } finally {
     btn.disabled = false; btn.textContent = orig;
+    document.getElementById('_wfRewriteLoading')?.remove();
   }
 }
 
-function _wfApplyRewrite(data) {
-  const revised = data.content || '';
-  if (revised) {
-    document.getElementById('wfContent').value = revised;
+// 재작성 결과를 전후 비교 UI로 표시 (사용자가 적용 여부 결정)
+function _wfShowRewriteDiff(origContent, origTitle, data) {
+  const newContent = data.content || '';
+  const newTitle = data.title || origTitle;
+  const newSubtitle = data.subtitle || document.getElementById('wfSubtitle').value || '';
+  window._wfPendingRewrite = { content: newContent, title: newTitle, subtitle: newSubtitle };
+  const resultEl = document.getElementById('wfValidateResult');
+  document.getElementById('_wfRewriteDiff')?.remove();
+  const diffEl = document.createElement('div');
+  diffEl.id = '_wfRewriteDiff';
+  diffEl.style.cssText = 'margin-top:12px;padding:14px 16px;background:#fff7ed;border:1px solid #fdba74;border-radius:10px';
+  const titleChanged = newTitle && newTitle !== origTitle;
+  diffEl.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:10px">🔧 재작성 결과 비교 — 적용 전 확인</div>
+    ${titleChanged ? `<div style="font-size:12px;color:#6b7280;margin-bottom:8px;padding:6px 10px;background:#fff;border:1px solid #fed7aa;border-radius:6px">📝 제목: <s style="color:#9ca3af">${escapeHtml(origTitle || '(없음)')}</s> → <b style="color:#9a3412">${escapeHtml(newTitle)}</b></div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:4px">📝 원본 (${origContent.length}자)</div>
+        <textarea readonly style="width:100%;min-height:280px;font-size:12px;font-family:ui-monospace,SF Mono,Menlo,monospace;line-height:1.5;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;color:#374151;resize:vertical">${escapeHtml(origContent)}</textarea>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#9a3412;margin-bottom:4px">✨ 재작성 (${newContent.length}자)</div>
+        <textarea readonly style="width:100%;min-height:280px;font-size:12px;font-family:ui-monospace,SF Mono,Menlo,monospace;line-height:1.5;padding:8px 10px;border:1px solid #fdba74;border-radius:6px;background:#fffbeb;color:#1f2937;resize:vertical">${escapeHtml(newContent)}</textarea>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="_wfCancelRewrite()" style="padding:8px 16px;background:#fff;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">취소</button>
+      <button onclick="_wfApplyPendingRewrite()" style="padding:8px 16px;background:#ea580c;color:#fff;border:1px solid #ea580c;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">✅ 재작성안 적용</button>
+    </div>
+  `;
+  resultEl.appendChild(diffEl);
+}
+
+function _wfApplyPendingRewrite() {
+  const d = window._wfPendingRewrite || {};
+  if (d.content) {
+    document.getElementById('wfContent').value = d.content;
     document.getElementById('wfContent').dispatchEvent(new Event('input', { bubbles: true }));
   }
-  if (data.title) document.getElementById('wfTitle').value = data.title;
-  if (data.subtitle) document.getElementById('wfSubtitle').value = data.subtitle;
-  alert('재작성 본문이 STEP 4에 반영됐어요. 다시 검증해주세요.');
+  if (d.title) document.getElementById('wfTitle').value = d.title;
+  if (d.subtitle) document.getElementById('wfSubtitle').value = d.subtitle;
+  window._wfPendingRewrite = null;
+  document.getElementById('_wfRewriteDiff')?.remove();
+  // 적용 후 자동 재검증
+  if (typeof wfValidate === 'function') wfValidate();
+}
+
+function _wfCancelRewrite() {
+  window._wfPendingRewrite = null;
+  document.getElementById('_wfRewriteDiff')?.remove();
 }
 
 // STEP 6 — 저장
