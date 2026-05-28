@@ -5200,6 +5200,30 @@ async function wfRewrite() {
   }
 }
 
+// 줄 단위 diff — 변경/추가/삭제 라인을 색칠한 HTML 생성
+function _wfRenderLineDiff(origLines, newLines) {
+  const norm = s => (s || '').trim();
+  const aSet = new Set(origLines.map(norm).filter(Boolean));
+  const bSet = new Set(newLines.map(norm).filter(Boolean));
+  const lineBox = (cls, color, bg, border, text, mark) => {
+    const safe = escapeHtml(text || ' ');
+    return `<div style="display:flex;gap:6px;padding:2px 8px;background:${bg};border-left:3px solid ${border};color:${color}"><span style="display:inline-block;width:14px;flex-shrink:0;font-weight:700;font-family:ui-monospace,SF Mono,Menlo,monospace">${mark}</span><span style="white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SF Mono,Menlo,monospace">${safe}</span></div>`;
+  };
+  const leftHtml = origLines.map(line => {
+    const n = norm(line);
+    if (!n) return lineBox('blank', '#9ca3af', '#f9fafb', '#f9fafb', line, ' ');
+    if (!bSet.has(n)) return lineBox('removed', '#991b1b', '#fee2e2', '#ef4444', line, '−');
+    return lineBox('same', '#374151', '#f9fafb', '#f9fafb', line, ' ');
+  }).join('');
+  const rightHtml = newLines.map(line => {
+    const n = norm(line);
+    if (!n) return lineBox('blank', '#9ca3af', '#fffbeb', '#fffbeb', line, ' ');
+    if (!aSet.has(n)) return lineBox('added', '#065f46', '#d1fae5', '#10b981', line, '+');
+    return lineBox('same', '#1f2937', '#fffbeb', '#fffbeb', line, ' ');
+  }).join('');
+  return { leftHtml, rightHtml };
+}
+
 // 재작성 결과를 전후 비교 UI로 표시 (사용자가 적용 여부 결정)
 function _wfShowRewriteDiff(origContent, origTitle, data) {
   const newContent = data.content || '';
@@ -5212,17 +5236,25 @@ function _wfShowRewriteDiff(origContent, origTitle, data) {
   diffEl.id = '_wfRewriteDiff';
   diffEl.style.cssText = 'margin-top:12px;padding:14px 16px;background:#fff7ed;border:1px solid #fdba74;border-radius:10px';
   const titleChanged = newTitle && newTitle !== origTitle;
+  const origLines = origContent.split('\n');
+  const newLines = newContent.split('\n');
+  const removedCnt = origLines.filter(l => l.trim() && !newLines.map(x=>x.trim()).includes(l.trim())).length;
+  const addedCnt = newLines.filter(l => l.trim() && !origLines.map(x=>x.trim()).includes(l.trim())).length;
+  const { leftHtml, rightHtml } = _wfRenderLineDiff(origLines, newLines);
   diffEl.innerHTML = `
-    <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:10px">🔧 재작성 결과 비교 — 적용 전 확인</div>
+    <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:6px">🔧 재작성 결과 비교 — 적용 전 확인</div>
+    <div style="font-size:11px;color:#9a3412;margin-bottom:10px;opacity:.85">
+      변경 요약: <b style="color:#dc2626">−${removedCnt}줄 제거</b> · <b style="color:#059669">+${addedCnt}줄 추가</b> · 글자수 ${origContent.length} → ${newContent.length} (${newContent.length - origContent.length >= 0 ? '+' : ''}${newContent.length - origContent.length})
+    </div>
     ${titleChanged ? `<div style="font-size:12px;color:#6b7280;margin-bottom:8px;padding:6px 10px;background:#fff;border:1px solid #fed7aa;border-radius:6px">📝 제목: <s style="color:#9ca3af">${escapeHtml(origTitle || '(없음)')}</s> → <b style="color:#9a3412">${escapeHtml(newTitle)}</b></div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div>
-        <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:4px">📝 원본 (${origContent.length}자)</div>
-        <textarea readonly style="width:100%;min-height:280px;font-size:12px;font-family:ui-monospace,SF Mono,Menlo,monospace;line-height:1.5;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;color:#374151;resize:vertical">${escapeHtml(origContent)}</textarea>
+        <div style="font-size:11px;font-weight:700;color:#991b1b;margin-bottom:4px">📝 원본 (${origContent.length}자) · <span style="color:#dc2626">− 빨강 = 제거됨</span></div>
+        <div style="max-height:360px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;font-size:12px;line-height:1.6;padding:6px 0">${leftHtml}</div>
       </div>
       <div>
-        <div style="font-size:11px;font-weight:700;color:#9a3412;margin-bottom:4px">✨ 재작성 (${newContent.length}자)</div>
-        <textarea readonly style="width:100%;min-height:280px;font-size:12px;font-family:ui-monospace,SF Mono,Menlo,monospace;line-height:1.5;padding:8px 10px;border:1px solid #fdba74;border-radius:6px;background:#fffbeb;color:#1f2937;resize:vertical">${escapeHtml(newContent)}</textarea>
+        <div style="font-size:11px;font-weight:700;color:#065f46;margin-bottom:4px">✨ 재작성 (${newContent.length}자) · <span style="color:#059669">+ 초록 = 추가됨</span></div>
+        <div style="max-height:360px;overflow-y:auto;border:1px solid #fdba74;border-radius:6px;background:#fffbeb;font-size:12px;line-height:1.6;padding:6px 0">${rightHtml}</div>
       </div>
     </div>
     <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
