@@ -1914,6 +1914,28 @@
           style="padding:7px 18px;font-size:12px">✔ 검증하기</button>
       </div>
     </div>
+    <details style="margin-bottom:10px;padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
+      <summary style="font-size:12px;color:#4b5563;cursor:pointer;font-weight:600">📋 검증하는 가이드라인 (17개) — 클릭해서 펼치기</summary>
+      <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:11px;color:#374151">
+        <div>① <b>이모지</b> — Help Doc 톤 위반 (오류)</div>
+        <div>② <b>헤딩 공백</b> — ## 뒤 공백 누락 (오류)</div>
+        <div>③ <b>본문 H1</b> — # 사용 금지, ##부터 (오류)</div>
+        <div>④ <b>소제목</b> — 300자+ 본문에 ## 필수 (경고)</div>
+        <div>⑤ <b>보일러플레이트</b> — 안녕하세요·감사합니다·자기소개·도입 인사 (오류)</div>
+        <div>⑥ <b>모호 표현</b> — 보통·일반적으로·대부분·경우에 따라 (경고)</div>
+        <div>⑦ <b>특정 날짜</b> — X/X·X월 X일 → 일반 조건 (경고)</div>
+        <div>⑧ <b>시점 표현</b> — 오늘·어제·이번주 → 신청일·해당기간 (경고)</div>
+        <div>⑨ <b>1회성 처리</b> — 확인됐습니다·처리됐습니다 → 일반 안내 (경고)</div>
+        <div>⑩ <b>담당자 문의</b> — 단독 사용 시 조건 명시 필요 (경고)</div>
+        <div>⑪ <b>종결형 비율</b> — -어요/-습니다 30%↑ 권장 (경고)</div>
+        <div>⑫ <b>글자수</b> — 아티클 2,000자 / FAQ 500자 (경고/오류)</div>
+        <div>⑬ <b>불릿·번호 목록</b> — 500자+ 권장 (참고)</div>
+        <div>⑭ <b>단계 번호</b> — 절차 1./2./3. 번호화 (참고)</div>
+        <div>⑮ <b>메뉴 경로</b> — 백틱 X, 화살표 &gt;로 한 줄 (경고)</div>
+        <div>⑯ <b>외국어</b> — 일본어·한자 사용 금지 (오류)</div>
+        <div>⑰ <b>제목</b> — 5자+ 핵심 키워드 + 동사 (참고)</div>
+      </div>
+    </details>
     <div id="wfValidateResult" style="display:none"></div>
   </div>
 
@@ -5141,20 +5163,32 @@ function _wfApplyGenerated(format, data) {
 
 // STEP 6 — 검증
 function wfValidate() {
-  const title = document.getElementById('wfTitle').value.trim();
-  const content = document.getElementById('wfContent').value.trim();
-  const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
-  if (!content) { alert('STEP 5에서 본문을 작성해주세요.'); return; }
-  const resultEl = document.getElementById('wfValidateResult');
-  resultEl.style.display = 'block';
-  if (typeof validateArticle !== 'function' || typeof renderValidationResult !== 'function') {
-    resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12px">검증 함수가 로드되지 않았어요.</div>`;
-    return;
+  try {
+    const title = document.getElementById('wfTitle').value.trim();
+    const content = document.getElementById('wfContent').value.trim();
+    const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
+    if (!content) { alert('STEP 5에서 본문을 작성해주세요.'); return; }
+    const resultEl = document.getElementById('wfValidateResult');
+    resultEl.style.display = 'block';
+    // 이전 diff·placeholder 정리
+    document.getElementById('_wfRewriteDiff')?.remove();
+    document.getElementById('_wfRewriteLoading')?.remove();
+    if (typeof validateArticle !== 'function' || typeof renderValidationResult !== 'function') {
+      resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12px">검증 함수가 로드되지 않았어요.</div>`;
+      return;
+    }
+    const { warnings, length } = validateArticle(content, title, format);
+    _wfLastValidationWarnings = warnings || [];
+    // 검증 탭과 동일한 풍부 렌더링 재사용 (재작성 카드는 STEP 6 자체 버튼이 있어 숨김)
+    renderValidationResult(warnings || [], length, format, { targetId: 'wfValidateResult', showRewriteCard: false });
+  } catch (e) {
+    console.error('wfValidate error:', e);
+    const resultEl = document.getElementById('wfValidateResult');
+    if (resultEl) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12px">검증 중 오류: ${escapeHtml(String(e && e.message || e))}</div>`;
+    }
   }
-  const { warnings, length } = validateArticle(content, title, format);
-  _wfLastValidationWarnings = warnings || [];
-  // 검증 탭과 동일한 풍부 렌더링 재사용 (재작성 카드는 STEP 6 자체 버튼이 있어 숨김)
-  renderValidationResult(warnings || [], length, format, { targetId: 'wfValidateResult', showRewriteCard: false });
 }
 
 let _wfLastValidationWarnings = [];
