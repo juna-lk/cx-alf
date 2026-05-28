@@ -1822,9 +1822,19 @@
 
   <!-- STEP 1 -->
   <div class="wf-step" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-      <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 1</span>
-      <span style="font-size:14px;font-weight:600;color:#111827">주제·키워드</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:#fff;background:#4f46e5;padding:3px 10px;border-radius:999px">STEP 1</span>
+        <span style="font-size:14px;font-weight:600;color:#111827">주제·키워드</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;color:#6b7280;font-weight:600">초안 형식</span>
+        <label style="font-size:12px;color:#374151;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="wfFormat" value="article" checked /> 아티클</label>
+        <label style="font-size:12px;color:#374151;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="wfFormat" value="faq" /> FAQ</label>
+        <button class="btn btn-secondary" onclick="wfClearDraft()" id="btnWfClearDraftTop"
+          title="제목·소제목·본문·검증 결과를 모두 비웁니다 (다른 STEP의 결과는 유지)"
+          style="padding:6px 12px;font-size:12px;background:#fff;color:#6b7280;border:1px solid #e5e7eb;border-radius:6px;margin-left:6px">🧹 비우기</button>
+      </div>
     </div>
 
     <div style="margin-bottom:14px">
@@ -1936,14 +1946,10 @@
         <span style="font-size:14px;font-weight:600;color:#111827">본문 작성</span>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        <label style="font-size:11px;color:#6b7280;display:flex;align-items:center;gap:4px"><input type="radio" name="wfFormat" value="article" checked /> 아티클</label>
-        <label style="font-size:11px;color:#6b7280;display:flex;align-items:center;gap:4px"><input type="radio" name="wfFormat" value="faq" /> FAQ</label>
+        <span style="font-size:11px;color:#9ca3af">초안 형식은 STEP 1에서 지정</span>
         <button class="btn btn-secondary" onclick="wfGenerateDraft()" id="btnWfGenerateDraft"
           title="선택한 세부 유형의 채팅으로 LLM이 초안 작성 (STEP 2에서 유형을 먼저 선택해주세요)"
           style="padding:6px 14px;font-size:12px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe;margin-left:4px">✨ AI로 초안 작성</button>
-        <button class="btn btn-secondary" onclick="wfClearDraft()" id="btnWfClearDraft"
-          title="제목·소제목·본문·검증 결과를 모두 비웁니다 (다른 STEP의 결과는 유지)"
-          style="padding:6px 12px;font-size:12px;background:#fff;color:#6b7280;border-color:#e5e7eb">🧹 비우기</button>
       </div>
     </div>
     <details style="margin-bottom:10px;padding:8px 12px;background:#fafafa;border:1px dashed #e5e7eb;border-radius:6px">
