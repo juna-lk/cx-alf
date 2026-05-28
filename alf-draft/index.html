@@ -1684,6 +1684,30 @@
     </div>
   </div>
 
+  <details style="margin-bottom:12px;padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
+    <summary style="font-size:12px;color:#4b5563;cursor:pointer;font-weight:600">📋 검증하는 가이드라인 (18개) — 클릭해서 펼치기</summary>
+    <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:11px;color:#374151">
+      <div>① <b>이모지</b> — Help Doc 톤 위반 (오류)</div>
+      <div>② <b>헤딩 공백</b> — ## 뒤 공백 누락 (오류)</div>
+      <div>③ <b>본문 H1</b> — # 사용 금지, ##부터 (오류)</div>
+      <div>④ <b>소제목</b> — 300자+ 본문에 ## 필수 (경고)</div>
+      <div>⑤ <b>보일러플레이트</b> — 안녕하세요·감사합니다·자기소개·도입 인사 (오류)</div>
+      <div>⑥ <b>모호 표현</b> — 보통·일반적으로·대부분·경우에 따라 (경고)</div>
+      <div>⑦ <b>특정 날짜</b> — X/X·X월 X일 → 일반 조건 (경고)</div>
+      <div>⑧ <b>시점 표현</b> — 오늘·어제·이번주 → 신청일·해당기간 (경고)</div>
+      <div>⑨ <b>1회성 처리</b> — 확인됐습니다·처리됐습니다 → 일반 안내 (경고)</div>
+      <div>⑩ <b>담당자 문의</b> — 단독 사용 시 조건 명시 필요 (경고)</div>
+      <div>⑪ <b>종결형 비율</b> — -어요/-습니다 30%↑ 권장 (경고)</div>
+      <div>⑫ <b>글자수</b> — 아티클 2,000자 / FAQ 500자 (경고/오류)</div>
+      <div>⑬ <b>불릿·번호 목록</b> — 500자+ 권장 (참고)</div>
+      <div>⑭ <b>단계 번호</b> — 절차 1./2./3. 번호화 (참고)</div>
+      <div>⑮ <b>메뉴 경로</b> — 백틱 X, 화살표 &gt;로 한 줄 (경고)</div>
+      <div>⑯ <b>외국어</b> — 일본어·한자 사용 금지 (오류)</div>
+      <div>⑰ <b>제목</b> — 5자+ 핵심 키워드 + 동사 (참고)</div>
+      <div>⑱ <b>질문형 헤딩</b> — ## 헤딩을 고객 검색 표현("○○이란?", "○○ 어떻게 ~?")으로 (참고)</div>
+    </div>
+  </details>
+
   <div id="validatePublishResult" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px"></div>
   <div id="validateSuggestResult" style="display:none"></div>
   <div id="validateResult" style="display:none"></div>
@@ -1751,6 +1775,30 @@
       <button class="btn btn-primary" onclick="runFaqValidation()" style="padding:10px 22px">검증하기</button>
     </div>
   </div>
+
+  <details style="margin-bottom:12px;padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
+    <summary style="font-size:12px;color:#4b5563;cursor:pointer;font-weight:600">📋 검증하는 가이드라인 (18개) — 클릭해서 펼치기</summary>
+    <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:11px;color:#374151">
+      <div>① <b>이모지</b> — Help Doc 톤 위반 (오류)</div>
+      <div>② <b>헤딩 공백</b> — ## 뒤 공백 누락 (오류)</div>
+      <div>③ <b>본문 H1</b> — # 사용 금지, ##부터 (오류)</div>
+      <div>④ <b>소제목</b> — 300자+ 본문에 ## 필수 (경고)</div>
+      <div>⑤ <b>보일러플레이트</b> — 안녕하세요·감사합니다·자기소개·도입 인사 (오류)</div>
+      <div>⑥ <b>모호 표현</b> — 보통·일반적으로·대부분·경우에 따라 (경고)</div>
+      <div>⑦ <b>특정 날짜</b> — X/X·X월 X일 → 일반 조건 (경고)</div>
+      <div>⑧ <b>시점 표현</b> — 오늘·어제·이번주 → 신청일·해당기간 (경고)</div>
+      <div>⑨ <b>1회성 처리</b> — 확인됐습니다·처리됐습니다 → 일반 안내 (경고)</div>
+      <div>⑩ <b>담당자 문의</b> — 단독 사용 시 조건 명시 필요 (경고)</div>
+      <div>⑪ <b>종결형 비율</b> — -어요/-습니다 30%↑ 권장 (경고)</div>
+      <div>⑫ <b>글자수</b> — 아티클 2,000자 / FAQ 500자 (경고/오류)</div>
+      <div>⑬ <b>불릿·번호 목록</b> — 500자+ 권장 (참고)</div>
+      <div>⑭ <b>단계 번호</b> — 절차 1./2./3. 번호화 (참고)</div>
+      <div>⑮ <b>메뉴 경로</b> — 백틱 X, 화살표 &gt;로 한 줄 (경고)</div>
+      <div>⑯ <b>외국어</b> — 일본어·한자 사용 금지 (오류)</div>
+      <div>⑰ <b>제목</b> — 5자+ 핵심 키워드 + 동사 (참고)</div>
+      <div>⑱ <b>질문형 헤딩</b> — ## 헤딩을 고객 검색 표현("○○이란?", "○○ 어떻게 ~?")으로 (참고)</div>
+    </div>
+  </details>
 
   <div id="faqValidatePublishResult" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px"></div>
   <div id="faqValidateResult" style="display:none"></div>
@@ -3118,7 +3166,8 @@ function renderValidationResult(warnings, length, format, opts = {}) {
     html += `<div style="padding:32px 24px;text-align:center;background:#f0fdf4;border:1px dashed #86efac;border-radius:10px">
       <div style="font-size:28px;margin-bottom:8px">🎉</div>
       <div style="font-size:14px;font-weight:600;color:#15803d;margin-bottom:4px">완벽해요!</div>
-      <div style="font-size:12px;color:#15803d;opacity:.8">검증한 모든 가이드라인을 충족했어요. 채널톡에 등록해도 좋아요.</div>
+      <div style="font-size:12px;color:#15803d;opacity:.8">검증한 18개 가이드라인 모두 통과. 채널톡 등록해도 좋아요.</div>
+      <div style="font-size:11px;color:#15803d;opacity:.65;margin-top:6px">🔧 가이드 기반 재작성 버튼은 위반 항목이 있을 때만 작동해요.</div>
     </div>`;
   }
 
@@ -3275,12 +3324,22 @@ async function rewriteContent() {
     alert('재작성할 본문이 없어요. 먼저 검증하기를 눌러주세요.');
     return;
   }
+  // 가드: 수정할 게 없으면(가이드라인 모두 통과) 재작성 불필요
   const title = document.getElementById('validateTitle').value.trim();
+  const format = document.querySelector('input[name="validateFormat"]:checked')?.value || 'article';
+  if (typeof validateArticle === 'function') {
+    const v = validateArticle(content, title, format);
+    if ((v.warnings || []).length === 0) {
+      alert('수정할 게 없어요. 모든 가이드라인을 통과한 상태입니다.\n(검증하기를 먼저 눌러 위반 항목을 확인한 뒤 재작성해주세요.)');
+      return;
+    }
+  }
   const btn = document.getElementById('btnRewrite');
   const originalText = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '재작성 중... (15~30초)'; }
 
-  // 결과 영역에 로딩 표시
+  // 이전 diff 제거 + 로딩 표시
+  document.getElementById('_vRewriteDiff')?.remove();
   let rewriteBox = document.getElementById('rewriteResultBox');
   if (!rewriteBox) {
     rewriteBox = document.createElement('div');
@@ -3304,63 +3363,11 @@ async function rewriteContent() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '재작성 실패');
 
-    const revised = data.content || '';
-    const suggTitle = data.title || '';
-    const suggSubtitle = data.subtitle || '';
-    const changes = Array.isArray(data.changes) ? data.changes : [];
-    const remainWarnings = Array.isArray(data.warnings) ? data.warnings : [];
-
-    let html = `<div style="margin-top:18px;padding:18px 20px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div style="font-size:14px;font-weight:700;color:#9a3412">🔧 가이드에 맞게 재작성된 본문</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button onclick="_applyRewrite()" class="btn btn-primary" style="font-size:12px;padding:6px 12px;background:#ea580c;border-color:#ea580c">✓ 위 textarea에 적용</button>
-          <button onclick="copyRichText('rewriteContentTextarea')" class="btn btn-secondary" title="HTML 서식으로 복사 — 채널톡 paste 시 헤딩·불릿 자동 적용" style="font-size:12px;padding:6px 12px;color:#7c3aed;border-color:#ddd6fe">🎨 서식 복사</button>
-          <button onclick="_copyRewrite()" class="btn btn-secondary" style="font-size:12px;padding:6px 12px">📋 텍스트 복사</button>
-        </div>
-      </div>`;
-
-    if (suggTitle || suggSubtitle) {
-      // 재작성 결과의 추천 제목·소제목도 자동 적용
-      if (suggTitle) document.getElementById('validateTitle').value = suggTitle;
-      if (suggSubtitle) document.getElementById('validateSubtitle').value = suggSubtitle;
-      html += `<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px">
-        <div style="font-size:10px;color:#15803d;font-weight:700;margin-bottom:6px">✓ 제목·소제목 자동 적용됨</div>`;
-      if (suggTitle) {
-        html += `<div style="margin-bottom:4px"><strong style="color:#9a3412">제목</strong><br><span style="color:#374151;font-size:13px;font-weight:500">${_escapeHTML(suggTitle)}</span></div>`;
-      }
-      if (suggSubtitle) {
-        html += `<div><strong style="color:#9a3412">소제목</strong><br><span style="color:#374151;font-size:13px">${_escapeHTML(suggSubtitle)}</span></div>`;
-      }
-      html += `</div>`;
-    }
-
-    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
-      <div style="font-size:11px;font-weight:700;color:#9a3412">📝 마크다운 원본</div>
-      <div style="font-size:11px;font-weight:700;color:#9a3412">👁 채널톡에서 보일 모습</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <textarea id="rewriteContentTextarea" readonly style="width:100%;padding:12px 14px;border:1px solid #fed7aa;border-radius:8px;background:#fff;font-size:13px;line-height:1.6;font-family:inherit;resize:vertical;min-height:300px;box-sizing:border-box;color:#374151">${_escapeHTML(revised)}</textarea>
-      <div class="ct-article-body" style="padding:14px 16px;border:1px solid #fed7aa;border-radius:8px;background:#fff;font-size:13px;line-height:1.7;color:#374151;overflow-y:auto;max-height:600px;min-height:300px;box-sizing:border-box">${markdownToHtml(revised)}</div>
-    </div>`;
-
-    if (changes.length > 0) {
-      html += `<div style="margin-top:12px;padding:10px 14px;background:#fff;border:1px solid #fed7aa;border-radius:8px">
-        <div style="font-size:11px;font-weight:700;color:#9a3412;margin-bottom:6px">주요 변경 사항</div>
-        <ul style="margin:0;padding-left:18px;font-size:12px;color:#374151;line-height:1.6">
-          ${changes.map(c => `<li>${_escapeHTML(c)}</li>`).join('')}
-        </ul>
-      </div>`;
-    }
-
-    if (remainWarnings.length > 0) {
-      html += `<div style="margin-top:10px;font-size:11px;color:#9a3412">⚠️ 재작성 후에도 자동 검증에서 ${remainWarnings.length}건의 추가 항목이 감지됐어요. 적용 후 다시 검증해보세요.</div>`;
-    }
-
-    html += `</div>`;
-    rewriteBox.innerHTML = html;
-    window._lastRewriteContent = revised;
-    rewriteBox.scrollIntoView({behavior:'smooth', block:'start'});
+    rewriteBox.innerHTML = '';
+    // 제목·소제목 자동 적용
+    if (data.title) document.getElementById('validateTitle').value = data.title;
+    if (data.subtitle) document.getElementById('validateSubtitle').value = data.subtitle;
+    _vShowRewriteDiff(content, title, data);
   } catch (e) {
     rewriteBox.innerHTML = `<div style="margin-top:16px;padding:14px 18px;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;font-size:13px;color:#b91c1c">❌ 재작성 실패: ${_escapeHTML(e.message || String(e))}</div>`;
   } finally {
@@ -3368,29 +3375,100 @@ async function rewriteContent() {
   }
 }
 
-function _applyRewrite() {
-  const revised = window._lastRewriteContent || '';
-  if (!revised) return;
+// 검증 탭 — 줄 단위 diff HTML 생성
+function _vRenderLineDiff(origLines, newLines) {
+  const norm = s => (s || '').trim();
+  const aSet = new Set(origLines.map(norm).filter(Boolean));
+  const bSet = new Set(newLines.map(norm).filter(Boolean));
+  const lineBox = (cls, color, bg, border, text, mark) => {
+    const safe = _escapeHTML(text || ' ');
+    return `<div style="display:flex;gap:6px;padding:2px 8px;background:${bg};border-left:3px solid ${border};color:${color}"><span style="display:inline-block;width:14px;flex-shrink:0;font-weight:700;font-family:ui-monospace,SF Mono,Menlo,monospace">${mark}</span><span style="white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SF Mono,Menlo,monospace">${safe}</span></div>`;
+  };
+  const leftHtml = origLines.map(line => {
+    const n = norm(line);
+    if (!n) return lineBox('blank', '#9ca3af', '#f9fafb', '#f9fafb', line, ' ');
+    if (!bSet.has(n)) return lineBox('removed', '#991b1b', '#fee2e2', '#ef4444', line, '−');
+    return lineBox('same', '#374151', '#f9fafb', '#f9fafb', line, ' ');
+  }).join('');
+  const rightHtml = newLines.map(line => {
+    const n = norm(line);
+    if (!n) return lineBox('blank', '#9ca3af', '#fffbeb', '#fffbeb', line, ' ');
+    if (!aSet.has(n)) return lineBox('added', '#065f46', '#d1fae5', '#10b981', line, '+');
+    return lineBox('same', '#1f2937', '#fffbeb', '#fffbeb', line, ' ');
+  }).join('');
+  return { leftHtml, rightHtml };
+}
+
+// 검증 탭 — 재작성 결과를 전후 비교 UI로 표시
+function _vShowRewriteDiff(origContent, origTitle, data) {
+  const newContent = data.content || '';
+  const newTitle = data.title || origTitle;
+  window._vPendingRewrite = { content: newContent, title: newTitle, subtitle: data.subtitle || '' };
+  const resultEl = document.getElementById('validateResult');
+  document.getElementById('_vRewriteDiff')?.remove();
+  const diffEl = document.createElement('div');
+  diffEl.id = '_vRewriteDiff';
+  diffEl.style.cssText = 'margin-top:12px;padding:14px 16px;background:#fff7ed;border:1px solid #fdba74;border-radius:10px';
+  const titleChanged = newTitle && newTitle !== origTitle;
+  const origLines = origContent.split('\n');
+  const newLines = newContent.split('\n');
+  const removedCnt = origLines.filter(l => l.trim() && !newLines.map(x => x.trim()).includes(l.trim())).length;
+  const addedCnt = newLines.filter(l => l.trim() && !origLines.map(x => x.trim()).includes(l.trim())).length;
+  const { leftHtml, rightHtml } = _vRenderLineDiff(origLines, newLines);
+  diffEl.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:6px">🔧 재작성 결과 비교 — 적용 전 확인</div>
+    <div style="font-size:11px;color:#9a3412;margin-bottom:10px;opacity:.85">
+      변경 요약: <b style="color:#dc2626">−${removedCnt}줄 제거</b> · <b style="color:#059669">+${addedCnt}줄 추가</b> · 글자수 ${origContent.length} → ${newContent.length} (${newContent.length - origContent.length >= 0 ? '+' : ''}${newContent.length - origContent.length})
+    </div>
+    ${titleChanged ? `<div style="font-size:12px;color:#6b7280;margin-bottom:8px;padding:6px 10px;background:#fff;border:1px solid #fed7aa;border-radius:6px">📝 제목: <s style="color:#9ca3af">${_escapeHTML(origTitle || '(없음)')}</s> → <b style="color:#9a3412">${_escapeHTML(newTitle)}</b></div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#991b1b;margin-bottom:4px">📝 원본 (${origContent.length}자) · <span style="color:#dc2626">− 빨강 = 제거됨</span></div>
+        <div style="max-height:360px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;font-size:12px;line-height:1.6;padding:6px 0">${leftHtml}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#065f46;margin-bottom:4px">✨ 재작성 (${newContent.length}자) · <span style="color:#059669">+ 초록 = 추가됨</span></div>
+        <div style="max-height:360px;overflow-y:auto;border:1px solid #fdba74;border-radius:6px;background:#fffbeb;font-size:12px;line-height:1.6;padding:6px 0">${rightHtml}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="_vCancelRewrite()" style="padding:8px 16px;background:#fff;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">취소</button>
+      <button onclick="_vApplyPendingRewrite()" style="padding:8px 16px;background:#ea580c;color:#fff;border:1px solid #ea580c;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">✅ 재작성안 적용</button>
+    </div>
+  `;
+  resultEl.appendChild(diffEl);
+  diffEl.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function _vApplyPendingRewrite() {
+  const d = window._vPendingRewrite || {};
+  if (!d.content) return;
   const ta = document.getElementById('validateContent');
-  ta.value = revised;
-  document.getElementById('validateCharCount').textContent = revised.length;
+  ta.value = d.content;
+  document.getElementById('validateCharCount').textContent = d.content.length;
   _updateValidatePreview();
-  // 재작성 결과 영역 제거 후 자동 재검증
-  const rewriteBox = document.getElementById('rewriteResultBox');
-  if (rewriteBox) rewriteBox.remove();
+  if (d.title) document.getElementById('validateTitle').value = d.title;
+  if (d.subtitle) document.getElementById('validateSubtitle').value = d.subtitle;
+  window._vPendingRewrite = null;
+  document.getElementById('_vRewriteDiff')?.remove();
   ta.scrollIntoView({behavior:'smooth', block:'center'});
+  // 적용 후 자동 재검증
   setTimeout(() => runValidation(), 100);
 }
 
+function _vCancelRewrite() {
+  window._vPendingRewrite = null;
+  document.getElementById('_vRewriteDiff')?.remove();
+}
+
 async function _copyRewrite() {
-  const revised = window._lastRewriteContent || '';
+  const revised = window._vPendingRewrite?.content || '';
   if (!revised) return;
   try {
     await navigator.clipboard.writeText(revised);
     alert('복사됐어요');
   } catch (e) {
-    const ta = document.getElementById('rewriteContentTextarea');
-    if (ta) { ta.select(); document.execCommand('copy'); }
+    // fallback
   }
 }
 
@@ -4257,7 +4335,124 @@ function runFaqValidation() {
     return `<div style="padding:10px 14px;background:${bg};border:1px solid ${border};border-radius:8px;color:${color};font-size:13px">${icon} ${escapeHtml(i.message)}</div>`;
   }).join('');
 
-  resultEl.innerHTML = `${header}${list ? `<div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">${list}</div>` : ''}`;
+  // 재작성 버튼 — 위반 항목 있을 때만
+  const rewriteCard = allPass ? '' : `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 18px;margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:2px">🔧 AI가 가이드에 맞게 답변을 다시 작성해드릴까요?</div>
+      <div style="font-size:12px;color:#9a3412;opacity:.85">발견된 문제점을 자동으로 해결하고 채널톡 톤에 맞게 재작성합니다.</div>
+    </div>
+    <button id="btnFaqRewrite" onclick="_faqRewriteContent()" class="btn btn-primary" style="background:#ea580c;border-color:#ea580c;padding:10px 18px;font-weight:600">🔧 가이드에 맞게 다시 작성</button>
+  </div>`;
+
+  // 합격 시 완벽 카드
+  const passCard = allPass ? `<div style="padding:24px;text-align:center;background:#f0fdf4;border:1px dashed #86efac;border-radius:10px;margin-top:12px">
+    <div style="font-size:28px;margin-bottom:8px">🎉</div>
+    <div style="font-size:14px;font-weight:600;color:#15803d;margin-bottom:4px">완벽해요!</div>
+    <div style="font-size:12px;color:#15803d;opacity:.8">검증한 18개 가이드라인 모두 통과. 채널톡 등록해도 좋아요.</div>
+    <div style="font-size:11px;color:#15803d;opacity:.65;margin-top:6px">🔧 가이드 기반 재작성 버튼은 위반 항목이 있을 때만 작동해요.</div>
+  </div>` : '';
+
+  resultEl.innerHTML = `${header}${list ? `<div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">${list}</div>` : ''}${rewriteCard}${passCard}`;
+}
+
+// FAQ 검증 탭 — 가이드 기반 재작성
+async function _faqRewriteContent() {
+  const { question, answer } = _faqValidateCollect();
+  if (!answer) { alert('재작성할 답변이 없어요. 먼저 검증하기를 눌러주세요.'); return; }
+  // 가드: 수정할 게 없으면 재작성 불필요
+  if (typeof validateArticle === 'function') {
+    const v = validateArticle(answer, question, 'faq');
+    if ((v.warnings || []).length === 0) {
+      alert('수정할 게 없어요. 모든 가이드라인을 통과한 상태입니다.');
+      return;
+    }
+  }
+  const btn = document.getElementById('btnFaqRewrite');
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '재작성 중... (15~30초)'; }
+
+  document.getElementById('_faqRewriteDiff')?.remove();
+  const resultEl = document.getElementById('faqValidateResult');
+  const ph = document.createElement('div');
+  ph.id = '_faqRewriteLoading';
+  ph.style.cssText = 'padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#9a3412;font-size:12px;margin-top:8px';
+  ph.textContent = '🔧 AI가 가이드에 맞게 재작성하고 있어요... (15~30초)';
+  resultEl.appendChild(ph);
+
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mode: 'rewrite', content: answer, title: question, warnings: [] }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '재작성 실패');
+    _faqShowRewriteDiff(answer, question, data);
+  } catch (e) {
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'margin-top:10px;padding:12px 16px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:13px;color:#b91c1c';
+    errDiv.textContent = `❌ 재작성 실패: ${e.message || String(e)}`;
+    resultEl.appendChild(errDiv);
+  } finally {
+    document.getElementById('_faqRewriteLoading')?.remove();
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+  }
+}
+
+// FAQ 탭 — 재작성 결과를 전후 비교 UI로 표시
+function _faqShowRewriteDiff(origContent, origTitle, data) {
+  const newContent = data.content || '';
+  window._faqPendingRewrite = { content: newContent };
+  const resultEl = document.getElementById('faqValidateResult');
+  document.getElementById('_faqRewriteDiff')?.remove();
+  const diffEl = document.createElement('div');
+  diffEl.id = '_faqRewriteDiff';
+  diffEl.style.cssText = 'margin-top:12px;padding:14px 16px;background:#fff7ed;border:1px solid #fdba74;border-radius:10px';
+  const origLines = origContent.split('\n');
+  const newLines = newContent.split('\n');
+  const removedCnt = origLines.filter(l => l.trim() && !newLines.map(x => x.trim()).includes(l.trim())).length;
+  const addedCnt = newLines.filter(l => l.trim() && !origLines.map(x => x.trim()).includes(l.trim())).length;
+  const { leftHtml, rightHtml } = _vRenderLineDiff(origLines, newLines);
+  diffEl.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:6px">🔧 재작성 결과 비교 — 적용 전 확인</div>
+    <div style="font-size:11px;color:#9a3412;margin-bottom:10px;opacity:.85">
+      변경 요약: <b style="color:#dc2626">−${removedCnt}줄 제거</b> · <b style="color:#059669">+${addedCnt}줄 추가</b> · 글자수 ${origContent.length} → ${newContent.length} (${newContent.length - origContent.length >= 0 ? '+' : ''}${newContent.length - origContent.length})
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#991b1b;margin-bottom:4px">📝 원본 (${origContent.length}자) · <span style="color:#dc2626">− 빨강 = 제거됨</span></div>
+        <div style="max-height:300px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;font-size:12px;line-height:1.6;padding:6px 0">${leftHtml}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#065f46;margin-bottom:4px">✨ 재작성 (${newContent.length}자) · <span style="color:#059669">+ 초록 = 추가됨</span></div>
+        <div style="max-height:300px;overflow-y:auto;border:1px solid #fdba74;border-radius:6px;background:#fffbeb;font-size:12px;line-height:1.6;padding:6px 0">${rightHtml}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="_faqCancelRewrite()" style="padding:8px 16px;background:#fff;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">취소</button>
+      <button onclick="_faqApplyPendingRewrite()" style="padding:8px 16px;background:#ea580c;color:#fff;border:1px solid #ea580c;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">✅ 재작성안 적용</button>
+    </div>
+  `;
+  resultEl.appendChild(diffEl);
+  diffEl.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function _faqApplyPendingRewrite() {
+  const d = window._faqPendingRewrite || {};
+  if (!d.content) return;
+  const ta = document.getElementById('faqValidateAnswer');
+  ta.value = d.content;
+  document.getElementById('faqValidateCharCount').textContent = d.content.length;
+  window._faqPendingRewrite = null;
+  document.getElementById('_faqRewriteDiff')?.remove();
+  ta.scrollIntoView({behavior:'smooth', block:'center'});
+  // 적용 후 자동 재검증
+  setTimeout(() => runFaqValidation(), 100);
+}
+
+function _faqCancelRewrite() {
+  window._faqPendingRewrite = null;
+  document.getElementById('_faqRewriteDiff')?.remove();
 }
 
 async function saveFaqValidateDraft() {
@@ -4290,7 +4485,9 @@ async function publishFaqValidateToChannelTalk() {
   const { question, answer, variations } = _faqValidateCollect();
   if (!question) { alert('대표 질문을 입력해주세요.'); return; }
   if (!answer) { alert('답변을 입력해주세요.'); return; }
-  if (!confirm('채널톡에 초안(비공개)으로 등록할게요. 계속할까요?')) return;
+  // FAQ는 채널톡 Documents Open API에 등록 엔드포인트가 없음
+  alert('FAQ 포맷은 채널톡 Documents Open API로 직접 등록할 수 없어요.\n\n다음 두 가지 방법 중 하나를 사용해주세요:\n\n1. 채널톡 콘솔 → AI > 답변 학습 > 질문 및 답변에서 직접 등록\n2. "💾 저장" 버튼으로 라이브러리에 저장한 뒤, 적용 가이드 탭의 FAQ JSONL 내보내기 사용\n\n아티클로 등록하려면 아티클 가이드라인 검증 탭에서 진행해주세요.');
+  return;
   // 본문 구성: ## 변형 질문 + - 변형들 + ## 답변
   let bodyMd = '';
   if (variations.length) {
