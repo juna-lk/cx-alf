@@ -5223,17 +5223,18 @@ function wfValidate() {
         <div style="font-size:28px;margin-bottom:8px">🎉</div>
         <div style="font-size:14px;font-weight:700;color:#15803d;margin-bottom:4px">완벽해요!</div>
         <div style="font-size:12px;color:#15803d;opacity:.8">검증한 17개 가이드라인 모두 통과. 채널톡 등록해도 좋아요.</div>
+        <div style="margin-top:10px;font-size:11px;color:#15803d;opacity:.7">🔧 가이드 기반 재작성 버튼은 위반 항목이 있을 때만 작동해요.</div>
       </div>`;
     }
     resultEl.innerHTML = html;
-    // 합격이면 재작성 버튼 비활성화 (수정할 게 없는데 LLM 호출 방지)
+    // 합격이면 재작성 버튼 시각적 비활성화 + 호버 안내 (disabled는 빼서 title 호버 동작 보장)
     const rewriteBtn = document.getElementById('btnWfRewrite');
     if (rewriteBtn) {
       const pass = (warnings || []).length === 0;
-      rewriteBtn.disabled = pass;
-      rewriteBtn.style.opacity = pass ? '0.4' : '';
+      rewriteBtn.dataset.passLocked = pass ? '1' : '';
+      rewriteBtn.style.opacity = pass ? '0.45' : '';
       rewriteBtn.style.cursor = pass ? 'not-allowed' : '';
-      rewriteBtn.title = pass ? '수정할 게 없어요 — 모든 가이드라인을 통과했습니다' : '';
+      rewriteBtn.title = pass ? '✅ 가이드라인 모두 통과 — 재작성할 게 없어요. 검증에 실패한 항목이 있어야 재작성이 의미 있어요.' : '';
     }
   } catch (e) {
     console.error('wfValidate error:', e);
