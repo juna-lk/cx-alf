@@ -1980,7 +1980,7 @@
       </div>
     </div>
     <details style="margin-bottom:10px;padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
-      <summary style="font-size:12px;color:#4b5563;cursor:pointer;font-weight:600">📋 검증하는 가이드라인 (17개) — 클릭해서 펼치기</summary>
+      <summary style="font-size:12px;color:#4b5563;cursor:pointer;font-weight:600">📋 검증하는 가이드라인 (18개) — 클릭해서 펼치기</summary>
       <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:11px;color:#374151">
         <div>① <b>이모지</b> — Help Doc 톤 위반 (오류)</div>
         <div>② <b>헤딩 공백</b> — ## 뒤 공백 누락 (오류)</div>
@@ -1999,6 +1999,7 @@
         <div>⑮ <b>메뉴 경로</b> — 백틱 X, 화살표 &gt;로 한 줄 (경고)</div>
         <div>⑯ <b>외국어</b> — 일본어·한자 사용 금지 (오류)</div>
         <div>⑰ <b>제목</b> — 5자+ 핵심 키워드 + 동사 (참고)</div>
+        <div>⑱ <b>질문형 헤딩</b> — ## 헤딩을 고객 검색 표현("○○이란?", "○○ 어떻게 ~?")으로 (참고)</div>
       </div>
     </details>
     <div id="wfValidateResult" style="display:none"></div>
@@ -2850,6 +2851,20 @@ function validateArticle(content, title, format) {
     }
     if (/안내$|관련$/.test(title.trim())) {
       warnings.push({rule:'제목 표현', level:'info', message:'제목이 "○○ 안내", "○○ 관련" 류 — 구체적 동사 포함 권장 (예: "환불 받는 방법")'});
+    }
+  }
+
+  // 18) 질문형/자연어 헤딩 권장 (채널톡 가이드 5-2: ALF는 고객 검색 표현을 H2로 받을 때 매칭 정확도 ↑)
+  if (format === 'article' && length > 300) {
+    const headings = (content.match(/^##\s.+$/gm) || []).map(h => h.replace(/^##\s+/, '').trim());
+    if (headings.length >= 2) {
+      const naturalLike = /[?]$|이란|어떻게|언제|어디|왜\s|무엇|뭐\s|얼마|몇\s|되나요|하나요|할까요|할 수|있나요|있어요|돼요|보여요|되는지|않아요|않나요|싶어요|받나요|있을까요/;
+      const stiff = headings.filter(h => !naturalLike.test(h));
+      if (stiff.length === headings.length) {
+        warnings.push({rule:'질문형 헤딩', level:'info', message:`## 헤딩 ${headings.length}개 모두 단순 키워드형 — "○○이란?", "○○ 어떻게 ~?", "○○ 어디서 ~?" 같은 고객 검색 표현으로 바꾸면 ALF 매칭 정확도 ↑`});
+      } else if (stiff.length > 0) {
+        warnings.push({rule:'질문형 헤딩', level:'info', message:`## 헤딩 ${stiff.length}/${headings.length}개가 단순 키워드형 — 자연어 질문 형식으로 변환 권장 (예: "${stiff[0]}" → 질문형으로)`});
+      }
     }
   }
 
@@ -5324,7 +5339,7 @@ function wfValidate() {
       html += `<div style="padding:28px 24px;text-align:center;background:#f0fdf4;border:1px dashed #86efac;border-radius:10px">
         <div style="font-size:28px;margin-bottom:8px">🎉</div>
         <div style="font-size:14px;font-weight:700;color:#15803d;margin-bottom:4px">완벽해요!</div>
-        <div style="font-size:12px;color:#15803d;opacity:.8">검증한 17개 가이드라인 모두 통과. 채널톡 등록해도 좋아요.</div>
+        <div style="font-size:12px;color:#15803d;opacity:.8">검증한 18개 가이드라인 모두 통과. 채널톡 등록해도 좋아요.</div>
         <div style="margin-top:10px;font-size:11px;color:#15803d;opacity:.7">🔧 가이드 기반 재작성 버튼은 위반 항목이 있을 때만 작동해요.</div>
       </div>`;
     }
