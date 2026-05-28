@@ -5531,9 +5531,15 @@ async function wfPublish() {
   const name = document.getElementById('wfTitle').value.trim();
   const subtitle = document.getElementById('wfSubtitle').value.trim();
   const content = document.getElementById('wfContent').value.trim();
+  const format = document.querySelector('input[name="wfFormat"]:checked')?.value || 'article';
   if (!name) { alert('제목을 입력해주세요.'); return; }
   if (!content) { alert('본문이 비어있어요.'); return; }
-  if (!confirm('채널톡에 초안(비공개)으로 등록할게요. 계속할까요?')) return;
+  // FAQ는 채널톡 Documents Open API에 등록 엔드포인트가 없음
+  if (format === 'faq') {
+    alert('FAQ 포맷은 채널톡 Documents Open API로 직접 등록할 수 없어요.\n\n다음 두 가지 방법 중 하나를 사용해주세요:\n\n1. 채널톡 콘솔 → AI > 답변 학습 > 질문 및 답변에서 직접 등록\n2. "라이브러리에 저장" 버튼을 눌러 저장한 뒤, 적용 가이드 탭의 FAQ JSONL 내보내기 사용\n\n그래도 article로 등록하려면 STEP 5 상단의 "아티클" 라디오로 변경 후 다시 시도해주세요.');
+    return;
+  }
+  if (!confirm('채널톡에 article 초안(비공개)으로 등록할게요. 계속할까요?')) return;
   const btn = document.getElementById('btnWfPublish');
   const resultEl = document.getElementById('wfPublishResult');
   const orig = btn.textContent;
