@@ -836,6 +836,7 @@
           <a href="#section-success">🏆 통합 아티클 템플릿</a>
           <a href="#section-cs">📞 CS 직접 답변</a>
           <a href="#section-difficult">⚠️ ALF가 못 찾는 형태</a>
+          <a href="#section-manager-patterns">✍️ 매니저 답변 패턴</a>
         </div>
         <div class="guide-toc-group">
           <div class="guide-toc-group-title">시스템</div>
@@ -1277,6 +1278,67 @@
         <li><strong>태스크 활용</strong>: 반복 업무는 태스크로 자동화</li>
         <li><strong>정기 업데이트</strong>: 웹사이트 변경 시 2시간 이상 간격으로 "다시 가져오기"</li>
       </ol>
+    </div>
+
+    <div class="guide-section" id="section-manager-patterns">
+      <h3>✍️ 매니저 답변 패턴 — 톤·표현 차용 가이드</h3>
+      <p>ALF Studio는 매니저들이 실제 상담에서 쓴 표현·구조·말투를 아티클/FAQ 초안에 직접 반영합니다. 아래 패턴을 익혀두면 초안 품질을 더 빠르게 끌어올릴 수 있어요.</p>
+
+      <h4>1. 친근한 종결형</h4>
+      <p>매니저들이 가장 많이 쓰는 종결형은 <code>-어요</code>, <code>-습니다</code>, <code>-예요</code>, <code>-에요</code>입니다. 단호한 명사형 종결이나 딱딱한 문어체보다 이 형태가 ALF 응답 톤과도 잘 맞아요.</p>
+      <table class="guide-table">
+        <tr><th>매니저 1:1 응답</th><th>ALF 아티클 변환</th></tr>
+        <tr><td>다운로드 가능합니다.</td><td>다운로드 받을 수 있어요.</td></tr>
+        <tr><td>처리 완료하였습니다.</td><td>처리해드려요.</td></tr>
+        <tr><td>이전됩니다.</td><td>이전됩니다. <em>(이미 자연스러우면 그대로)</em></td></tr>
+      </table>
+
+      <h4>2. 권유 표현</h4>
+      <p>매니저들이 자주 쓰는 권유·추천 패턴을 아티클에서도 그대로 살리세요.</p>
+      <table class="guide-table">
+        <tr><th>매니저 1:1 응답</th><th>ALF 아티클 변환</th></tr>
+        <tr><td>○○ 방법을 먼저 시도해보시는 걸 추천드려요.</td><td>○○ 방법을 먼저 시도해주시면 좋아요.</td></tr>
+        <tr><td>크롬 브라우저 사용을 권장합니다.</td><td>크롬 브라우저 사용을 권장해요.</td></tr>
+      </table>
+
+      <h4>3. 안심 표현</h4>
+      <p>고객 불안을 해소하는 표현도 아티클에 자연스럽게 녹일 수 있어요.</p>
+      <table class="guide-table">
+        <tr><th>매니저 1:1 응답</th><th>ALF 아티클 변환</th></tr>
+        <tr><td>걱정하지 않으셔도 돼요, 자동으로 처리됩니다.</td><td>자동으로 처리되니 걱정하지 않으셔도 돼요.</td></tr>
+        <tr><td>안심하세요, 기존 데이터는 그대로 유지됩니다.</td><td>기존 데이터는 그대로 유지되니 안심하세요.</td></tr>
+      </table>
+
+      <h4>4. 정의-설명 구조</h4>
+      <p>기능·용어 설명 시 매니저들이 자주 쓰는 패턴이에요. 아티클 첫 ## 섹션에 그대로 활용하세요.</p>
+      <div class="quote">○○이란? — {기능명}: {설명}<br>예) 부가세 신고 자료란? — 매출 신고 시 참고하실 수 있는 분기별 자료예요.</div>
+
+      <h4>5. 메뉴 경로 표기</h4>
+      <p>백틱·따옴표 없이, <code>&gt;</code> 화살표로 한 줄로. 줄바꿈 금지.</p>
+      <table class="guide-table">
+        <tr><th>❌ 잘못된 표기</th><th>✅ 올바른 표기</th></tr>
+        <tr><td><code>`사이트 관리`</code> → <code>`사이트 디자인`</code></td><td>사이트 관리 &gt; 사이트 디자인 &gt; 고급 설정</td></tr>
+        <tr><td>사이트 관리<br>→ 매출 및 정산 관리</td><td>사이트 관리 &gt; 매출 및 정산 관리 &gt; 결제 조회</td></tr>
+      </table>
+
+      <h4>6. 절차 단계 표현</h4>
+      <p>매니저가 "먼저 ~하시고, 그 다음 ~해주세요" 형태로 안내했다면 번호 목록으로 변환하세요.</p>
+      <table class="guide-table">
+        <tr><th>매니저 1:1 응답</th><th>ALF 아티클 변환</th></tr>
+        <tr><td>먼저 사이트 관리 들어가시고, 매출 정산에서 신청 버튼 눌러주세요.</td><td>1. 사이트 관리 &gt; 매출 및 정산 관리로 이동해요.<br>2. 신청 버튼을 눌러주세요.</td></tr>
+      </table>
+
+      <h4>7. 피해야 할 매니저 1:1 응답 표현</h4>
+      <p>아래 표현들은 1:1 상담에서는 자연스럽지만 아티클에 그대로 넣으면 다음 고객에게 적용할 수 없어요. 일반 안내로 추상화하세요.</p>
+      <table class="guide-table">
+        <tr><th>❌ 아티클에 넣으면 안 되는 표현</th><th>✅ 아티클용 변환</th></tr>
+        <tr><td>확인됐습니다.</td><td>확인할 수 있어요.</td></tr>
+        <tr><td>처리하였습니다.</td><td>처리해드려요.</td></tr>
+        <tr><td>원인 확인 후 조치하였습니다.</td><td>○○ 페이지에서 직접 수정할 수 있어요.</td></tr>
+        <tr><td>라이브클래스 코치 ○○입니다.</td><td>(삭제)</td></tr>
+        <tr><td>감사합니다 🙏</td><td>(삭제)</td></tr>
+        <tr><td>2월 25일(금) 처리 예정입니다.</td><td>분기 종료 후 약 15일 경 업데이트돼요.</td></tr>
+      </table>
     </div>
 
     <div class="guide-section" id="section-architecture">

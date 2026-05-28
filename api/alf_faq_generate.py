@@ -1,11 +1,12 @@
 from __future__ import annotations
 import os
+import re
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 import urllib.parse
 
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft, is_safe_postgrest_tag, select_specific_tag
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, extract_json, strip_article_boilerplate, verify_draft, is_safe_postgrest_tag, select_specific_tag, docs_req
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -81,8 +82,39 @@ FAQ_SYSTEM_PROMPT = """당신은 채널톡 ALF용 FAQ 콘텐츠 작성 전문가
 예) 編集→편집, プラン→플랜, サイト→사이트."""
 
 
+def _fetch_faq_articles(max_articles: int = 2, min_chars: int = 200) -> list[dict]:
+    """채널톡 등록 아티클 fetch — FAQ용 (최대 2건, 실패 시 빈 list)."""
+    try:
+        data = docs_req(
+            "/open/v1/spaces/$me/articles?language=ko&limit=100",
+            method="GET",
+        )
+        articles = data.get("articles") or []
+        result = []
+        for a in articles:
+            title = (a.get("title") or a.get("name") or "").strip()
+            subtitle = (a.get("subtitle") or a.get("summary") or "").strip()
+            body_html = a.get("bodyHtml") or ""
+            body_text = re.sub(r"<[^>]+>", " ", body_html)
+            body_text = re.sub(r"\s+", " ", body_text).strip()
+            combined = title + subtitle + body_text
+            if len(combined) < min_chars:
+                continue
+            result.append({
+                "title": title,
+                "subtitle": subtitle,
+                "body_preview": body_text[:300],
+            })
+        return result[:max_articles]
+    except Exception as e:
+        print(f"[warn] _fetch_faq_articles 실패: {e}")
+        return []
+
+
 def build_faq_prompt(cluster_label: str, chats: list) -> str | None:
     samples = []
+    manager_blocks: list[str] = []  # 매니저 답변 별도 수집 (FAQ용 — 더 압축)
+
     for i, c in enumerate(chats[:50]):
         msgs = c.get("messages", [])
         # 고객 메시지 (질문 패턴용)
@@ -99,10 +131,47 @@ def build_faq_prompt(cluster_label: str, chats: list) -> str | None:
             f"매니저가 답한 내용:\n{agent_full}"
         )
 
+        # 매니저 답변 별도 수집 (30자 미만 제외, 최대 30건 — FAQ는 더 압축)
+        if len(manager_blocks) < 30:
+            chat_id = c.get("chat_id", f"chat_{i+1}")
+            valid_answers = [
+                a[:150] for a in agent_msgs
+                if len(a.strip()) >= 30
+            ]
+            if valid_answers:
+                block_lines = "\n".join(f"  {a}" for a in valid_answers[:3])
+                manager_blocks.append(f"[{chat_id}]\n{block_lines}")
+
     if not samples:
         return None
 
-    return f"""아래는 '{cluster_label}' 상황의 실제 채널톡 상담 {len(samples)}건입니다.
+    # 매니저 답변 별도 블록
+    manager_section = ""
+    if manager_blocks:
+        manager_section = (
+            "## 매니저들이 실제로 답변한 내용 (이 표현·구조·정책을 우선 차용해주세요)\n\n"
+            + "\n\n".join(manager_blocks[:30])
+            + "\n\n"
+        )
+
+    # 채널톡 등록 문서 reference 블록 (FAQ는 1~2건만)
+    article_section = ""
+    registered = _fetch_faq_articles(max_articles=2, min_chars=200)
+    if registered:
+        parts = []
+        for a in registered:
+            part = f"제목: {a['title']}"
+            if a["subtitle"]:
+                part += f"\n소제목: {a['subtitle']}"
+            part += f"\n본문(발췌): {a['body_preview']}"
+            parts.append(part)
+        article_section = (
+            "## 우리 채널톡에 이미 등록된 문서들의 스타일 (참고 — 가이드라인 룰은 그대로 준수)\n\n"
+            + "\n\n---\n\n".join(parts)
+            + "\n\n"
+        )
+
+    return f"""{manager_section}{article_section}아래는 '{cluster_label}' 상황의 실제 채널톡 상담 {len(samples)}건입니다.
 
 {chr(10).join(samples)}
 
