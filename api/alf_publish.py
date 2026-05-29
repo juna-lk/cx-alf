@@ -11,8 +11,12 @@ DOCS_ACCESS_SECRET = os.environ.get("CHANNELTALK_DOCS_ACCESS_SECRET", "")
 
 
 def _escape(s: str) -> str:
-    return (s.replace("&", "&amp;").replace("<", "&lt;")
-             .replace(">", "&gt;").replace('"', "&quot;"))
+    return (s.replace("\\", "\\\\")
+             .replace("&", "&amp;")
+             .replace("<", "&lt;")
+             .replace(">", "&gt;")
+             .replace('"', "&quot;")
+             .replace("'", "&#39;"))
 
 
 _SAFE_URL_PREFIX = re.compile(r"^(https?://|mailto:|/|#)", re.IGNORECASE)

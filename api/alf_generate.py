@@ -681,7 +681,7 @@ class handler(_Base):
                 revised = (parsed.get("content") or "").strip()
                 revised = strip_article_boilerplate(revised)
                 verification = verify_draft(revised, "article",
-                                            user_title or (parsed.get("title") or ""),
+                                            cluster_label="",
                                             title=(parsed.get("title") or user_title))
                 self._respond(200, {
                     "ok": True,
