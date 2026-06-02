@@ -37,12 +37,48 @@ def fetch_all_managers() -> dict:
         return {}
 
 
+def _block_to_html(b: dict) -> str:
+    """채널톡 blocks 한 노드 → HTML(or plain text) 문자열로 변환 (재귀)."""
+    t = (b or {}).get("type", "")
+    if t == "text":
+        return b.get("value", "") or ""
+    if t == "bullets":
+        items = [_block_to_html(sub) for sub in (b.get("blocks") or [])]
+        return "\n".join(f"- {it}" for it in items if it)
+    if t == "code":
+        return f"```\n{b.get('value','') or ''}\n```"
+    if b.get("blocks"):
+        return "\n".join(_block_to_html(sub) for sub in b["blocks"])
+    return b.get("value", "") or ""
+
+
+def _has_bullets(blocks: list) -> bool:
+    for b in blocks or []:
+        if (b or {}).get("type") == "bullets":
+            return True
+        if (b or {}).get("blocks") and _has_bullets(b["blocks"]):
+            return True
+    return False
+
+
+def _has_bold(blocks: list) -> bool:
+    for b in blocks or []:
+        v = (b or {}).get("value", "")
+        if isinstance(v, str) and "<b>" in v:
+            return True
+        if (b or {}).get("blocks") and _has_bold(b["blocks"]):
+            return True
+    return False
+
+
 def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
     """Channel Talk 메시지 배열을 정규화된 형식으로 변환.
 
     저장 필드:
       - role: customer / agent / alf / system
       - text: 본문 (plainText)
+      - html: blocks를 HTML/마크다운스러운 텍스트로 직렬화 (없으면 text)
+      - bullets / bold: blocks 구조에 불릿·볼드 포함 여부
       - time: KST 'YYYY-MM-DD HH:MM:SS' (초 단위)
       - created_ms: epoch ms (정렬 키)
       - manager: 매니저 이름 (manager_map에서 매핑)
@@ -126,15 +162,21 @@ def parse_messages(raw_messages: list, manager_map: dict | None = None) -> list:
         else:
             msg_type = "text"
 
+        blocks = m.get("blocks") or []
+        html = "\n".join(_block_to_html(b) for b in blocks).strip() or text
+
         msg = {
             "role": role,
             "text": text,
+            "html": html,
             "time": time_str,
             "created_ms": int(created_ms),
             "manager": manager_name,
             "person_id": person_id,
             "private": is_private,
             "type": msg_type,
+            "bullets": _has_bullets(blocks),
+            "bold": _has_bold(blocks),
         }
         # 옵션 필드는 값이 있을 때만 (jsonb 사이즈 절약)
         if m.get("language"):
