@@ -5,6 +5,9 @@ import re
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone, timedelta
+
+_KST = timezone(timedelta(hours=9))
 
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_MODEL = "gpt-4o-mini"
@@ -429,6 +432,109 @@ def supabase_post(url: str, data: dict | list, service_key: str, method: str = "
     with urllib.request.urlopen(req, timeout=15) as resp:
         body = resp.read()
         return json.loads(body) if body else {}
+
+
+def supabase_upsert(url: str, data: list, service_key: str, on_conflict: str) -> dict:
+    """Supabase REST upsert (insert or update on conflict).
+
+    url: .../rest/v1/<table> (on_conflict 쿼리는 자동 부착)
+    on_conflict: 충돌 판정 컬럼 (예: "user_id")
+    """
+    sep = "&" if "?" in url else "?"
+    full_url = f"{url}{sep}on_conflict={on_conflict}"
+    payload = json.dumps(data).encode()
+    headers = get_supabase_headers(service_key)
+    headers["Prefer"] = "resolution=merge-duplicates,return=minimal"
+    req = urllib.request.Request(full_url, data=payload, headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        body = resp.read()
+        return json.loads(body) if body else {}
+
+
+# 채널톡 user.profile → cx_users 로 promote 할 핵심 컬럼 매핑
+# (DB 컬럼명: profile 키). 숫자 컬럼은 _USER_NUMERIC_COLS 에서 캐스팅.
+_USER_PROMOTE_MAP = {
+    "plan_name": "plan_name",
+    "plan_amount": "plan_amount",
+    "plan_start_date": "plan_start_date",
+    "plan_end_date": "plan_end_date",
+    "owner_yn": "owner_yn",
+    "site_role": "site_role",
+    "site_name": "site_name",
+    "site_url": "site_url",
+    "marketing_yn": "marketing_yn",
+    "last_login": "last_login",
+    "monthly_sales": "monthly_sales",
+    "total_settlement_amount": "total_settlement_amount",
+    "campaign_code": "campaign_code",
+    "utm_source": "utmSource",
+    "last_utm_source": "lastUtmSource",
+}
+_USER_NUMERIC_COLS = {"plan_amount", "monthly_sales", "total_settlement_amount"}
+_USER_DATE_COLS = {"plan_start_date", "plan_end_date"}
+
+
+def _to_number(v):
+    """'49,900' / '960000' / 49900 → float. 실패 시 None."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return v
+    try:
+        return float(str(v).replace(",", "").strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_date(v):
+    """채널톡 날짜(epoch ms/s 혼재 또는 ISO 문자열) → 'YYYY-MM-DD'. 실패/빈값 None.
+
+    무료 플랜의 이용기간도 의미있는 값이라 그대로 정규화해 보존한다.
+    """
+    if v is None or v == "":
+        return None
+    s = str(v).strip()
+    if s.isdigit():
+        n = int(s)
+        if n >= 10 ** 12:      # epoch milliseconds
+            n //= 1000
+        elif n < 10 ** 9:      # 너무 작아 날짜로 부적합
+            return None
+        try:
+            return datetime.fromtimestamp(n, tz=_KST).date().isoformat()
+        except (ValueError, OSError, OverflowError):
+            return None
+    try:                       # ISO 문자열 (2026-05-20T00:00:00 등)
+        s2 = s.replace("Z", "").split("+")[0].strip()
+        return datetime.fromisoformat(s2).date().isoformat()
+    except ValueError:
+        return None
+
+
+def user_to_row(user: dict) -> dict:
+    """채널톡 user 객체 → cx_users row (하이브리드: 핵심 컬럼 promote + profile jsonb 통째).
+
+    일상 적재(alf_collect)와 백필(backfill_user_ids)이 공유한다.
+    """
+    profile = user.get("profile") or {}
+    row = {
+        "user_id": user.get("id"),
+        "member_id": user.get("memberId"),
+        "type": user.get("type"),
+        "name": user.get("name") or profile.get("name"),
+        "email": user.get("email") or profile.get("email"),
+        "mobile_number": user.get("mobileNumber") or profile.get("mobileNumber"),
+        "profile": profile,
+    }
+    for col, pkey in _USER_PROMOTE_MAP.items():
+        val = profile.get(pkey)
+        if col in _USER_NUMERIC_COLS:
+            row[col] = _to_number(val)
+        elif col in _USER_DATE_COLS:
+            row[col] = _parse_date(val)
+        else:
+            row[col] = val
+    return row
 
 
 def _verify_supabase_token(access_token: str) -> dict | None:

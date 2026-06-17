@@ -7,7 +7,7 @@ import time
 import urllib.request
 import urllib.parse
 from datetime import datetime, timezone, timedelta
-from _alf_common import supabase_get, supabase_post, make_handler_base
+from _alf_common import supabase_get, supabase_post, supabase_upsert, user_to_row, make_handler_base
 
 CT_ACCESS_KEY = os.environ.get("CHANNELTALK_ACCESS_KEY", "")
 CT_ACCESS_SECRET = os.environ.get("CHANNELTALK_ACCESS_SECRET", "")
@@ -206,6 +206,7 @@ def build_row(chat: dict, messages: list) -> dict:
         "assignee_id": str(chat.get("assigneeId") or ""),
         "assignee_name": chat.get("assigneeName") or "",
         "url": f"https://desk.channel.io/liveklass/user-chats/{chat_id}",
+        "user_id": chat.get("userId"),
     }
 
 
@@ -228,10 +229,23 @@ def fetch_chat_detail(chat_id: str) -> dict:
 
 
 def get_existing_chat_ids() -> set:
-    """이미 수집된 chat_id 목록 조회"""
-    url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=chat_id&limit=50000"
-    rows = supabase_get(url, SUPABASE_SERVICE_KEY)
-    return {r["chat_id"] for r in rows}
+    """이미 수집된 chat_id 목록 조회.
+
+    PostgREST 기본 max-rows=1000 cap 때문에 limit=1000 + offset 으로 끝까지 읽는다.
+    (이전엔 limit=50000을 줘도 1000건만 반환돼 매일 대량 재수집이 발생했음)
+    """
+    PAGE = 1000
+    ids, offset = set(), 0
+    while True:
+        url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=chat_id&limit={PAGE}&offset={offset}"
+        rows = supabase_get(url, SUPABASE_SERVICE_KEY)
+        if not rows:
+            break
+        ids.update(r["chat_id"] for r in rows)
+        if len(rows) < PAGE:
+            break
+        offset += PAGE
+    return ids
 
 
 def collect_and_store(days: int = DEFAULT_COLLECT_DAYS) -> dict:
@@ -241,6 +255,7 @@ def collect_and_store(days: int = DEFAULT_COLLECT_DAYS) -> dict:
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     all_chats = []
+    user_map = {}  # {user.id: user} — user-chats 응답에 동봉된 users[] 누적
     for state in ("closed", "opened", "snoozed", "initial", "missed"):
         cursor = None
         while True:
@@ -250,6 +265,9 @@ def collect_and_store(days: int = DEFAULT_COLLECT_DAYS) -> dict:
             req = urllib.request.Request(f"{CT_BASE}/open/v5/user-chats?{params}", headers=CT_HEADERS)
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read())
+            for u in data.get("users", []):
+                if u.get("id"):
+                    user_map[u["id"]] = u
             batch = data.get("userChats", [])
             in_range = []
             oldest_seen = float("inf")
@@ -292,7 +310,21 @@ def collect_and_store(days: int = DEFAULT_COLLECT_DAYS) -> dict:
         )
         stored += len(chunk)
 
-    return {"collected": len(new_rows), "stored": stored}
+    # cx_users: 이번 스윕에 등장한 모든 user의 최신 profile upsert (member/lead 전부)
+    user_rows = [user_to_row(u) for u in user_map.values() if u.get("id")]
+    users_stored = 0
+    for i in range(0, len(user_rows), 100):
+        chunk = user_rows[i:i + 100]
+        try:
+            supabase_upsert(
+                f"{SUPABASE_URL}/rest/v1/cx_users",
+                chunk, SUPABASE_SERVICE_KEY, on_conflict="user_id",
+            )
+            users_stored += len(chunk)
+        except Exception as e:
+            print(f"[warn] cx_users upsert 실패: {e}")
+
+    return {"collected": len(new_rows), "stored": stored, "users": users_stored}
 
 
 _Base = make_handler_base()
