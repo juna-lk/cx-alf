@@ -1,0 +1,256 @@
+{
+  "generated_at": "2026-06-26T00:00:00+09:00",
+  "last_reviewed_at": "2026-06-26",
+  "source_repo": "futureschole-ai-all/liveklass-ai-workspace",
+  "channeltalk_article_count": 21,
+  "review_status": {
+    "product-structure": "complete (15 approved / 6 removed)",
+    "product-sales-settings": "complete (6 approved / 0 removed)",
+    "payment-settlement": "in_progress (2/14 reviewed — next: [3/14])"
+  },
+  "note": "매니저(사용자) 검토 결과 반영. status=approved 채택, removed 빼기, pending 미검토.",
+  "domains": {
+    "product-structure": {
+      "label": "상품구조",
+      "article_count": 10,
+      "mappings": [
+        {
+          "old": "클래스 관리",
+          "new": "상품 관리",
+          "category": "메뉴 경로",
+          "evidence": "spec.md [2] LNB 구조",
+          "confidence": "high",
+          "note": "LNB 1depth 레이블 변경",
+          "status": "approved"
+        },
+        {
+          "old": "클래스",
+          "new": "상품",
+          "category": "용어",
+          "evidence": "spec.md [2] LNB: '클래스 → 전체 상품/강의/라이브/디지털 상품'",
+          "confidence": "high",
+          "note": "LK2.0 상품 타입 4개 = 강의/라이브/디지털 상품/패키지. 본문의 일반 '클래스'는 '상품'으로 변환. 단 '강의' 상품 타입 안의 콘텐츠 안내에서는 '강의' 그대로 유지.",
+          "status": "approved"
+        },
+        {
+          "old": "클래스 > 클래스 설정 > 강의 설정",
+          "new": "사이트 관리 > 상품 관리 > 상품 설정 페이지 > 콘텐츠 탭",
+          "category": "메뉴 경로",
+          "evidence": "spec.md PRODUS-004 [콘텐츠] 탭",
+          "confidence": "high",
+          "note": "사용자 확정 경로",
+          "status": "approved"
+        },
+        {
+          "old": "클래스 > 클래스 설정 > 수강생 목록",
+          "new": "사이트 관리 > 상품 관리 > 상품 설정 페이지 > 수강생 탭",
+          "category": "메뉴 경로",
+          "evidence": "PRODUS-027 '[수강생] 탭에서 운영자 선정 ON/OFF'",
+          "confidence": "high",
+          "note": "메뉴 경로 길게 풀어 일관성 유지",
+          "status": "approved"
+        },
+        {
+          "old": "강의",
+          "new": "콘텐츠",
+          "category": "용어",
+          "evidence": "UI '콘텐츠 리스트' / '콘텐츠 추가'",
+          "confidence": "high",
+          "note": "LK1.0 강의(클래스 하위 단위)는 LK2.0에서 '콘텐츠'로 통일. spec엔 '상품 아이템'이지만 UI 레이블은 '콘텐츠'.",
+          "status": "approved"
+        },
+        {
+          "old": "강의 유형(VOD/라이브/디지털 상품/오프라인 모임)",
+          "new": "콘텐츠 유형(동영상/라이브/디지털 상품/오프라인 모임)",
+          "category": "용어",
+          "evidence": "콘텐츠 추가 모달 UI",
+          "confidence": "high",
+          "note": "UI 표준 따름 (spec/glossary의 '상품 아이템 타입' 영문 표기 미적용)",
+          "status": "approved"
+        },
+        {
+          "old": "라이브 미팅",
+          "new": "라이브",
+          "category": "용어",
+          "evidence": "콘텐츠 추가 모달 UI",
+          "confidence": "high",
+          "note": "LK1.0의 '라이브 미팅' 표현이 진도율 안내 등에 등장. 영문 'Live' 표기는 본문에 사용 X.",
+          "status": "approved"
+        },
+        {
+          "old": "공개 상태: 공개 / 비공개",
+          "new": "공개 상태: 전체 공개 / 일부 공개",
+          "category": "정책",
+          "evidence": "spec.md + UI 모달 '공개 상태' 옵션",
+          "confidence": "high",
+          "note": "라벨('공개 상태')은 유지. 일부 공개 = URL 직접 접근만 가능.",
+          "status": "approved"
+        },
+        {
+          "old": "비공개(상품 상태)",
+          "new": "판매 상태: 설정 중 / 판매 중 / 판매 중단",
+          "category": "정책",
+          "evidence": "spec.md [3] 판매 상태 3단계 신설",
+          "confidence": "high",
+          "note": "LK1.0의 '비공개'는 노출+판매 두 의미가 섞여 있었음. LK2.0은 '공개 상태'(전체/일부)와 '판매 상태'(3단계)로 분리.",
+          "status": "approved"
+        },
+        {
+          "old": "패키지에 클래스 추가",
+          "new": "패키지에 상품 추가",
+          "category": "용어",
+          "evidence": "spec.md 패키지 정의 + [12] 최대 200개 상품 추가",
+          "confidence": "high",
+          "note": "최대 200개까지 추가 가능, 최소 2개 이상 선택. UI 라벨: '패키지 구성' / 버튼 '상품 선택' / 카운터 'N/200 선택됨'.",
+          "status": "approved"
+        },
+        {
+          "old": "프로그램 페이지(패키지 생성 진입)",
+          "new": "사이트 관리 페이지 > 상품 관리 > 패키지",
+          "category": "메뉴 경로",
+          "evidence": "spec.md 배경 3, [11] 프로그램 페이지 fade out 예정",
+          "confidence": "high",
+          "note": "LNB 신설 위치로 이동",
+          "status": "approved"
+        },
+        {
+          "old": "사이트 관리 > 프로그램",
+          "new": "사이트 관리 > 상품 관리 > 전체 상품",
+          "category": "메뉴 경로",
+          "evidence": "spec.md [2] LNB 구조 to-be",
+          "confidence": "high",
+          "status": "approved"
+        },
+        {
+          "old": "클래스 상세 페이지",
+          "new": "상품 상세 페이지",
+          "category": "용어",
+          "evidence": "spec.md PRODUS-015 '상품/패키지 상세 페이지'",
+          "confidence": "high",
+          "status": "approved"
+        },
+        {
+          "old": "강의 오픈일 예약하기",
+          "new": "동영상 오픈 일시 예약하기",
+          "category": "기능명",
+          "evidence": "콘텐츠 추가 모달 UI 토글 라벨",
+          "confidence": "high",
+          "note": "LK2.0 UI 토글 라벨 기준",
+          "status": "approved"
+        },
+        {
+          "old": "클래스 신청",
+          "new": "수강 신청",
+          "category": "용어",
+          "evidence": "spec.md PRODUS-015 모달 AC '수강 신청하기(CTA 버튼)'",
+          "confidence": "high",
+          "note": "상품 상세 페이지 CTA 버튼. 결제 흐름의 '상품 구매' 표현은 별도 매핑 필요 시 추가.",
+          "status": "approved"
+        }
+      ],
+      "removed_mappings": [
+        {"old": "오프라인 모임", "new": "오프라인 미팅", "reason": "UI 그대로 (오프라인 모임 유지)"},
+        {"old": "디지털 상품(강의 자료/파일)", "new": "디지털 파일", "reason": "UI 그대로 (디지털 상품 유지)"},
+        {"old": "동영상", "new": "VOD", "reason": "UI 그대로 (동영상 유지)"},
+        {"old": "강의실", "new": "강의실", "reason": "변경 없음"},
+        {"old": "수강 기간", "new": "수강 기간", "reason": "용어 자체는 변경 없음. 정책(시작/종료 독립 축) 변경만 있음."},
+        {"old": "동영상 보관함", "new": "동영상 보관함", "reason": "용어 그대로 유지"}
+      ]
+    },
+    "product-sales-settings": {
+      "label": "판매설정",
+      "article_count": 1,
+      "mappings": [
+        {
+          "old": "운영자 선정 기능",
+          "new": "운영자 승인 후 수강",
+          "category": "기능명",
+          "evidence": "LK2.0 UI 모달 '수강 승인 설정' 옵션 라벨",
+          "confidence": "high",
+          "note": "옵션 ON 시 구매자가 수강 신청 후 운영자 승인을 받아야 콘텐츠 접근 가능.",
+          "status": "approved"
+        },
+        {
+          "old": "수강 상태: 대기 / 승인 / 수강 취소",
+          "new": "수강 상태: 대기 / 승인완료 / 수강취소 / 수강종료",
+          "category": "용어",
+          "evidence": "LK2.0 UI 수강 상태 배지",
+          "confidence": "high",
+          "note": "LK2.0에서 '승인'→'승인완료' 명칭 변경, '수강종료' 신규 추가, 띄어쓰기 통일.",
+          "status": "approved"
+        },
+        {
+          "old": "유료 클래스에서만 사용 가능",
+          "new": "유료 상품에서만 사용 가능 (무료 상품 사용 불가)",
+          "category": "정책",
+          "evidence": "UI 모달 안내 'ⓘ 무료 상품에서는 사용할 수 없습니다.'",
+          "confidence": "high",
+          "note": "Feature flag 표현은 매니저 안내에서 사용 X. UI 안내문 그대로.",
+          "status": "approved"
+        },
+        {
+          "old": "클래스 가격",
+          "new": "기준 가격",
+          "category": "용어",
+          "evidence": "LK2.0 '판매 조건' 카드의 가격 입력 필드 라벨",
+          "confidence": "high",
+          "note": "판매 조건 단위로 기준 가격 설정 + 할인·판매 기간·수량 제한·수강 기간·쿠폰 옵션 추가 가능.",
+          "status": "approved"
+        },
+        {
+          "old": "클래스 설정 > 가격 / 일정 / 정원",
+          "new": "상품 설정 > 판매 조건",
+          "category": "메뉴 경로",
+          "evidence": "product-sales-settings spec — '판매 조건' 카드로 통합",
+          "confidence": "high",
+          "note": "LK1.0 각 항목이 LK2.0 '판매 조건' 카드로 통합 (기준 가격 + 할인 + 판매 기간 + 수량 제한 + 수강 기간 + 쿠폰). 하나의 상품에 여러 개의 판매 조건 추가 가능 ('+ 판매 조건' 버튼). 구매자는 여러 판매 조건 중 하나 선택 (예: 30일 수강권 vs 60일 수강권).",
+          "status": "approved"
+        },
+        {
+          "old": "판매 정원",
+          "new": "수량 제한",
+          "category": "용어",
+          "evidence": "product-sales-settings spec 판매 조건 옵션 '수량 제한'",
+          "confidence": "high",
+          "status": "approved"
+        }
+      ],
+      "removed_mappings": []
+    },
+    "payment-settlement": {
+      "label": "결제/주문/정산",
+      "article_count": 4,
+      "review_next": "[3/14]",
+      "mappings": [
+        {
+          "old": "수강료(단일 가격)로 결제금액 산출",
+          "new": "결제 금액 = 판매조건 기준 가격 + 추가 구성 금액 − 쿠폰 할인",
+          "category": "정책",
+          "evidence": "payment-settlement 1️⃣ 결제금액 산출 공식",
+          "confidence": "high",
+          "note": "LK2.0은 다중 판매 조건 + 추가 구성 + 쿠폰을 결합한 결제 모델. 쿠폰 사용 조건: 결제 페이지 최종 금액이 1원 이상일 때만 적용 가능 (0원 결제 시 쿠폰 미적용). 판매 조건에서 '쿠폰' 토글 비활성화 시 → 해당 판매 조건은 쿠폰 등록·사용 불가. 무료 상품은 판매 조건 설정 단계가 없음 (UI에서 판매 조건 카드 미노출). 무료 상품도 쿠폰 사용 가능 (기본 허용). 무료 상품도 '추가 구성'으로 유료 결제가 진행될 수 있음.",
+          "status": "approved"
+        },
+        {
+          "old": "결제 (단건)",
+          "new": "1회 결제 = 1상품/패키지 (주문ID 단위)",
+          "category": "용어",
+          "evidence": "payment-settlement 2️⃣·용어 표 '주문ID'",
+          "confidence": "high",
+          "status": "removed",
+          "removed_reason": "본문 변환에 큰 영향 없는 정책 reference. 매니저 답변에서 잘 안 쓰는 표현."
+        },
+        {
+          "old": "결제 조회 / 결제 취소",
+          "new": "결제내역 / 결제취소(전체) / 부분취소",
+          "category": "용어",
+          "evidence": "payment-settlement 용어 표 + 6️⃣ 결제취소/부분취소",
+          "confidence": "high",
+          "status": "pending"
+        }
+      ],
+      "pending_from_original": "원본 14개 중 [3]~[14] 12개 미검토. 다음 세션에서 [3/14]부터 재개."
+    }
+  },
+  "other_article_ids_note": "마이그레이션 도메인 외 6건 (수강관리·게시판·로그인·멤버십). 본문에 '클래스' 같은 1.0 용어가 있을 수 있으니, 매핑은 글로벌로 적용해서 이 6건도 함께 변환."
+}

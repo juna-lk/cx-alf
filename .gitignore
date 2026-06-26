@@ -14,3 +14,6 @@ docs/handoff/
 
 # OMC 세션 상태 (로컬)
 .omc/
+
+# LK2.0 마이그레이션 캐시 (채널톡 도큐먼트 본문 — PII 가능성)
+migration/_channeltalk_articles.json
