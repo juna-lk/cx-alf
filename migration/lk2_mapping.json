@@ -1,12 +1,12 @@
 {
   "generated_at": "2026-06-26T00:00:00+09:00",
-  "last_reviewed_at": "2026-06-26",
+  "last_reviewed_at": "2026-06-29",
   "source_repo": "futureschole-ai-all/liveklass-ai-workspace",
   "channeltalk_article_count": 21,
   "review_status": {
     "product-structure": "complete (15 approved / 6 removed)",
     "product-sales-settings": "complete (6 approved / 0 removed)",
-    "payment-settlement": "in_progress (2/14 reviewed — next: [3/14])"
+    "payment-settlement": "complete (4 approved / 11 removed)"
   },
   "note": "매니저(사용자) 검토 결과 반영. status=approved 채택, removed 빼기, pending 미검토.",
   "domains": {
@@ -149,12 +149,36 @@
         }
       ],
       "removed_mappings": [
-        {"old": "오프라인 모임", "new": "오프라인 미팅", "reason": "UI 그대로 (오프라인 모임 유지)"},
-        {"old": "디지털 상품(강의 자료/파일)", "new": "디지털 파일", "reason": "UI 그대로 (디지털 상품 유지)"},
-        {"old": "동영상", "new": "VOD", "reason": "UI 그대로 (동영상 유지)"},
-        {"old": "강의실", "new": "강의실", "reason": "변경 없음"},
-        {"old": "수강 기간", "new": "수강 기간", "reason": "용어 자체는 변경 없음. 정책(시작/종료 독립 축) 변경만 있음."},
-        {"old": "동영상 보관함", "new": "동영상 보관함", "reason": "용어 그대로 유지"}
+        {
+          "old": "오프라인 모임",
+          "new": "오프라인 미팅",
+          "reason": "UI 그대로 (오프라인 모임 유지)"
+        },
+        {
+          "old": "디지털 상품(강의 자료/파일)",
+          "new": "디지털 파일",
+          "reason": "UI 그대로 (디지털 상품 유지)"
+        },
+        {
+          "old": "동영상",
+          "new": "VOD",
+          "reason": "UI 그대로 (동영상 유지)"
+        },
+        {
+          "old": "강의실",
+          "new": "강의실",
+          "reason": "변경 없음"
+        },
+        {
+          "old": "수강 기간",
+          "new": "수강 기간",
+          "reason": "용어 자체는 변경 없음. 정책(시작/종료 독립 축) 변경만 있음."
+        },
+        {
+          "old": "동영상 보관함",
+          "new": "동영상 보관함",
+          "reason": "용어 그대로 유지"
+        }
       ]
     },
     "product-sales-settings": {
@@ -220,7 +244,6 @@
     "payment-settlement": {
       "label": "결제/주문/정산",
       "article_count": 4,
-      "review_next": "[3/14]",
       "mappings": [
         {
           "old": "수강료(단일 가격)로 결제금액 산출",
@@ -246,10 +269,128 @@
           "category": "용어",
           "evidence": "payment-settlement 용어 표 + 6️⃣ 결제취소/부분취소",
           "confidence": "high",
-          "status": "pending"
+          "status": "removed",
+          "removed_reason": "UI 메뉴 라벨 '결제 조회' LK1.0/LK2.0 동일. '결제 취소' 동작도 LK1.0 동일. '부분취소'도 LK1.0에 있었음 (확인됨)."
+        },
+        {
+          "old": "사이트 관리 > 매출 및 정산 관리 > 결제 조회",
+          "new": "사이트 관리 > 결제 관리 > 결제내역",
+          "category": "메뉴 경로",
+          "evidence": "payment-settlement 5️⃣ '[사이트 관리 페이지-결제조회]' + 용어 '결제내역'",
+          "confidence": "low",
+          "note": "LK1.0 '매출 및 정산 관리' 하위에 '결제 조회'가 있었음. LK2.0 spec은 '사이트 관리 페이지-결제조회'로만 표기되어 LNB 정확한 위치는 추정. 매니저 확정 필요.",
+          "status": "removed",
+          "removed_reason": "메뉴 경로 LK1.0/LK2.0 동일 (사이트 관리 > 매출 및 정산 관리 > 결제 조회)."
+        },
+        {
+          "old": "결제 (단건/단일 상품 결제)",
+          "new": "주문 / 주문ID",
+          "category": "용어",
+          "evidence": "payment-settlement 용어 표 '주문ID: 하나의 결제 건에 대한 결제내역(결제/취소)을 묶는 식별 키'",
+          "confidence": "high",
+          "note": "LK2.0은 '결제 건'을 '주문ID' 단위로 묶음. 동일 주문ID 내에서 결제내역(+)과 결제취소/부분취소 내역(-)이 귀속됨. 본문에 '결제 건' 표현 등장 시 '주문' 또는 '주문 건' 표기 검토.",
+          "status": "removed",
+          "removed_reason": "LK1.0에서도 '주문번호' 표현 사용. LK2.0에 새로 추가될 예정 표현은 아직 LK1.0 유지."
+        },
+        {
+          "old": "환불",
+          "new": "결제취소(전액) / 부분취소",
+          "category": "용어",
+          "evidence": "payment-settlement 6️⃣ 환불처리는 결제취소와 부분취소가 있다",
+          "confidence": "high",
+          "note": "LK2.0 공식 용어는 '결제취소'(=전체취소, 전액 환불)와 '부분취소'(일부 환불). 본문의 '환불' 표현은 맥락에 따라 둘 중 하나로 정확히 매핑 필요.",
+          "status": "removed",
+          "removed_reason": "환불 UI 표현 LK1.0/LK2.0 동일 (전액 환불 / 부분 환불 선택)."
+        },
+        {
+          "old": "결제 취소 (LK1.0: 운영자가 결제건 취소)",
+          "new": "결제취소 (전체취소): 결제금액 전체 환불, 수강유지 선택 불가",
+          "category": "정책",
+          "evidence": "payment-settlement 6️⃣ 결제취소(전체취소): 결제금액 전체를 환불 처리. 수강유지 여부 선택 불가",
+          "confidence": "high",
+          "note": "LK2.0 신규 규칙: 결제취소는 무조건 수강 권한 회수. 수강 유지가 필요하면 부분취소를 선택해야 함.",
+          "status": "removed",
+          "removed_reason": "동작 자체는 LK1.0과 같음 (전액 환불 = 수강 회수)."
+        },
+        {
+          "old": "(LK1.0 부분 환불 명시 없음)",
+          "new": "부분취소: 결제금액 일부 환불 + 수강유지 여부 선택 가능",
+          "category": "정책",
+          "evidence": "payment-settlement 6️⃣ 부분취소: 구매자/판매자 협의에 따라 결제금액 일부를 환불 처리. 수강유지 여부 선택 가능",
+          "confidence": "high",
+          "note": "LK2.0 신규 개념. 부분취소 + '수강유지' 선택 시 일부 환불해도 구매자의 상품 접근 권한 유지. '가상계좌 부분 환불'(LK1.0 상담원 처리 케이스)도 LK2.0에서는 '부분취소' 용어로 통일.",
+          "status": "removed",
+          "removed_reason": "LK1.0에도 부분 환불 + 수강 유지/취소 선택 옵션 있었음."
+        },
+        {
+          "old": "정산 후 환불 / 지급 완료 후 환불 (운영자 처리 불가, 상담원 연결)",
+          "new": "지급완료된 결제내역의 취소는 라클 내부 담당자가 수행",
+          "category": "정책",
+          "evidence": "payment-settlement 5️⃣ '지급완료된 결제내역은 판매자가 직접 취소할 수 없으며, 라클 내부 담당자를 통해 수행한다'",
+          "confidence": "high",
+          "note": "LK1.0의 '정산 후 환불' = LK2.0 '지급완료된 결제내역의 취소'. 매니저(상담원) 이관 정책은 동일.",
+          "status": "removed",
+          "removed_reason": "정산 진행 중·지급 완료 시 운영자 직접 취소 불가 → 채널톡 요청. LK1.0/LK2.0 동일."
+        },
+        {
+          "old": "결제 조회 페이지에서 매출 확인 후 부가세 신고",
+          "new": "사이트 관리 > 매출 및 정산 관리 > 부가세 신고 자료 메뉴에서 확인 후 신고",
+          "category": "정책",
+          "evidence": "payment-settlement 용어 '결제(처리)내역: 결제완료 또는 결제취소, 부분취소 시 생성되는 구매자 결제 건별 기록'",
+          "confidence": "high",
+          "note": "LK2.0 매출 및 정산 관리 LNB 하위 = 결제 조회 / 정산 정보 관리 / 정산 내역 / 부가세 신고 자료. 부가세는 별도 메뉴에서 확인.",
+          "status": "approved"
+        },
+        {
+          "old": "세금계산서: 라이브클래스가 수취한 수수료 기준 발행",
+          "new": "세금계산서: 정산 시 수취 수수료 기준 발행 (정산내역 기반)",
+          "category": "정책",
+          "evidence": "payment-settlement 용어 '정산내역: 결제내역에 정산정책을 적용하여 생성된 정산 결과'",
+          "confidence": "low",
+          "note": "LK2.0 spec은 정산정책·정산내역 구조만 정의. 세금계산서 발행 시점/기준은 LK1.0 운영 규칙(정산 지급일·월별 매출)을 그대로 유지하는 것으로 추정. 매니저 확정 필요.",
+          "status": "removed",
+          "removed_reason": "세금계산서 발행 정책 LK1.0/LK2.0 동일 (라이브클래스가 수취한 수수료 기준 발행)."
+        },
+        {
+          "old": "(LK1.0 명시적 스냅샷 개념 없음)",
+          "new": "구매조건 스냅샷 / 주문정보(pending, 유효기간 1시간)",
+          "category": "용어",
+          "evidence": "payment-settlement 3️⃣ 결제 페이지 + 용어 표 '주문ID'",
+          "confidence": "high",
+          "note": "LK2.0 신규 개념. 결제페이지 진입 시점에 판매조건·추가구성·쿠폰 정보로 스냅샷 생성, pending 주문ID 발급, 1시간 유효. 만료·검증 실패 시 '유효하지 않은 주문 정보입니다' 안내.",
+          "status": "removed",
+          "removed_reason": "개발 내부 정책. 매니저 안내·고객용 도큐먼트에 노출 불필요."
+        },
+        {
+          "old": "옵션",
+          "new": "추가 구성",
+          "category": "용어",
+          "evidence": "payment-settlement 1️⃣ + 3️⃣ '추가구성 카드에서 구매자가 선택한 아이템들의 price_delta를 합산'",
+          "confidence": "high",
+          "note": "LK1.0 '옵션' 기능을 디벨롭해서 LK2.0 '추가 구성'으로 이름 변경 + 기능 확장 (필수/선택 구분, price_delta 합산). 무료 상품도 추가 구성으로 유료 결제 가능.",
+          "status": "approved"
+        },
+        {
+          "old": "클래스 환불 (수강생 요청)",
+          "new": "구매자는 직접 결제취소 불가, 판매자에게 요청",
+          "category": "정책",
+          "evidence": "payment-settlement 5️⃣ '구매자는 결제한 상품을 직접 취소할 수 없다. 구매자(수강생)가 판매자(크리에이터)에게 취소를 요청한다'",
+          "confidence": "high",
+          "note": "LK1.0 정책과 동일하나 LK2.0 용어로 재표기: '수강생→판매자에게 환불 요청' → '구매자→판매자에게 결제취소/부분취소 요청'. 라이브클래스(플랫폼)는 결제 환경 제공자.",
+          "status": "removed",
+          "removed_reason": "구매자 직접 결제취소 불가, 판매자에게 요청 정책 LK1.0/LK2.0 동일."
+        },
+        {
+          "old": "결제 페이지 진입 (단일 가격 표시)",
+          "new": "결제 페이지: 정가 / 할인 / 추가 구성 / 총 결제 금액 항목별 표시",
+          "category": "정책",
+          "evidence": "payment-settlement 3️⃣ 결제 페이지 2항 '결제 페이지에서 결제금액 산출 내역이 항목별로 표시된다'",
+          "confidence": "high",
+          "note": "LK2.0 UI 라벨: 정가 / 할인 / 추가 구성 / 총 결제 금액 / 취소 금액. 주문 상세 내역에 추가 구성 구매 건도 같이 잡힘. 매핑 #1(결제 금액 산출 공식)과 짝을 이룸.",
+          "status": "approved"
         }
       ],
-      "pending_from_original": "원본 14개 중 [3]~[14] 12개 미검토. 다음 세션에서 [3/14]부터 재개."
+      "removed_mappings": []
     }
   },
   "other_article_ids_note": "마이그레이션 도메인 외 6건 (수강관리·게시판·로그인·멤버십). 본문에 '클래스' 같은 1.0 용어가 있을 수 있으니, 매핑은 글로벌로 적용해서 이 6건도 함께 변환."
