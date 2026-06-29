@@ -3135,6 +3135,8 @@ function switchTab(name) {
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
+  // 현재 탭 localStorage 저장 → 새로고침 시 복원
+  try { localStorage.setItem('alfStudioActiveTab', name); } catch (_) {}
   if (name === 'library') loadLibrary();
   if (name === 'applied') { loadApplied(); loadCtArticles(); }
   if (name === 'rules') loadRules();
@@ -3142,6 +3144,18 @@ function switchTab(name) {
   if (name === 'changes') renderChangeGuide();
   if (name === 'expr') loadExprTab();
 }
+
+// 페이지 로드 시 마지막 활성 탭 복원 (localStorage)
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    const saved = localStorage.getItem('alfStudioActiveTab');
+    const validTabs = ['workflow','generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch','migrate','changes','expr'];
+    if (saved && validTabs.includes(saved) && saved !== 'workflow') {
+      // workflow는 default라 별도 처리 불필요
+      switchTab(saved);
+    }
+  } catch (_) {}
+});
 
 // ─── 아티클 가이드라인 검증 ─────────────────────────────────────────────────
 // 채널톡 ALF 가이드라인 기준 client-side 검증.
@@ -8367,13 +8381,12 @@ async function saveExpressionOverride(lk1Term, cardId) {
 
     // 로컬 캐시 업데이트 (백엔드 응답 필드명 mode/custom_value 기준)
     if (!_exprOverrides) _exprOverrides = {};
-    _exprOverrides[lk1Term] = { mode, custom_value: customText, hybrid_format: hybridFormat };
+    _exprOverrides[lk1Term] = { mapping_key: lk1Term, mode, custom_value: customText, hybrid_format: hybridFormat };
 
-    // 저장됨 칩 표시
-    const chip = document.getElementById('savedChip-' + cardId);
-    if (chip) chip.style.display = 'inline-block';
     _exprSetStatus('저장 완료!', 'success');
     setTimeout(() => _exprSetStatus('', ''), 2500);
+    // 카드 전체 재렌더링 → 우측 상단 배지 즉시 갱신 + 통계 칩도
+    renderExprCards();
     _renderExprStats();
   } catch (e) {
     _exprSetStatus('저장 실패: ' + e.message, 'error');
