@@ -7941,7 +7941,8 @@ async function renderChangeGuide(force) {
       const mappings = info.mappings || [];
       for (const m of mappings) {
         if (m.status === 'approved') {
-          flatMappings.push(Object.assign({}, m, { domain: label }));
+          // 표현 관리 탭 호환 별칭 lk1/lk2
+          flatMappings.push(Object.assign({}, m, { domain: label, lk1: m.old, lk2: m.new }));
         }
       }
     }
@@ -8085,11 +8086,14 @@ async function loadExprTab(force = false) {
   if (_exprLoaded && !force) { renderExprCards(); return; }
   _exprSetStatus('데이터 불러오는 중...', 'info');
   try {
-    await _ensureMigrateApprovedMappings();
-    // migration_data에서 overrides 포함 응답 재활용
+    // migration_data에서 매핑 + overrides 통합 fetch
     const cd = await _ensureChangesData();
-    // overrides는 _changesData.raw.overrides 에 있을 수 있음; 없으면 빈 객체
-    _exprOverrides = (cd && cd.raw && cd.raw.overrides) ? cd.raw.overrides : {};
+    // expression_overrides 배열 → {mapping_key: row} dict로 변환
+    const rawOv = (cd && cd.raw && Array.isArray(cd.raw.expression_overrides)) ? cd.raw.expression_overrides : [];
+    _exprOverrides = {};
+    for (const r of rawOv) {
+      if (r && r.mapping_key) _exprOverrides[r.mapping_key] = r;
+    }
     _exprLoaded = true;
     _exprSetStatus('', '');
     renderExprCards();
@@ -8100,18 +8104,35 @@ async function loadExprTab(force = false) {
 }
 
 function _ensureChangesData() {
-  // _changesData가 이미 로드된 경우 재사용; 없으면 renderChangeGuide() 흐름 재현
+  // _changesData가 이미 변경 가이드 탭에서 로드된 경우 재사용
   if (_changesData) return Promise.resolve(_changesData);
-  return authFetch('/api/alf_generate', {
+  // 없으면 직접 fetch + 변경 가이드 탭과 동일한 정규화 (domains.{slug}.mappings flatten)
+  return authFetch(`${API}/api/alf_generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mode: 'migration_data' })
   }).then(r => r.json()).then(data => {
-    if (data.error) throw new Error(data.error);
-    const flatMappings = (data.mappings || []).flatMap(g =>
-      (g.items || []).map(it => ({ ...it, domain: g.domain || '' }))
-    );
-    _changesData = { mapping: flatMappings, new_features: data.new_features || [], raw: data };
+    if (!data.ok) throw new Error(data.error || '데이터 로드 실패');
+    const slugToLabel = {
+      'product-structure': '상품구조',
+      'product-sales-settings': '판매설정',
+      'payment-settlement': '결제·정산',
+    };
+    const flatMappings = [];
+    const domainsData = (data.mapping && data.mapping.domains) || {};
+    for (const slug of Object.keys(domainsData)) {
+      const info = domainsData[slug];
+      const label = slugToLabel[slug] || info.label || slug;
+      for (const m of (info.mappings || [])) {
+        if (m.status === 'approved') {
+          // 표현 관리 탭이 lk1/lk2 필드 가정해서 별칭 추가
+          flatMappings.push(Object.assign({}, m, { domain: label, lk1: m.old, lk2: m.new }));
+        }
+      }
+    }
+    const rawFeatures = (data.new_features && data.new_features.new_features) || [];
+    const newFeatures = rawFeatures.map(f => Object.assign({}, f, { domain: slugToLabel[f.domain] || f.domain }));
+    _changesData = { mapping: flatMappings, new_features: newFeatures, raw: data };
     return _changesData;
   });
 }
