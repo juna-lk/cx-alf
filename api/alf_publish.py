@@ -152,6 +152,9 @@ class handler(_Base):
         subtitle = (body.get("subtitle") or "").strip()
         draft_id = body.get("draft_id")
         do_publish = bool(body.get("publish", False))
+        # 기존 article_id가 있으면 update mode — 새 revision 추가
+        existing_article_id = (body.get("article_id") or "").strip()
+        is_update = bool(existing_article_id)
 
         if not name:
             self._respond(400, {"ok": False, "error": "제목이 필요해요."})
@@ -167,17 +170,26 @@ class handler(_Base):
             article_body["summary"] = subtitle
 
         try:
-            result = docs_req("/open/v1/spaces/$me/articles", method="POST", body=article_body)
+            if is_update:
+                # 기존 article에 새 revision 생성 (마이그레이션·재게시용)
+                result = docs_req(
+                    f"/open/v1/spaces/$me/articles/{existing_article_id}/revisions",
+                    method="POST", body=article_body,
+                )
+            else:
+                result = docs_req("/open/v1/spaces/$me/articles", method="POST", body=article_body)
         except urllib.error.HTTPError as e:
-            self._respond(500, {"ok": False, "error": f"아티클 생성 실패: {e.read().decode()}"})
+            action = "업데이트" if is_update else "생성"
+            self._respond(500, {"ok": False, "error": f"아티클 {action} 실패: {e.read().decode()}"})
             return
         except Exception as e:
-            self._respond(500, {"ok": False, "error": f"아티클 생성 실패: {e}"})
+            action = "업데이트" if is_update else "생성"
+            self._respond(500, {"ok": False, "error": f"아티클 {action} 실패: {e}"})
             return
 
         article = result.get("article", {})
         revision = result.get("revision", {})
-        article_id = article.get("id", "")
+        article_id = article.get("id", "") or existing_article_id
         revision_id = revision.get("id", "")
         slug = article.get("slug", "")
 

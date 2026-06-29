@@ -462,6 +462,193 @@ class handler(_Base):
             })
             return
 
+        # ─── LK1.0 → LK2.0 도큐먼트 마이그레이션 ──────────────────────────
+        # article_id로 채널톡 도큐먼트 한 건을 받아 lk2_mapping.json + new_features를
+        # reference로 LLM에 보내 2.0 버전으로 변환한 마크다운을 반환.
+        # 별도 mode "migrate_apply"가 alf_publish.py에서 채널톡 update PUT 호출.
+        if mode == "migrate":
+            article_id = (body.get("article_id") or "").strip()
+            if not article_id:
+                self._respond(400, {"ok": False, "error": "article_id 필요"})
+                return
+            try:
+                data = docs_req(
+                    "/open/v1/spaces/$me/articles?language=ko&limit=100",
+                    method="GET",
+                )
+            except Exception as e:
+                print(f"[migrate] 도큐먼트 fetch 실패: {e}")
+                self._respond(500, {"ok": False, "error": f"채널톡 도큐먼트 fetch 실패: {e}"})
+                return
+            article = next(
+                (a for a in (data.get("articles") or []) if a.get("id") == article_id),
+                None,
+            )
+            if not article:
+                self._respond(404, {"ok": False, "error": "해당 article_id를 채널톡에서 찾을 수 없어요"})
+                return
+
+            original_title = article.get("title") or article.get("name") or ""
+            original_subtitle = article.get("subtitle") or article.get("summary") or ""
+            original_html = article.get("bodyHtml") or ""
+            original_text = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", original_html, flags=re.DOTALL | re.IGNORECASE)
+            original_text = re.sub(r"<br\s*/?>", "\n", original_text)
+            original_text = re.sub(r"</p>", "\n\n", original_text)
+            original_text = re.sub(r"</li>", "\n", original_text)
+            original_text = re.sub(r"<[^>]+>", " ", original_text)
+            original_text = re.sub(r"&nbsp;", " ", original_text).replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+            original_text = re.sub(r"[ \t]+", " ", original_text)
+            original_text = re.sub(r"\n{3,}", "\n\n", original_text).strip()
+
+            # 매핑 로드 (repo 안 migration/lk2_mapping.json)
+            mapping_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "..", "migration", "lk2_mapping.json"
+            )
+            try:
+                with open(mapping_path, "r", encoding="utf-8") as f:
+                    mapping_data = json.loads(f.read())
+            except Exception as e:
+                print(f"[migrate] lk2_mapping.json 로드 실패: {e}")
+                self._respond(500, {"ok": False, "error": "마이그레이션 매핑 파일을 로드하지 못했어요. 백엔드 배포를 확인해주세요."})
+                return
+
+            # 운영 가이드 2.0 reference (있으면 prompt에 첨부 — 매니저 톤·구조 모방용)
+            op_guide_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "..", "migration", "_operation_guide_v2.md"
+            )
+            op_guide_text = ""
+            try:
+                with open(op_guide_path, "r", encoding="utf-8") as f:
+                    op_guide_text = f.read()
+            except Exception as e:
+                print(f"[migrate] _operation_guide_v2.md 로드 실패 (있어도 없어도 동작): {e}")
+
+            approved_mappings = []
+            for domain_slug, info in (mapping_data.get("domains") or {}).items():
+                for m in info.get("mappings", []):
+                    if m.get("status") == "approved":
+                        approved_mappings.append({
+                            "old": m.get("old", ""),
+                            "new": m.get("new", ""),
+                            "category": m.get("category", ""),
+                            "note": m.get("note", ""),
+                            "domain": domain_slug,
+                        })
+
+            # LLM 변환 prompt — 매핑만 reference. spec/glossary 통째 주입은 토큰 부담 큼.
+            mapping_block = "\n".join(
+                f"- [{m['category']} · {m['domain']}] '{m['old']}' → '{m['new']}'"
+                + (f"\n  · note: {m['note']}" if m.get("note") else "")
+                for m in approved_mappings
+            )
+
+            op_guide_section = ""
+            if op_guide_text:
+                op_guide_section = f"""
+
+## LK2.0 운영 가이드 발췌 (매니저 톤·구조·메뉴 경로 표준 reference)
+원본 노션 운영 가이드 2.0의 핵심 발췌. 변환된 본문이 이 톤·구조·표현과 일관되도록 모방하세요.
+\"\"\"
+{op_guide_text[:18000]}
+\"\"\"
+"""
+
+            migrate_prompt = f"""당신은 라이브클래스 1.0 → 2.0 도큐먼트 마이그레이션 전문가입니다.
+
+## 작업
+아래 LK1.0 ALF 도큐먼트 본문을 LK2.0 버전으로 정확하게 변환하세요. 매핑표(아래)와 운영 가이드를 reference로 사용. 매핑표에 없는 추측 변환 금지.
+
+## LK1.0 → LK2.0 매핑표 (사용자 검토 완료, status=approved {len(approved_mappings)}개)
+{mapping_block}{op_guide_section}
+
+## 변환 규칙
+1. **매핑표에 명시된 LK1.0 표현이 본문에 등장하면 LK2.0 표현으로 치환**. 단순 문자 치환 X — 컨텍스트 보고 자연스럽게.
+2. **매핑 note 준수**. 예: "클래스 → 상품" 매핑의 note에 "단 '강의' 상품 타입 안의 콘텐츠 안내에서는 '강의' 그대로 유지"가 있으면 그 분기 따름.
+3. **매핑표에 없는 LK1.0 추정 표현은 건드리지 않음**. 원본 유지.
+4. **마크다운 형식 유지**. 헤딩(##), 불릿(-), 번호 목록(1.), 메뉴 경로 화살표(>) 등 본문 구조 보존.
+5. **친근한 종결형(~어요/~합니다) 유지**. 본문 톤 변경 X.
+6. 본문에 LK2.0 spec과 모순되는 정책이 있으면 변환하지 말고 warnings에 명시.
+
+## 원본 도큐먼트
+- 제목: {original_title}
+- 소제목: {original_subtitle}
+- 본문:
+\"\"\"
+{original_text[:8000]}
+\"\"\"
+
+## 출력 형식 — 반드시 아래 JSON으로만
+```json
+{{
+  "migrated_title": "변환된 제목 (변환 없으면 원본 그대로)",
+  "migrated_subtitle": "변환된 소제목 (변환 없으면 원본 그대로)",
+  "migrated_markdown": "변환된 본문 마크다운 (원본의 마크다운 구조 보존, # H1 본문 안 금지)",
+  "applied_mappings": [
+    {{"old": "발견된 LK1.0 표현", "new": "변환한 LK2.0 표현", "category": "용어|메뉴 경로|기능명|정책", "note": "변환 사유 한 줄"}}
+  ],
+  "warnings": ["변환 망설인 부분이 있다면 한 줄씩"]
+}}
+```
+
+JSON 외 다른 텍스트 출력 금지."""
+            try:
+                raw = call_anthropic(
+                    migrate_prompt, max_tokens=4096, api_key=OPENAI_API_KEY,
+                )
+                parsed = extract_json(raw)
+                if not isinstance(parsed, dict):
+                    self._respond(500, {"ok": False, "error": "마이그레이션 결과 파싱 실패"})
+                    return
+                migrated_md = (parsed.get("migrated_markdown") or "").strip()
+                migrated_md = strip_article_boilerplate(migrated_md)
+                self._respond(200, {
+                    "ok": True,
+                    "article_id": article_id,
+                    "original_title": original_title,
+                    "original_subtitle": original_subtitle,
+                    "original_markdown": original_text,
+                    "original_html": original_html,
+                    "migrated_title": (parsed.get("migrated_title") or original_title).strip(),
+                    "migrated_subtitle": (parsed.get("migrated_subtitle") or original_subtitle).strip(),
+                    "migrated_markdown": migrated_md,
+                    "applied_mappings": parsed.get("applied_mappings") or [],
+                    "warnings": parsed.get("warnings") or [],
+                    "approved_mapping_count": len(approved_mappings),
+                })
+                return
+            except Exception as e:
+                print(f"[migrate] LLM 변환 실패: {e}")
+                self._respond(500, {"ok": False, "error": f"마이그레이션 변환에 실패했어요: {e}"})
+                return
+
+        # ─── LK2.0 매핑·신설 기능 데이터 fetch ─────────────────────────────
+        # 프론트엔드의 "LK 2.0 변경 가이드" 탭이 매핑표·신설 기능 list를 한 번에 받음.
+        if mode == "migration_data":
+            mapping_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "..", "migration", "lk2_mapping.json"
+            )
+            features_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "..", "migration", "lk2_new_features.json"
+            )
+            mapping_data: dict = {}
+            features_data: dict = {}
+            try:
+                with open(mapping_path, "r", encoding="utf-8") as f:
+                    mapping_data = json.loads(f.read())
+            except Exception as e:
+                print(f"[migration_data] mapping 로드 실패: {e}")
+            try:
+                with open(features_path, "r", encoding="utf-8") as f:
+                    features_data = json.loads(f.read())
+            except Exception:
+                features_data = {"new_features": [], "stats": {}}
+            self._respond(200, {
+                "ok": True,
+                "mapping": mapping_data,
+                "new_features": features_data,
+            })
+            return
+
         # ─── 이미지 추천 위치 분석 ────────────────────────────────────────
         # 본문을 LLM에 보내서 "스크린샷·이미지가 필요한 위치"를 분석 요청.
         # 결과는 [{position, reason, section}] 형식. chat_ids 불필요.

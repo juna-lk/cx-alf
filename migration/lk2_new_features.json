@@ -1,0 +1,566 @@
+{
+  "generated_at": "2026-06-29T00:00:00+09:00",
+  "source_specs": [
+    "product-structure.md",
+    "product-sales-settings.md",
+    "payment-settlement.md",
+    "glossary.md"
+  ],
+  "note": "LK1.0 → LK2.0 신설 페이지·기능·정책·용어. spec.md 명시 기반으로만 추출. 단순 명칭 변경(클래스→상품 등)은 제외.",
+  "new_features": [
+    {
+      "name": "전체 상품 메뉴",
+      "category": "페이지",
+      "domain": "product-structure",
+      "description": "상품 타입에 관계없이 모든 상품을 한 화면에서 통합 조회하는 LNB 메뉴",
+      "evidence": "[2] LNB 구조 to-be: '전체 상품 메뉴 추가'",
+      "menu_path": "사이트 관리 > 상품 관리 > 전체 상품",
+      "since": "LK2.0",
+      "related_mappings": ["클래스 관리"]
+    },
+    {
+      "name": "패키지 메뉴 (LNB)",
+      "category": "페이지",
+      "domain": "product-structure",
+      "description": "패키지 전용 LNB 진입점. LK1.0에서는 패키지 진입점이 [프로그램] 페이지에만 존재했음",
+      "evidence": "[2] LNB 구조 to-be: '패키지 메뉴 추가'",
+      "menu_path": "사이트 관리 > 상품 관리 > 패키지",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "상품 설정 페이지 (어드민 직접 접근)",
+      "category": "페이지",
+      "domain": "product-structure",
+      "description": "사이트 관리(어드민)에서 상품 설정 페이지에 직접 접근. LK1.0은 고객사 사이트 `/classes/*/settings` 경유",
+      "evidence": "[9] 진입 위치 변경: LK1.0 고객사 사이트 → LK2.0 어드민",
+      "menu_path": "사이트 관리 > 상품 관리 > 상품 설정",
+      "since": "LK2.0",
+      "related_mappings": ["클래스 > 클래스 설정 > 강의 설정"]
+    },
+    {
+      "name": "강사용 LNB-less 상품 생성 페이지",
+      "category": "페이지",
+      "domain": "product-structure",
+      "description": "강사 권한 계정이 LNB 없이 본인 상품만 접근·생성하는 별도 페이지",
+      "evidence": "PRODUS-021/PRODUS-026 '강사는 LNB-less로 본인 상품만 접근'",
+      "menu_path": "강사 전용 (LNB-less)",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "판매 설정 통합 화면",
+      "category": "페이지",
+      "domain": "product-sales-settings",
+      "description": "Offer + 택1형 옵션을 '판매 조건'으로, 추가구매형 옵션을 '추가 구성'으로 통합한 단일 판매 설정 화면",
+      "evidence": "1.개요 '통합된 판매 설정 화면에서 한 흐름으로 구성'",
+      "menu_path": "사이트 관리 > 상품 관리 > 상품 설정 > 판매 설정",
+      "since": "LK2.0",
+      "related_mappings": ["오퍼 설정", "택1형 옵션"]
+    },
+    {
+      "name": "판매설정 가격 패널 프리뷰",
+      "category": "페이지",
+      "domain": "product-sales-settings",
+      "description": "판매자가 설정한 판매 조건/추가 구성이 실제로 어떻게 렌더링되는지 확인하는 프리뷰 패널",
+      "evidence": "[8] 판매설정 가격 패널 프리뷰 — 신설 섹션",
+      "menu_path": "판매 설정 화면 내",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "상품 미리보기 (Preview)",
+      "category": "기능",
+      "domain": "product-structure",
+      "description": "크리에이터가 구매자에게 보일 상품/패키지 상세 페이지를 미리보기로 확인하는 기능",
+      "evidence": "PRODUS-014 '구매자가 보게될 상세 페이지를 미리보기'",
+      "menu_path": "상품 설정 페이지",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "설정 중(임시 저장) 상태",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "상품 제목만 입력하면 생성되는 초기 상태. 판매 중 상태로 한 번도 전환된 적 없는 상품. LK1.0의 '비공개 생성'을 대체",
+      "evidence": "[3] 상태: '설정 중(임시 저장) — 생성 직후 기본 상태'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": ["임시 저장", "비공개"]
+    },
+    {
+      "name": "판매 중단 상태",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "구매 불가 + 기존 구매자 수강 권한 유지 상태. LK1.0에 명시적으로 없던 상태 값",
+      "evidence": "[3] '판매 중단 — 구매 불가, 기존 구매자 수강 권한 유지'; UX 개선 사항 항목 2(완료 취소선)",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "노출 설정 (전체 공개/일부 공개)",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "판매 상태와 분리된 사이트 노출 여부 설정. 판매 중/판매 중단 상태에 적용",
+      "evidence": "[3] '노출 설정(전체 공개/일부 공개) 분리'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": ["공개/비공개"]
+    },
+    {
+      "name": "상품 타입별 아이템 제약 정책",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "상품 타입(강의/라이브/디지털/코칭)에 따라 포함 가능한 상품 아이템 유형이 제한되는 매트릭스",
+      "evidence": "[1] 상품 타입별 아이템 제약 (신규 표)",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "패키지 구성 상품 최대 200개 정책",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "패키지에 포함 가능한 상품 최대 개수 200개 상한. LK1.0은 2개 이상 제약만 존재",
+      "evidence": "[12] '패키지 구성 상품의 최대 개수는 200개'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "패키지 구성 상품 수 제약 해제 (2개 이상 → 1개 이상)",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "LK1.0의 '패키지는 상품 2개 이상 필수' 제약을 해제하여 단일 상품 패키지도 허용",
+      "evidence": "변경이력 2026-05-06 '패키지 구성 상품 수 제약 해제(상품 2개 이상 → 삭제)'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "관리 목록 전체/카테고리 탭 상태 필터",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "관리 목록 [전체]·[카테고리] 탭에서 설정 중/판매 중/판매 중단 모든 상태 노출 + '상품 상태' 필터로 별도 필터링",
+      "evidence": "[10] '전체·카테고리: 모든 상태 노출, 별도 상품 상태 필터 가능'",
+      "menu_path": "사이트 관리 > 상품 관리 > 전체",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "휴지통 7일 보관 정책",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "삭제된 상품/패키지를 휴지통으로 이동해 7일간 보관",
+      "evidence": "[6] '삭제된 상품/패키지는 휴지통으로 이동하여 7일간 보관'",
+      "menu_path": "사이트 관리 > 상품 관리 > 휴지통",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "복사 시 리뷰 복사 여부 선택",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "상품/패키지 복사 시 리뷰를 함께 복사할지 선택 가능",
+      "evidence": "[7] '리뷰 복사 여부 선택 가능'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "다중 선택 삭제",
+      "category": "기능",
+      "domain": "product-structure",
+      "description": "관리 목록에서 여러 상품/패키지를 한 번에 선택하여 삭제. 수강생 1건이라도 있으면 전체 삭제 불가",
+      "evidence": "[6] '다중 선택 삭제 지원'; UX 개선 항목 9",
+      "menu_path": "사이트 관리 > 상품 관리",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "1상품 N카테고리 연결",
+      "category": "정책",
+      "domain": "product-structure",
+      "description": "한 상품에 여러 카테고리를 동시 연결 가능",
+      "evidence": "[8] '1개 상품에 N개 카테고리 연결 가능'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "운영자 선정 ON/OFF",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "상품/패키지 단위로 운영자 승인 후 수강 활성화 토글. 무료는 OFF 고정",
+      "evidence": "PRODUS-027 '[수강생] 탭에서 운영자 선정 기능 ON/OFF'",
+      "menu_path": "사이트 관리 > 상품 관리 > 상품 설정 > 수강생 탭",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "환불 정책 직접 작성",
+      "category": "기능",
+      "domain": "product-structure",
+      "description": "크리에이터가 상품/패키지에 적용할 환불 정책을 직접 작성·수정",
+      "evidence": "PRODUS-022 '[환불 정책] 직접 작성 및 수정'",
+      "menu_path": "상품 설정 페이지",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "가격 패널 노출 컨트롤",
+      "category": "기능",
+      "domain": "product-structure",
+      "description": "상품 상세 페이지 가격 패널의 특정 정보·컴포넌트 노출/미노출을 소유자/운영자가 직접 설정",
+      "evidence": "PRODUS-016 '가격 패널의 특정 정보 노출 미노출 여부 직접 설정'",
+      "menu_path": "상품 설정 페이지",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "디지털 상품 전자책 뷰어 운영",
+      "category": "기능",
+      "domain": "product-structure",
+      "description": "크리에이터가 디지털 상품의 전자책 뷰어 적용 여부를 직접 운영",
+      "evidence": "PRODUS-010 '전자책 뷰어 적용 여부 직접 운영'",
+      "menu_path": "상품 설정 페이지",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "판매 조건 카드 (1~100개)",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "하나의 상품/패키지에 1~100개의 판매 조건 카드(가격·기간·수량·수강기간·쿠폰)를 묶는 단위. 기존 Offer + 택1형 옵션 통합",
+      "evidence": "[3] '판매 조건 카드 최소 1~최대 100개'",
+      "menu_path": "상품 설정 > 판매 설정",
+      "since": "LK2.0",
+      "related_mappings": ["오퍼", "택1형 옵션"]
+    },
+    {
+      "name": "판매 조건 카드 복제",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "판매 조건 카드를 모든 필드와 함께 복제. 옵션 이름에 '-복사' 접미사 자동 부여",
+      "evidence": "[3]-5 '판매 조건 카드 복제 시 모든 필드 복제'",
+      "menu_path": "판매 설정",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "판매 조건 카드 공개/비공개 전환",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "카드 단위로 공개/비공개 전환 가능. 공개 카드 최소 1개 강제",
+      "evidence": "[3]-4 '카드 단위 공개·비공개 전환 가능'",
+      "menu_path": "판매 설정",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "추가 구성 카드 (0~10개)",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "본 상품 외 부가 판매를 위한 카드 단위 (카드 10개, 카드당 아이템 30개). 기존 추가구매형 옵션을 분리·정형화",
+      "evidence": "[5] '추가 구성 카드 최대 10개, 카드당 아이템 30개'",
+      "menu_path": "상품 설정 > 판매 설정",
+      "since": "LK2.0",
+      "related_mappings": ["추가 구매형 옵션"]
+    },
+    {
+      "name": "추가 구성 필수/선택 속성",
+      "category": "정책",
+      "domain": "product-sales-settings",
+      "description": "추가 구성 카드 단위로 필수/선택 속성 부여. '필수' 시 구매자는 1개 이상 선택해야 결제 진행",
+      "evidence": "[5] '카드 단위로 필수 또는 선택 중 1개로 설정'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "패키지 추가 구성 자동 승계",
+      "category": "정책",
+      "domain": "product-sales-settings",
+      "description": "패키지는 추가 구성을 직접 설정 못하고 구성 상품의 공개 카드/아이템을 자동 승계. 편집 불가, 수량 공유",
+      "evidence": "[5]-1.4 '패키지는 구성 상품의 추가 구성을 자동 승계'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "판매 조건 잠금 메트릭스 (케이스 A/B/C)",
+      "category": "정책",
+      "domain": "product-sales-settings",
+      "description": "상품/카드 공개 이력에 따라 케이스 A/B/C로 구분, 항목별 변경 가능 여부 매트릭스화",
+      "evidence": "[6] '케이스 A/B/C 정의, 잠금 메트릭스'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "USD 사용 / 노출 우선 화폐",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "KRW 외 USD 결제 통화 사용 활성화. 노출 우선 화폐 KRW/USD 중 선택",
+      "evidence": "[2] 'KRW, USD 사용 / 노출 우선 화폐'",
+      "menu_path": "판매 설정 > 가격 설정",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "월 할부 금액 표시",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "상세 페이지 가격을 2~12개월 월 할부 금액으로 표시(실결제는 전체 금액)",
+      "evidence": "[2] '월 할부 금액 표시 — 2~12개월 중 선택'",
+      "menu_path": "판매 설정 > 가격 설정",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "면세 상품 설정",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "백오피스 면세 판매 ON일 때 상품/패키지 단위로 면세 설정. 결제 시 부가세 미부과. 패키지는 면세 불가",
+      "evidence": "[2] '면세 상품 설정 — 부가세 미부과'; TAX_FREE_NOT_ELIGIBLE_FOR_PACKAGE",
+      "menu_path": "판매 설정 > 가격 설정",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "대기자 모집",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "판매 가능 수량 소진 시 대기자 신청을 수집. 수량 제한 활성화가 전제",
+      "evidence": "[2] '대기자 모집 — 판매 조건별 대기자 신청 수집'",
+      "menu_path": "판매 설정 > 가격 설정",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "할인 프리셋 (얼리버드)",
+      "category": "기능",
+      "domain": "product-sales-settings",
+      "description": "할인 이름에 사전 정의 프리셋(울트라 얼리버드/슈퍼 얼리버드/얼리버드) 선택 가능",
+      "evidence": "[3] '할인 이름 — 프리셋 중 1개 선택 또는 직접 입력'",
+      "menu_path": "판매 설정 > 판매 조건",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "수강 기간 종료 방식 다양화",
+      "category": "정책",
+      "domain": "product-sales-settings",
+      "description": "수강 종료일을 프리셋 일수(30/60/90/120/150일)·직접 입력 일수(1~999)·종료일 지정·무제한 중 선택",
+      "evidence": "[3] '수강 종료일: 프리셋/직접 입력/종료일 지정/무제한'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "쿠폰 사용 허용 (카드별)",
+      "category": "정책",
+      "domain": "product-sales-settings",
+      "description": "판매 조건 카드별 쿠폰 사용 허용/차단 독립 설정",
+      "evidence": "[3] '쿠폰 사용 허용 — 카드별 독립 설정'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "가격 패널 판매 조건 이름 노출",
+      "category": "정책",
+      "domain": "product-sales-settings",
+      "description": "판매 조건 카드별로 가격 패널에 이름 노출 여부 독립 설정. 잠금 정책 대상 제외",
+      "evidence": "[3] '가격 패널 이름 노출 여부 — 카드별 독립 설정'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "주문ID + pending 주문정보 (유효기간 1시간)",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "결제 페이지 진입 트리거로 pending 주문정보 생성, 1시간 유효기간 부여. 만료/검증 실패 시 무효 처리",
+      "evidence": "용어 '주문ID — pending, 유효기간 1시간'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "구매 조건 스냅샷 (판매조건·추가구성)",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "결제 시작 시점의 판매조건·추가구성·쿠폰을 스냅샷으로 저장. LK1.0은 클래스/패키지 가격만 저장",
+      "evidence": "3️⃣ '구매/결제 조건 스냅샷 구성 — 기존은 가격 기준'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "결제완료 조건 실시간 검증 (2단계)",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "CTA 클릭 시 스냅샷 검증 + PG 결제 진행 시 재검증. 비공개·삭제·매진·만료 시 자동 취소/리다이렉트",
+      "evidence": "3️⃣-6 '주문정보 생성 및 유효성 검증 — 2단계 검증'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "복합 결제금액 산출식",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "최종금액 = 판매조건 가격 + 추가구성 아이템 price_delta 합산 − 쿠폰 할인. LK1.0의 단일 가격 결제 확장",
+      "evidence": "1️⃣ '판매조건 가격 + price_delta − 쿠폰'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "부분취소 + 수강유지 선택",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "결제금액 일부 환불 시 해당 상품 수강 권한 유지 여부 선택. LK1.0에 없던 환불 옵션",
+      "evidence": "6️⃣ '부분취소 시 수강유지 여부 선택 가능'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "정산정책 시점 고정 (최초 결제 시점 수수료)",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "결제취소/부분취소 시 현재 시점 정산정책이 아닌 최초 결제 시점 수수료 책정 방식 적용",
+      "evidence": "6️⃣-3 '최초 결제내역이 발생한 시점의 수수료 방식 따름'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "쿠폰 재등록 처리 (전체취소 시)",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "결제취소 시 사용된 쿠폰을 '복원'이 아닌 '재등록' 처리. 발급 수량 소진된 경우에도 추가 발급",
+      "evidence": "8️⃣-2 '복원하지 않고 재등록 처리'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "0원 무료 결제 처리",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "최종 결제금액이 0원이면 결제 수단 선택 없이 무료 결제로 처리",
+      "evidence": "3️⃣-5 '0원인 경우 결제 수단 선택 없이 무료 결제'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "면세 상품 영수증 처리",
+      "category": "정책",
+      "domain": "payment-settlement",
+      "description": "면세 상품/패키지 결제 시 부가세 미포함 결제내역 생성 및 영수증 확인",
+      "evidence": "PAYMTST-015 '면세 상품 결제 시 부가세 미포함 결제내역'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "상품 (Service)",
+      "category": "용어",
+      "domain": "product-structure",
+      "description": "구매자에게 노출되는 최상위 판매 단위. LK2.0의 핵심 개념. 단순 명칭 변경이 아닌 '단일 상품 + 패키지' 추상화 단위로 신설",
+      "evidence": "용어집 상품 구조: '상품 — Service, 최상위 판매 단위'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": ["클래스"]
+    },
+    {
+      "name": "상품 타입 (Product Type)",
+      "category": "용어",
+      "domain": "product-structure",
+      "description": "상품의 핵심 판매 방식에 따라 분류되는 유형 분류 체계 (강의/라이브/디지털/코칭)",
+      "evidence": "용어 '상품 타입 — 핵심 판매 방식에 따라 분류'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "상품 아이템 / 상품 아이템 타입",
+      "category": "용어",
+      "domain": "product-structure",
+      "description": "각 상품을 구성하는 요소 단위(Product Item) 및 그 유형(라이브/VOD/오프라인 미팅/디지털 파일)",
+      "evidence": "용어 '상품 아이템 — 상품을 구성하는 요소 단위'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "판매 조건 (Default Sales)",
+      "category": "용어",
+      "domain": "product-sales-settings",
+      "description": "오퍼 + 택1형 옵션을 통합한 신개념. 하나의 상품에 다양한 가격·기간·수량 조건을 카드로 묶는 단위",
+      "evidence": "용어집 '기본 판매 조건 — Default Sales'; 1.개요 '단일 개념 판매 조건으로 통합'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": ["오퍼", "택1형 옵션"]
+    },
+    {
+      "name": "추가 구성",
+      "category": "용어",
+      "domain": "product-sales-settings",
+      "description": "추가구매형 옵션을 분리·정형화한 신개념. 본 상품 외 부가 판매를 위한 카드/아이템 단위",
+      "evidence": "1.개요 '추가구매형 옵션을 추가 구성으로 분리'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": ["추가 구매형 옵션"]
+    },
+    {
+      "name": "타임 슬롯 / 세션 / 세션 유형 / 세션 진행 방식 (코칭)",
+      "category": "용어",
+      "domain": "product-structure",
+      "description": "코칭 도메인 신설 용어. 타임 슬롯(예약 단위), 세션(1회 코칭 단위), 세션 유형(1:1/소그룹), 세션 진행 방식(온라인/오프라인)",
+      "evidence": "용어집 변경이력 2026-04-17 '코칭 도메인 신규 용어 추가'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "주문ID (Order ID)",
+      "category": "용어",
+      "domain": "payment-settlement",
+      "description": "하나의 결제 건에 대한 결제내역(결제/취소)을 묶는 식별 키. pending 상태 + 유효기간 1시간 생명주기",
+      "evidence": "용어 '주문ID — 결제내역을 묶는 식별 키'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    },
+    {
+      "name": "정산내역 (결제내역 1:1)",
+      "category": "용어",
+      "domain": "payment-settlement",
+      "description": "결제내역에 정산정책을 적용하여 생성된 정산 결과. 정산의 최소 단위로 결제내역과 1:1 매칭",
+      "evidence": "용어 '정산내역 — 결제내역(1):정산내역(1)'",
+      "menu_path": "",
+      "since": "LK2.0",
+      "related_mappings": []
+    }
+  ],
+  "stats": {
+    "by_category": {
+      "페이지": 6,
+      "기능": 15,
+      "정책": 25,
+      "용어": 8
+    },
+    "by_domain": {
+      "product-structure": 23,
+      "product-sales-settings": 20,
+      "payment-settlement": 11
+    },
+    "total": 54
+  }
+}

@@ -463,6 +463,98 @@
                border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .hidden { display: none !important; }
+
+  /* ── 마이그레이션 & 변경 가이드 탭 ── */
+  #migrateModal { display: none; }
+  #migrateModal.open { display: flex !important; }
+  #migrateConfirmModal { display: none; }
+  #migrateConfirmModal.open { display: flex !important; }
+
+  .migrate-doc-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .migrate-doc-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.08); border-color: #c7d2fe; }
+  .migrate-doc-card.done { border-color: #6ee7b7; background: #f0fdf4; }
+
+  .migrate-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .migrate-badge-published { background: #dcfce7; color: #15803d; }
+  .migrate-badge-draft { background: #fef3c7; color: #b45309; }
+  .migrate-badge-done { background: #d1fae5; color: #065f46; }
+
+  .changes-filter-btn {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #6b7280;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all .15s;
+  }
+  .changes-filter-btn:hover { background: #f3f4f6; }
+  .changes-filter-btn.active { background: #3182F6; color: #fff; border-color: #3182F6; font-weight: 700; }
+
+  .change-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px 18px;
+    transition: box-shadow .15s;
+  }
+  .change-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+
+  .change-cat-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .change-cat-용어 { background: #ede9fe; color: #6d28d9; }
+  .change-cat-메뉴\ 경로 { background: #dbeafe; color: #1d4ed8; }
+  .change-cat-기능명 { background: #fef3c7; color: #92400e; }
+  .change-cat-정책 { background: #fce7f3; color: #9d174d; }
+  .change-cat-기타 { background: #f3f4f6; color: #4b5563; }
+
+  .new-feature-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 12px 12px 0;
+    padding: 14px 18px;
+    transition: box-shadow .15s;
+  }
+  .new-feature-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+
+  .mapping-applied-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    font-size: 11px;
+    color: #374151;
+    max-width: 100%;
+  }
+  .mapping-applied-card .old { color: #9ca3af; text-decoration: line-through; }
+  .mapping-applied-card .new { color: #1d4ed8; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -539,6 +631,8 @@
   <div class="tab" onclick="switchTab('validate')">✔ 가이드라인 검증</div>
   <div class="tab" onclick="switchTab('faqValidate')">✔ 가이드라인 검증 (FAQ)</div>
   <div class="tab" onclick="switchTab('customerResearch')">📊 고객 인입 리서치</div>
+  <div class="tab" onclick="switchTab('migrate')">🔄 마이그레이션</div>
+  <div class="tab" onclick="switchTab('changes')">📊 LK 2.0 변경 가이드</div>
 </div>
 
 <div class="page" id="tab-generate">
@@ -2282,6 +2376,140 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════
+     탭: 🔄 마이그레이션 (tab-migrate)
+     ═══════════════════════════════════════════════════ -->
+<div class="page" id="tab-migrate">
+  <div class="library-header">
+    <div>
+      <h2 style="font-size:16px;font-weight:600">🔄 LK 2.0 마이그레이션</h2>
+      <p style="font-size:13px;color:#6b7280;margin-top:4px">
+        채널톡 ALF 도큐먼트를 LK 2.0 표현으로 변환하고 채널톡에 즉시 적용해요.
+      </p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-secondary" id="btnMigrateReload" onclick="loadMigrationDocs(true)" style="font-size:12px;padding:7px 14px">↺ 새로고침</button>
+      <button class="btn btn-primary" id="btnMigrateAll" onclick="runBatchMigrate()" style="font-size:12px;padding:7px 16px">📦 전체 자동 변환</button>
+    </div>
+  </div>
+
+  <!-- 상태 표시 -->
+  <div id="migrateStatus" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
+
+  <!-- 도큐먼트 목록 -->
+  <div id="migrateDocList" style="display:flex;flex-direction:column;gap:8px">
+    <div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">탭을 클릭하면 자동으로 목록을 불러와요...</div>
+  </div>
+</div>
+
+<!-- 변환 모달 -->
+<div id="migrateModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.45);align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:1200px;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);display:flex;flex-direction:column;max-height:90vh">
+    <!-- 모달 헤더 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #e5e7eb;flex-shrink:0">
+      <div>
+        <div id="migrateModalTitle" style="font-size:15px;font-weight:700;color:#111827"></div>
+        <div id="migrateModalSubtitle" style="font-size:12px;color:#6b7280;margin-top:2px"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="copyMigratedText()" style="font-size:12px;padding:6px 14px;border-radius:6px;background:#fff;color:#4f46e5;border:1px solid #c7d2fe;cursor:pointer;font-weight:600">📋 텍스트 복사</button>
+        <button onclick="copyMigratedRich()" style="font-size:12px;padding:6px 14px;border-radius:6px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600">🎨 서식 복사</button>
+        <button onclick="confirmApplyMigration()" style="font-size:12px;padding:6px 16px;border-radius:6px;background:#3182F6;color:#fff;border:none;cursor:pointer;font-weight:700">✅ 채널톡에 적용</button>
+        <button onclick="closeMigrateModal()" style="font-size:18px;line-height:1;padding:4px 8px;border-radius:6px;background:#f3f4f6;border:none;cursor:pointer;color:#374151">✕</button>
+      </div>
+    </div>
+    <!-- 모달 바디 -->
+    <div style="display:flex;flex:1;overflow:hidden;min-height:0">
+      <!-- 원본 -->
+      <div style="flex:1;padding:20px;border-right:1px solid #e5e7eb;overflow-y:auto;min-width:0">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">원본 (LK 1.0)</div>
+        <pre id="migrateOriginalContent" style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:#374151;font-family:inherit;margin:0"></pre>
+      </div>
+      <!-- 변환 결과 -->
+      <div style="flex:1;padding:20px;display:flex;flex-direction:column;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;color:#3182F6;text-transform:uppercase;letter-spacing:.05em">변환 결과 (LK 2.0)</div>
+          <div style="font-size:11px;color:#9ca3af"><span id="migrateAppliedCount">0</span>개 매핑 적용</div>
+        </div>
+        <textarea id="migrateResultContent" rows="20" style="flex:1;width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;line-height:1.7;font-family:inherit;resize:none;box-sizing:border-box;color:#111827"></textarea>
+      </div>
+    </div>
+    <!-- 매핑 카드 & 경고 -->
+    <div style="padding:16px 24px;border-top:1px solid #e5e7eb;flex-shrink:0;max-height:260px;overflow-y:auto">
+      <div id="migrateWarnings" style="display:none;margin-bottom:10px;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#b91c1c"></div>
+      <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">적용된 매핑</div>
+      <div id="migrateMappingCards" style="display:flex;flex-wrap:wrap;gap:6px">
+        <div style="font-size:12px;color:#9ca3af">매핑 정보 없음</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 적용 확인 모달 -->
+<div id="migrateConfirmModal" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+    <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:10px">채널톡에 적용할까요?</div>
+    <div style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:20px">이 도큐먼트가 채널톡에 즉시 업데이트·게시됩니다.<br>변환된 제목과 본문으로 새 revision이 생성돼요.</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="document.getElementById('migrateConfirmModal').style.display='none'" style="padding:9px 20px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;font-size:13px;cursor:pointer;font-weight:600;color:#374151">취소</button>
+      <button onclick="applyMigration()" style="padding:9px 20px;border-radius:8px;background:#3182F6;border:none;color:#fff;font-size:13px;cursor:pointer;font-weight:700">✅ 적용</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     탭: 📊 LK 2.0 변경 가이드 (tab-changes)
+     ═══════════════════════════════════════════════════ -->
+<div class="page" id="tab-changes">
+  <div class="library-header">
+    <div>
+      <h2 style="font-size:16px;font-weight:600">📊 LK 2.0 변경 가이드</h2>
+      <p style="font-size:13px;color:#6b7280;margin-top:4px">
+        LK 1.0 → LK 2.0 용어·메뉴·기능 매핑과 신설 기능을 한눈에 확인해요.
+      </p>
+    </div>
+    <button class="btn btn-secondary" onclick="renderChangeGuide(true)" style="font-size:12px;padding:7px 14px">↺ 새로고침</button>
+  </div>
+
+  <!-- 통계 카드 -->
+  <div id="changesStats" style="display:none;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+
+  <!-- 필터 바 -->
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="changes-filter-btn active" data-domain="" onclick="setChangeDomain(this,'')">전체</button>
+      <button class="changes-filter-btn" data-domain="상품구조" onclick="setChangeDomain(this,'상품구조')">상품구조</button>
+      <button class="changes-filter-btn" data-domain="판매설정" onclick="setChangeDomain(this,'판매설정')">판매설정</button>
+      <button class="changes-filter-btn" data-domain="결제·정산" onclick="setChangeDomain(this,'결제·정산')">결제·정산</button>
+    </div>
+    <div style="width:1px;height:24px;background:#e5e7eb;flex-shrink:0"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="changes-filter-btn active" data-category="" onclick="setChangeCategory(this,'')">전체 유형</button>
+      <button class="changes-filter-btn" data-category="용어" onclick="setChangeCategory(this,'용어')">용어</button>
+      <button class="changes-filter-btn" data-category="메뉴 경로" onclick="setChangeCategory(this,'메뉴 경로')">메뉴 경로</button>
+      <button class="changes-filter-btn" data-category="기능명" onclick="setChangeCategory(this,'기능명')">기능명</button>
+      <button class="changes-filter-btn" data-category="정책" onclick="setChangeCategory(this,'정책')">정책</button>
+    </div>
+    <div style="flex:1;min-width:160px">
+      <input type="text" id="changesSearchInput" placeholder="LK 1.0 또는 LK 2.0 표현 검색..." oninput="filterChanges()"
+        style="width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+    </div>
+  </div>
+
+  <!-- 상태 표시 -->
+  <div id="changesStatus" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
+
+  <!-- 매핑 카드 목록 -->
+  <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px" id="changesMappingHeader">매핑 <span id="changesMappingCount">-</span>건</div>
+  <div id="changesMappingList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px">
+    <div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">탭을 클릭하면 자동으로 데이터를 불러와요...</div>
+  </div>
+
+  <!-- 신설 기능 섹션 -->
+  <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px" id="changesNewHeader">신설 기능 <span id="changesNewCount">-</span>건</div>
+  <div id="changesNewList" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
 
 <script>
 const API = '';
@@ -2744,13 +2972,15 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['workflow','generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch'][i] === name);
+    t.classList.toggle('active', ['workflow','generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch','migrate','changes'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'library') loadLibrary();
   if (name === 'applied') { loadApplied(); loadCtArticles(); }
   if (name === 'rules') loadRules();
+  if (name === 'migrate') loadMigrationDocs();
+  if (name === 'changes') renderChangeGuide();
 }
 
 // ─── 아티클 가이드라인 검증 ─────────────────────────────────────────────────
@@ -6887,6 +7117,447 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event === 'SIGNED_IN') _checkAuth().then(ok => { if (ok) { loadTags(); loadDataStatus(); } });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+// 🔄 마이그레이션 탭 (tab-migrate)
+// ═══════════════════════════════════════════════════════════════
+
+// 전역 상태
+let _migrateDocs = [];          // 불러온 아티클 목록 캐시
+let _migrateLoaded = false;     // 최초 1회 로드 여부
+let _migrateCurrentArticleId = null;
+let _migrateCurrentTitles = {}; // { migrated_title, migrated_subtitle }
+let _migrateDoneSet = new Set(); // 변환 완료된 article_id
+
+function _migrateSetStatus(msg, type) {
+  const el = document.getElementById('migrateStatus');
+  if (!msg) { el.style.display = 'none'; return; }
+  const colors = {
+    info: { bg: '#eff6ff', border: '#93c5fd', color: '#1e40af' },
+    success: { bg: '#f0fdf4', border: '#6ee7b7', color: '#065f46' },
+    error: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c' },
+    loading: { bg: '#fafafa', border: '#e5e7eb', color: '#6b7280' },
+  };
+  const c = colors[type] || colors.info;
+  el.style.cssText = `display:block;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;background:${c.bg};border:1px solid ${c.border};color:${c.color}`;
+  el.textContent = msg;
+}
+
+async function loadMigrationDocs(force) {
+  if (_migrateLoaded && !force) return;
+  const listEl = document.getElementById('migrateDocList');
+  _migrateSetStatus('채널톡 아티클 목록을 불러오는 중...', 'loading');
+  listEl.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">불러오는 중...</div>';
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'kb_search', query: '' }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '목록 로드 실패');
+    _migrateDocs = data.results || [];
+    _migrateLoaded = true;
+    _migrateSetStatus(null);
+    _renderMigrateDocList();
+  } catch (e) {
+    _migrateSetStatus('목록 로드 실패: ' + String(e), 'error');
+    listEl.innerHTML = '<div style="font-size:13px;color:#dc2626;padding:24px;text-align:center">목록을 불러오지 못했어요. 새로고침을 눌러주세요.</div>';
+  }
+}
+
+function _renderMigrateDocList() {
+  const listEl = document.getElementById('migrateDocList');
+  if (!_migrateDocs.length) {
+    listEl.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">등록된 아티클이 없어요.</div>';
+    return;
+  }
+  listEl.innerHTML = _migrateDocs.map((a, idx) => {
+    const isDone = _migrateDoneSet.has(a.id);
+    const stateLabel = isDone ? '변환 완료' : (a.state === 'published' ? '게시됨' : '초안');
+    const stateCls = isDone ? 'migrate-badge-done' : (a.state === 'published' ? 'migrate-badge-published' : 'migrate-badge-draft');
+    const updatedAt = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+    return `<div class="migrate-doc-card${isDone ? ' done' : ''}" onclick="runMigration('${escapeHtml(a.id)}', ${idx})">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span class="migrate-badge ${stateCls}">${stateLabel}</span>
+          <span style="font-size:14px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.title || '(제목 없음)')}</span>
+          ${isDone ? '<span style="font-size:18px">✅</span>' : ''}
+        </div>
+        ${a.subtitle ? `<div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.subtitle)}</div>` : ''}
+        ${updatedAt ? `<div style="font-size:11px;color:#9ca3af;margin-top:3px">수정 ${updatedAt}</div>` : ''}
+      </div>
+      <button class="btn btn-secondary" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap" onclick="event.stopPropagation();runMigration('${escapeHtml(a.id)}', ${idx})">변환 시작</button>
+    </div>`;
+  }).join('');
+}
+
+async function runMigration(articleId, idx) {
+  _migrateCurrentArticleId = articleId;
+  // 모달 열기 + 로딩 상태
+  const modal = document.getElementById('migrateModal');
+  modal.classList.add('open');
+  const doc = _migrateDocs[idx] || {};
+  document.getElementById('migrateModalTitle').textContent = doc.title || '변환 중...';
+  document.getElementById('migrateModalSubtitle').textContent = doc.subtitle || '';
+  document.getElementById('migrateOriginalContent').textContent = '불러오는 중...';
+  document.getElementById('migrateResultContent').value = '';
+  document.getElementById('migrateAppliedCount').textContent = '0';
+  document.getElementById('migrateMappingCards').innerHTML = '<div style="font-size:12px;color:#9ca3af">변환 중...</div>';
+  document.getElementById('migrateWarnings').style.display = 'none';
+
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'migrate', article_id: articleId }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '변환 실패');
+
+    // 제목 저장
+    _migrateCurrentTitles = {
+      migrated_title: data.migrated_title || doc.title || '',
+      migrated_subtitle: data.migrated_subtitle || doc.subtitle || '',
+    };
+
+    document.getElementById('migrateModalTitle').textContent = data.migrated_title || doc.title || '';
+    document.getElementById('migrateModalSubtitle').textContent = data.migrated_subtitle || doc.subtitle || '';
+    document.getElementById('migrateOriginalContent').textContent = data.original_markdown || '';
+    document.getElementById('migrateResultContent').value = data.migrated_markdown || '';
+    document.getElementById('migrateAppliedCount').textContent = (data.applied_mappings || []).length;
+
+    // 매핑 카드
+    const mappings = data.applied_mappings || [];
+    if (mappings.length) {
+      document.getElementById('migrateMappingCards').innerHTML = mappings.map(m => {
+        const catColor = { '용어': '#ede9fe', '메뉴 경로': '#dbeafe', '기능명': '#fef3c7', '정책': '#fce7f3' }[m.category] || '#f3f4f6';
+        const catTextColor = { '용어': '#6d28d9', '메뉴 경로': '#1d4ed8', '기능명': '#92400e', '정책': '#9d174d' }[m.category] || '#4b5563';
+        return `<div class="mapping-applied-card" title="${escapeHtml(m.note || '')}">
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:${catColor};color:${catTextColor};font-weight:700">${escapeHtml(m.category || '')}</span>
+          <span class="old">${escapeHtml(m.old || '')}</span>
+          <span style="color:#9ca3af">→</span>
+          <span class="new">${escapeHtml(m.new || '')}</span>
+        </div>`;
+      }).join('');
+    } else {
+      document.getElementById('migrateMappingCards').innerHTML = '<div style="font-size:12px;color:#9ca3af">적용된 매핑 없음</div>';
+    }
+
+    // 경고
+    const warnings = data.warnings || [];
+    if (warnings.length) {
+      const wEl = document.getElementById('migrateWarnings');
+      wEl.style.display = 'block';
+      wEl.innerHTML = '⚠️ ' + warnings.map(w => escapeHtml(w)).join('<br>⚠️ ');
+    }
+  } catch (e) {
+    document.getElementById('migrateOriginalContent').textContent = '변환 중 오류 발생: ' + String(e);
+    document.getElementById('migrateResultContent').value = '';
+  }
+}
+
+function closeMigrateModal() {
+  document.getElementById('migrateModal').classList.remove('open');
+  _migrateCurrentArticleId = null;
+}
+
+function copyMigratedText() {
+  const val = document.getElementById('migrateResultContent').value;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✅ 복사됨';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+function copyMigratedRich() {
+  // markdownToHtml이 있으면 서식 복사, 없으면 텍스트 복사 fallback
+  const val = document.getElementById('migrateResultContent').value;
+  if (typeof markdownToHtml === 'function') {
+    const html = markdownToHtml(val);
+    try {
+      const blob = new Blob([html], { type: 'text/html' });
+      const textBlob = new Blob([val], { type: 'text/plain' });
+      const item = new ClipboardItem({ 'text/html': blob, 'text/plain': textBlob });
+      navigator.clipboard.write([item]).then(() => {
+        const btn = event.target;
+        const orig = btn.textContent;
+        btn.textContent = '✅ 서식 복사됨';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      });
+      return;
+    } catch (_) {}
+  }
+  navigator.clipboard.writeText(val);
+}
+
+function confirmApplyMigration() {
+  if (!_migrateCurrentArticleId) return;
+  document.getElementById('migrateConfirmModal').classList.add('open');
+}
+
+async function applyMigration() {
+  document.getElementById('migrateConfirmModal').classList.remove('open');
+  const articleId = _migrateCurrentArticleId;
+  if (!articleId) return;
+  const migratedContent = document.getElementById('migrateResultContent').value;
+  const migratedTitle = _migrateCurrentTitles.migrated_title;
+  const migratedSubtitle = _migrateCurrentTitles.migrated_subtitle;
+
+  _migrateSetStatus('채널톡에 적용 중...', 'loading');
+  try {
+    const res = await authFetch(`${API}/api/alf_publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        article_id: articleId,
+        name: migratedTitle,
+        content: migratedContent,
+        subtitle: migratedSubtitle,
+        publish: true,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '적용 실패');
+
+    _migrateDoneSet.add(articleId);
+    _migrateSetStatus(`✅ 채널톡 적용 완료 — revision: ${data.revision_id || '-'}`, 'success');
+    closeMigrateModal();
+    _renderMigrateDocList();
+  } catch (e) {
+    _migrateSetStatus('채널톡 적용 실패: ' + String(e), 'error');
+  }
+}
+
+// 전체 자동 변환 (순차 미리보기)
+async function runBatchMigrate() {
+  if (!_migrateDocs.length) { alert('먼저 목록을 불러와주세요.'); return; }
+  const listEl = document.getElementById('migrateDocList');
+  _migrateSetStatus(`📦 전체 ${_migrateDocs.length}건 순차 변환 중... (각 항목마다 [적용] 버튼으로 채널톡에 등록해요)`, 'info');
+  listEl.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">변환 준비 중...</div>';
+
+  const results = [];
+  for (let i = 0; i < _migrateDocs.length; i++) {
+    const doc = _migrateDocs[i];
+    listEl.innerHTML = `<div style="font-size:13px;color:#6b7280;padding:12px;text-align:center">[${i+1}/${_migrateDocs.length}] "${escapeHtml(doc.title || '')}" 변환 중...</div>`;
+    try {
+      const res = await authFetch(`${API}/api/alf_generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'migrate', article_id: doc.id }),
+      });
+      const data = await res.json();
+      results.push({ doc, data, ok: data.ok });
+    } catch (e) {
+      results.push({ doc, data: null, ok: false, err: String(e) });
+    }
+  }
+
+  // 결과 렌더링
+  _migrateSetStatus(`📦 ${results.length}건 변환 완료. 항목별 [적용] 버튼으로 채널톡에 등록해요.`, 'success');
+  listEl.innerHTML = results.map((r, i) => {
+    if (!r.ok) {
+      return `<div class="migrate-doc-card" style="opacity:.6">
+        <div style="flex:1"><span style="font-size:13px;font-weight:600;color:#111827">${escapeHtml(r.doc.title||'')}</span></div>
+        <span style="font-size:12px;color:#dc2626">변환 실패 ${escapeHtml(r.err||r.data?.error||'')}</span>
+      </div>`;
+    }
+    const d = r.data;
+    return `<div class="migrate-doc-card" id="batch-card-${i}">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:2px">${escapeHtml(d.migrated_title||r.doc.title||'')}</div>
+        <div style="font-size:11px;color:#6b7280;margin-bottom:6px">${escapeHtml(d.migrated_subtitle||r.doc.subtitle||'')}</div>
+        <div style="font-size:12px;color:#374151;background:#f9fafb;border-radius:6px;padding:8px 10px;max-height:80px;overflow:hidden;white-space:pre-wrap;line-height:1.5">${escapeHtml((d.migrated_markdown||'').slice(0,300))}${(d.migrated_markdown||'').length>300?'…':''}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px">${(d.applied_mappings||[]).length}개 매핑 적용</div>
+      </div>
+      <button class="btn btn-primary" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap" onclick="_batchApplyOne(${i}, '${escapeHtml(r.doc.id)}', ${JSON.stringify(JSON.stringify({t:d.migrated_title,s:d.migrated_subtitle,c:d.migrated_markdown}))})">✅ 적용</button>
+    </div>`;
+  }).join('');
+}
+
+async function _batchApplyOne(idx, articleId, payloadJson) {
+  const payload = JSON.parse(payloadJson);
+  try {
+    const res = await authFetch(`${API}/api/alf_publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ article_id: articleId, name: payload.t, content: payload.c, subtitle: payload.s, publish: true }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '');
+    _migrateDoneSet.add(articleId);
+    const card = document.getElementById('batch-card-' + idx);
+    if (card) {
+      card.classList.add('done');
+      const btn = card.querySelector('button');
+      if (btn) { btn.textContent = '✅ 적용됨'; btn.disabled = true; }
+    }
+  } catch (e) {
+    alert('적용 실패: ' + String(e));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 📊 LK 2.0 변경 가이드 탭 (tab-changes)
+// ═══════════════════════════════════════════════════════════════
+
+let _changesData = null;      // { mapping: [...], new_features: [...] }
+let _changesLoaded = false;
+let _changesDomainFilter = '';
+let _changesCategoryFilter = '';
+
+function _changesSetStatus(msg, type) {
+  const el = document.getElementById('changesStatus');
+  if (!msg) { el.style.display = 'none'; return; }
+  const colors = {
+    info: { bg: '#eff6ff', border: '#93c5fd', color: '#1e40af' },
+    error: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c' },
+    loading: { bg: '#fafafa', border: '#e5e7eb', color: '#6b7280' },
+  };
+  const c = colors[type] || colors.info;
+  el.style.cssText = `display:block;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;background:${c.bg};border:1px solid ${c.border};color:${c.color}`;
+  el.textContent = msg;
+}
+
+async function renderChangeGuide(force) {
+  if (_changesLoaded && !force) { filterChanges(); return; }
+  _changesSetStatus('매핑 데이터를 불러오는 중...', 'loading');
+  document.getElementById('changesMappingList').innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">불러오는 중...</div>';
+  document.getElementById('changesNewList').innerHTML = '';
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'migration_data' }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '데이터 로드 실패');
+    _changesData = data;
+    _changesLoaded = true;
+    _changesSetStatus(null);
+    _renderChangesStats();
+    filterChanges();
+  } catch (e) {
+    _changesSetStatus('데이터 로드 실패: ' + String(e), 'error');
+    document.getElementById('changesMappingList').innerHTML = '<div style="font-size:13px;color:#dc2626;padding:24px;text-align:center">데이터를 불러오지 못했어요. 새로고침을 눌러주세요.</div>';
+  }
+}
+
+function _renderChangesStats() {
+  if (!_changesData) return;
+  const mappings = _changesData.mapping || [];
+  const newFeatures = _changesData.new_features || [];
+
+  // 도메인별 집계
+  const domainCount = {};
+  mappings.forEach(m => {
+    const d = m.domain || '기타';
+    domainCount[d] = (domainCount[d] || 0) + 1;
+  });
+
+  const statsEl = document.getElementById('changesStats');
+  const statItems = [
+    { label: '전체 매핑', value: mappings.length, color: '#3182F6', bg: '#eff6ff' },
+    ...Object.entries(domainCount).map(([d, n]) => ({ label: d, value: n, color: '#6d28d9', bg: '#ede9fe' })),
+    { label: '신설 기능', value: newFeatures.length, color: '#d97706', bg: '#fef3c7' },
+  ];
+
+  statsEl.style.display = 'grid';
+  statsEl.innerHTML = statItems.map(s => `
+    <div style="background:${s.bg};border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:11px;color:${s.color};font-weight:600">${escapeHtml(s.label)}</div>
+      <div style="font-size:22px;font-weight:800;color:${s.color};font-variant-numeric:tabular-nums">${s.value}</div>
+    </div>
+  `).join('');
+}
+
+function setChangeDomain(btn, domain) {
+  _changesDomainFilter = domain;
+  document.querySelectorAll('.changes-filter-btn[data-domain]').forEach(b => b.classList.toggle('active', b.dataset.domain === domain));
+  filterChanges();
+}
+
+function setChangeCategory(btn, cat) {
+  _changesCategoryFilter = cat;
+  document.querySelectorAll('.changes-filter-btn[data-category]').forEach(b => b.classList.toggle('active', b.dataset.category === cat));
+  filterChanges();
+}
+
+function filterChanges() {
+  if (!_changesData) return;
+  const q = (document.getElementById('changesSearchInput')?.value || '').trim().toLowerCase();
+  const mappings = _changesData.mapping || [];
+  const newFeatures = _changesData.new_features || [];
+
+  // 매핑 필터
+  let filtered = mappings.filter(m => {
+    if (_changesDomainFilter && m.domain !== _changesDomainFilter) return false;
+    if (_changesCategoryFilter && m.category !== _changesCategoryFilter) return false;
+    if (q) {
+      const hay = ((m.old || '') + ' ' + (m.new || '') + ' ' + (m.note || '')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('changesMappingCount').textContent = filtered.length;
+  const mappingEl = document.getElementById('changesMappingList');
+  if (filtered.length === 0) {
+    mappingEl.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center;background:#f9fafb;border-radius:10px">조건에 맞는 변경 사항이 없어요</div>';
+  } else {
+    mappingEl.innerHTML = filtered.map(m => {
+      const catKey = (m.category || '기타').replace(' ', '\\ ');
+      const catCls = 'change-cat-' + (m.category || '기타');
+      return `<div class="change-card">
+        <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+          <span class="change-cat-badge ${catCls}">${escapeHtml(m.category || '기타')}</span>
+          ${m.domain ? `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:#f3f4f6;color:#6b7280;font-weight:600">${escapeHtml(m.domain)}</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:10px 0;flex-wrap:wrap">
+          <span style="font-size:14px;font-weight:600;color:#6b7280;background:#f9fafb;padding:6px 12px;border-radius:6px;border:1px solid #e5e7eb">${escapeHtml(m.old || '')}</span>
+          <span style="font-size:18px;color:#3182F6;font-weight:700">→</span>
+          <span style="font-size:14px;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:6px 12px;border-radius:6px;border:1px solid #bfdbfe">${escapeHtml(m.new || '')}</span>
+        </div>
+        ${m.note ? `<div style="font-size:12px;color:#6b7280;line-height:1.5">${escapeHtml(m.note)}</div>` : ''}
+        ${m.evidence ? `<details style="margin-top:6px">
+          <summary style="font-size:11px;color:#9ca3af;cursor:pointer">근거 펼치기</summary>
+          <div style="margin-top:6px;font-size:11px;color:#6b7280;line-height:1.6;padding:8px 10px;background:#f9fafb;border-radius:6px">${escapeHtml(m.evidence)}</div>
+        </details>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // 신설 기능 필터 (검색어만 적용)
+  let filteredNew = newFeatures.filter(f => {
+    if (!q) return true;
+    const hay = ((f.name || '') + ' ' + (f.category || '') + ' ' + (f.description || '') + ' ' + (f.menu_path || '')).toLowerCase();
+    return hay.includes(q);
+  });
+
+  document.getElementById('changesNewCount').textContent = filteredNew.length;
+  const newEl = document.getElementById('changesNewList');
+  if (filteredNew.length === 0) {
+    newEl.innerHTML = q ? '<div style="font-size:13px;color:#9ca3af;padding:16px;text-align:center;background:#f9fafb;border-radius:10px">조건에 맞는 신설 기능이 없어요</div>' : '';
+  } else {
+    newEl.innerHTML = filteredNew.map(f => `
+      <div class="new-feature-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:700">⭐ 신설</span>
+          ${f.category ? `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:#f3f4f6;color:#6b7280;font-weight:600">${escapeHtml(f.category)}</span>` : ''}
+          <span style="font-size:14px;font-weight:700;color:#111827">${escapeHtml(f.name || '')}</span>
+        </div>
+        ${f.description ? `<div style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:6px">${escapeHtml(f.description)}</div>` : ''}
+        ${f.menu_path ? `<div style="font-size:12px;color:#6b7280;margin-bottom:4px">📍 메뉴 경로: <span style="color:#374151;font-weight:500">${escapeHtml(f.menu_path)}</span></div>` : ''}
+        ${f.evidence ? `<details style="margin-top:6px">
+          <summary style="font-size:11px;color:#9ca3af;cursor:pointer">근거 펼치기</summary>
+          <div style="margin-top:6px;font-size:11px;color:#6b7280;line-height:1.6;padding:8px 10px;background:#f9fafb;border-radius:6px">${escapeHtml(f.evidence)}</div>
+        </details>` : ''}
+      </div>
+    `).join('');
+  }
+}
 </script>
 </body>
 </html>
