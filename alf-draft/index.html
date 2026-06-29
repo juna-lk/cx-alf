@@ -8193,7 +8193,8 @@ function renderExprCards() {
   list.innerHTML = items.map(it => {
     const ov = _exprOverrides[it.lk1] || {};
     const curMode = ov.mode || '';
-    const customText = ov.custom_text || '';
+    // 백엔드 필드명: custom_value
+    const customText = ov.custom_value || '';
     const id = _exprCardId(it.lk1);
     return `
 <div class="expr-card" id="card-${id}">
@@ -8206,10 +8207,10 @@ function renderExprCards() {
     </div>
   </div>
   <div class="expr-radio-group">
-    ${_exprRadioCard(id, it.lk1, it.lk2, 'v1',     '🟡', 'LK1.0 그대로', it.lk1, curMode)}
-    ${_exprRadioCard(id, it.lk1, it.lk2, 'v2',     '🟢', 'LK2.0',        it.lk2, curMode)}
-    ${_exprRadioCard(id, it.lk1, it.lk2, 'hybrid', '🟣', '혼용', `${it.lk1}(${it.lk2})`, curMode)}
-    ${_exprRadioCard(id, it.lk1, it.lk2, 'custom', '🔵', '직접 입력', '', curMode)}
+    ${_exprRadioCard(id, it.lk1, it.lk2, 'v1',     '🟡', 'LK1.0 그대로', it.lk1, curMode, '')}
+    ${_exprRadioCard(id, it.lk1, it.lk2, 'v2',     '🟢', 'LK2.0',        it.lk2, curMode, '')}
+    ${_exprRadioCard(id, it.lk1, it.lk2, 'hybrid', '🟣', '혼용', `${it.lk1}(${it.lk2})`, curMode, '')}
+    ${_exprRadioCard(id, it.lk1, it.lk2, 'custom', '🔵', '직접 입력', '', curMode, customText)}
   </div>
   <div class="expr-custom-input" id="custom-${id}" style="display:${curMode === 'custom' ? 'block' : 'none'}">
     <input type="text" id="customText-${id}" placeholder="표시할 텍스트를 입력하세요..."
@@ -8223,14 +8224,18 @@ function renderExprCards() {
   }).join('');
 }
 
-function _exprRadioCard(id, lk1, lk2, mode, icon, name, preview, curMode) {
+function _exprRadioCard(id, lk1, lk2, mode, icon, name, preview, curMode, customValue) {
   const checked = curMode === mode ? 'checked' : '';
   const selected = curMode === mode ? 'selected' : '';
+  // custom 모드일 때 저장된 값 있으면 그 값 표시 (없으면 '직접 지정' default)
+  const customDesc = (customValue && customValue.trim())
+    ? `"${_esc(customValue)}" 표기`
+    : '직접 지정';
   const descMap = {
     v1: `"${_esc(lk1)}" 표기`,
     v2: `"${_esc(lk2)}" 표기`,
     hybrid: `"${_esc(lk1)}(${_esc(lk2)})" 표기`,
-    custom: '직접 지정'
+    custom: customDesc
   };
   return `
 <label class="expr-radio-label ${selected}" data-mode="${mode}" data-id="${id}"
