@@ -1,6 +1,7 @@
 """채널톡 Documents Open API — 아티클 등록·게시"""
 from __future__ import annotations
 import os, sys, json, re, urllib.request, urllib.error, urllib.parse
+from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _alf_common import make_handler_base, docs_req
 
@@ -154,6 +155,8 @@ class handler(_Base):
         # 기존 article_id가 있으면 update mode — 새 revision 추가
         existing_article_id = (body.get("article_id") or "").strip()
         is_update = bool(existing_article_id)
+        # 마이그레이션 메타 — 본문 끝에 HTML 주석으로 삽입해서 일괄 처리 시 자동 식별
+        migrated_from = (body.get("migrated_from") or "").strip()
 
         if not name:
             self._respond(400, {"ok": False, "error": "제목이 필요해요."})
@@ -163,7 +166,16 @@ class handler(_Base):
             return
 
         # 채널톡 Documents API: 목록의 "제목" 컬럼은 title 필드. name만 보내면 "제목 없음"으로 표시됨.
-        article_body: dict = {"title": name, "name": name, "language": "ko", "bodyHtml": markdown_to_html(content)}
+        body_html = markdown_to_html(content)
+        if migrated_from:
+            status_tag = "published" if do_publish else "pending-publish"
+            today = datetime.now().strftime("%Y-%m-%d")
+            # HTML 주석은 채널톡 화면에 노출되지 않음. 일괄 처리 스크립트가 이 주석으로 자동 매칭.
+            body_html += (
+                f"\n<!-- lk2-migrated-from:{migrated_from} "
+                f"lk2-status:{status_tag} migrated-at:{today} -->"
+            )
+        article_body: dict = {"title": name, "name": name, "language": "ko", "bodyHtml": body_html}
         if subtitle:
             article_body["subtitle"] = subtitle
             article_body["summary"] = subtitle

@@ -2425,7 +2425,10 @@
       <div style="display:flex;gap:8px;align-items:center">
         <button onclick="copyMigratedText()" style="font-size:12px;padding:6px 14px;border-radius:6px;background:#fff;color:#4f46e5;border:1px solid #c7d2fe;cursor:pointer;font-weight:600">📋 텍스트 복사</button>
         <button onclick="copyMigratedRich()" style="font-size:12px;padding:6px 14px;border-radius:6px;background:#fff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:600">🎨 서식 복사</button>
-        <button onclick="confirmApplyMigration()" style="font-size:12px;padding:6px 16px;border-radius:6px;background:#3182F6;color:#fff;border:none;cursor:pointer;font-weight:700">✅ 채널톡에 적용</button>
+        <button onclick="confirmApplyMigration(false)" title="LK2.0 출시 전 비공개 상태로 발행. 7월 출시일에 일괄 공개 처리 가능."
+          style="font-size:12px;padding:6px 16px;border-radius:6px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;cursor:pointer;font-weight:700">🔒 비공개 발행</button>
+        <button onclick="confirmApplyMigration(true)" title="즉시 공개 게시 (라이브)."
+          style="font-size:12px;padding:6px 16px;border-radius:6px;background:#3182F6;color:#fff;border:none;cursor:pointer;font-weight:700">🌐 공개 발행</button>
         <button onclick="closeMigrateModal()" style="font-size:18px;line-height:1;padding:4px 8px;border-radius:6px;background:#f3f4f6;border:none;cursor:pointer;color:#374151">✕</button>
       </div>
     </div>
@@ -2460,12 +2463,12 @@
 
 <!-- 적용 확인 모달 -->
 <div id="migrateConfirmModal" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
-    <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:10px">채널톡에 적용할까요?</div>
-    <div style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:20px">이 도큐먼트가 채널톡에 즉시 업데이트·게시됩니다.<br>변환된 제목과 본문으로 새 revision이 생성돼요.</div>
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+    <div id="migrateConfirmTitle" style="font-size:16px;font-weight:700;color:#111827;margin-bottom:10px">채널톡에 적용할까요?</div>
+    <div id="migrateConfirmBody" style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:20px"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button onclick="document.getElementById('migrateConfirmModal').style.display='none'" style="padding:9px 20px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;font-size:13px;cursor:pointer;font-weight:600;color:#374151">취소</button>
-      <button onclick="applyMigration()" style="padding:9px 20px;border-radius:8px;background:#3182F6;border:none;color:#fff;font-size:13px;cursor:pointer;font-weight:700">✅ 적용</button>
+      <button id="migrateConfirmApplyBtn" onclick="applyMigration()" style="padding:9px 20px;border-radius:8px;background:#3182F6;border:none;color:#fff;font-size:13px;cursor:pointer;font-weight:700">✅ 적용</button>
     </div>
   </div>
 </div>
@@ -7429,20 +7432,49 @@ function copyMigratedRich() {
   navigator.clipboard.writeText(val);
 }
 
-function confirmApplyMigration() {
+let _migratePendingPublish = false;
+
+function confirmApplyMigration(publishImmediately) {
   if (!_migrateCurrentArticleId) return;
+  _migratePendingPublish = !!publishImmediately;
+  const titleEl = document.getElementById('migrateConfirmTitle');
+  const bodyEl = document.getElementById('migrateConfirmBody');
+  const btnEl = document.getElementById('migrateConfirmApplyBtn');
+  if (publishImmediately) {
+    titleEl.textContent = '🌐 즉시 공개 발행할까요?';
+    bodyEl.innerHTML = '이 도큐먼트가 채널톡에 <strong>즉시 게시(라이브)</strong>됩니다.<br>구매자에게 바로 노출돼요.<br><br>본문 끝에 메타 주석이 자동 삽입돼서 1.0 원본과 매칭됩니다.';
+    if (btnEl) {
+      btnEl.style.background = '#3182F6';
+      btnEl.textContent = '🌐 공개 발행';
+    }
+  } else {
+    titleEl.textContent = '🔒 비공개 발행할까요?';
+    bodyEl.innerHTML = '변환된 본문이 채널톡에 <strong>비공개 상태(초안)</strong>로 저장돼요.<br>구매자에게 노출되지 않고, LK2.0 출시일에 일괄 공개 처리할 수 있어요.<br><br>본문 끝에 메타 주석이 자동 삽입돼서 1.0 원본과 매칭됩니다.';
+    if (btnEl) {
+      btnEl.style.background = '#f59e0b';
+      btnEl.textContent = '🔒 비공개 발행';
+    }
+  }
   document.getElementById('migrateConfirmModal').classList.add('open');
+  document.getElementById('migrateConfirmModal').style.display = 'flex';
+}
+
+function _closeMigrateConfirm() {
+  const m = document.getElementById('migrateConfirmModal');
+  m.classList.remove('open');
+  m.style.display = 'none';
 }
 
 async function applyMigration() {
-  document.getElementById('migrateConfirmModal').classList.remove('open');
+  _closeMigrateConfirm();
   const articleId = _migrateCurrentArticleId;
   if (!articleId) return;
   const migratedContent = _getMigratedText();
   const migratedTitle = _migrateCurrentTitles.migrated_title;
   const migratedSubtitle = _migrateCurrentTitles.migrated_subtitle;
+  const isPublish = !!_migratePendingPublish;
 
-  _migrateSetStatus('채널톡에 적용 중...', 'loading');
+  _migrateSetStatus(isPublish ? '채널톡에 공개 발행 중...' : '채널톡에 비공개 발행 중...', 'loading');
   try {
     const res = await authFetch(`${API}/api/alf_publish`, {
       method: 'POST',
@@ -7452,14 +7484,18 @@ async function applyMigration() {
         name: migratedTitle,
         content: migratedContent,
         subtitle: migratedSubtitle,
-        publish: true,
+        publish: isPublish,
+        migrated_from: articleId,
       }, _migrateCurrentSpace ? { space: _migrateCurrentSpace } : {})),
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '적용 실패');
 
     _migrateDoneSet.add(articleId);
-    _migrateSetStatus(`✅ 채널톡 적용 완료 — revision: ${data.revision_id || '-'}`, 'success');
+    const statusMsg = isPublish
+      ? `✅ 공개 발행 완료 — revision: ${data.revision_id || '-'}`
+      : `🔒 비공개 발행 완료 (LK2.0 출시일 일괄 공개 대상) — revision: ${data.revision_id || '-'}`;
+    _migrateSetStatus(statusMsg, 'success');
     closeMigrateModal();
     _renderMigrateDocList();
   } catch (e) {
