@@ -8290,17 +8290,27 @@ async function saveExpressionOverride(lk1Term, cardId) {
   if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
 
   try {
-    const res = await authFetch('/api/alf_generate', {
+    // 혼용 모드일 때 hybrid_format 자동 생성 (예: "LK2.0(=LK1.0)")
+    const card = document.getElementById('card-' + cardId);
+    const lk2Term = card?.querySelector('.expr-term-v2')?.textContent || '';
+    const hybridFormat = mode === 'hybrid' && lk2Term ? `${lk2Term}(=${lk1Term})` : '';
+    const res = await authFetch(`${API}/api/alf_generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'save_expression_override', lk1_term: lk1Term, expr_mode: mode, custom_text: customText })
+      body: JSON.stringify({
+        mode: 'save_expression_override',
+        mapping_key: lk1Term,
+        override_mode: mode,
+        custom_value: customText,
+        hybrid_format: hybridFormat,
+      })
     });
     const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    if (!data.ok) throw new Error(data.error || '저장 실패');
 
-    // 로컬 캐시 업데이트
+    // 로컬 캐시 업데이트 (백엔드 응답 필드명 mode/custom_value 기준)
     if (!_exprOverrides) _exprOverrides = {};
-    _exprOverrides[lk1Term] = { mode, custom_text: customText };
+    _exprOverrides[lk1Term] = { mode, custom_value: customText, hybrid_format: hybridFormat };
 
     // 저장됨 칩 표시
     const chip = document.getElementById('savedChip-' + cardId);
