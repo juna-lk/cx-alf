@@ -7434,7 +7434,27 @@ async function renderChangeGuide(force) {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '데이터 로드 실패');
-    _changesData = data;
+    // 데이터 정규화: lk2_mapping.json의 domains.{slug}.mappings를 flatten + slug→한국어 label 변환
+    const slugToLabel = {
+      'product-structure': '상품구조',
+      'product-sales-settings': '판매설정',
+      'payment-settlement': '결제·정산',
+    };
+    const flatMappings = [];
+    const domainsData = (data.mapping && data.mapping.domains) || {};
+    for (const slug of Object.keys(domainsData)) {
+      const info = domainsData[slug];
+      const label = slugToLabel[slug] || info.label || slug;
+      const mappings = info.mappings || [];
+      for (const m of mappings) {
+        if (m.status === 'approved') {
+          flatMappings.push(Object.assign({}, m, { domain: label }));
+        }
+      }
+    }
+    const rawFeatures = (data.new_features && data.new_features.new_features) || [];
+    const newFeatures = rawFeatures.map(f => Object.assign({}, f, { domain: slugToLabel[f.domain] || f.domain }));
+    _changesData = { mapping: flatMappings, new_features: newFeatures, raw: data };
     _changesLoaded = true;
     _changesSetStatus(null);
     _renderChangesStats();

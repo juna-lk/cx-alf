@@ -389,9 +389,7 @@ class handler(_Base):
         # 채널톡 도큐먼트 API의 list endpoint를 호출하고 query로 필터링.
         if mode == "kb_search":
             query = (body.get("query") or "").strip()
-            if not query:
-                self._respond(400, {"ok": False, "error": "query 필요"})
-                return
+            # 빈 query → 전체 list 반환 (마이그레이션 탭에서 도큐먼트 list 받을 때 사용)
             try:
                 data = docs_req(
                     "/open/v1/spaces/$me/articles?language=ko&limit=100",
@@ -424,24 +422,28 @@ class handler(_Base):
                 title_l = title.lower()
                 subtitle_l = subtitle.lower()
                 body_l = body_text.lower()
-                if q_lower in title_l:
-                    score += 100
-                if q_lower in subtitle_l:
-                    score += 50
-                if q_lower in body_l:
-                    score += 10
-                # 토큰 단위 부분 매칭(공백 분리)
-                for token in q_lower.split():
-                    if len(token) < 2:
-                        continue
-                    if token in title_l:
-                        score += 20
-                    if token in subtitle_l:
+                if q_lower:
+                    if q_lower in title_l:
+                        score += 100
+                    if q_lower in subtitle_l:
+                        score += 50
+                    if q_lower in body_l:
                         score += 10
-                    if token in body_l:
-                        score += 2
-                if score <= 0:
-                    continue
+                    # 토큰 단위 부분 매칭(공백 분리)
+                    for token in q_lower.split():
+                        if len(token) < 2:
+                            continue
+                        if token in title_l:
+                            score += 20
+                        if token in subtitle_l:
+                            score += 10
+                        if token in body_l:
+                            score += 2
+                    if score <= 0:
+                        continue
+                else:
+                    # 빈 query: 모든 article 통과. 정렬은 published 우선 + 최신순
+                    score = 1
                 results.append({
                     "id": a.get("id"),
                     "title": title,
@@ -453,10 +455,15 @@ class handler(_Base):
                     "score": score,
                     "updatedAt": a.get("updatedAt"),
                 })
-            results.sort(key=lambda x: (-x["score"], -(x.get("updatedAt") or 0)))
+            if q_lower:
+                results.sort(key=lambda x: (-x["score"], -(x.get("updatedAt") or 0)))
+                results = results[:20]
+            else:
+                # 빈 query: published 먼저, 그 안에서 최신순. limit 없음 (전체 반환)
+                results.sort(key=lambda x: (0 if x["state"] == "published" else 1, -(x.get("updatedAt") or 0)))
             self._respond(200, {
                 "ok": True,
-                "results": results[:20],
+                "results": results,
                 "total_scanned": len(articles),
                 "matched": len(results),
             })
