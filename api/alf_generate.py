@@ -557,12 +557,51 @@ class handler(_Base):
                             "domain": domain_slug,
                         })
 
+            # 표현 오버라이드 적용 — 매니저가 매핑별로 선택한 현재 표기.
+            # mode='v1' = LK1.0 그대로 (변환 안 함), 'v2' = LK2.0 표현 (기본),
+            # 'hybrid' = hybrid_format (예: "상품(=클래스)"), 'custom' = custom_value 사용.
+            try:
+                override_rows = supabase_get(
+                    f"{SUPABASE_URL}/rest/v1/lk2_expression_overrides?select=*",
+                    SUPABASE_SERVICE_KEY,
+                )
+            except Exception as e:
+                print(f"[migrate] expression_overrides fetch 실패: {e}")
+                override_rows = []
+            overrides_by_key = {r.get("mapping_key"): r for r in (override_rows or [])}
+            for m in approved_mappings:
+                ov = overrides_by_key.get(m["old"])
+                if not ov:
+                    continue
+                mode_ov = ov.get("mode") or "v2"
+                m["override_mode"] = mode_ov
+                if mode_ov == "v1":
+                    # LK1.0 표현 유지 — 본문에서 변환하지 말 것 (즉 new = old)
+                    m["new"] = m["old"]
+                elif mode_ov == "hybrid":
+                    fmt = ov.get("hybrid_format") or f"{m['new']}(={m['old']})"
+                    m["new"] = fmt
+                elif mode_ov == "custom":
+                    cv = ov.get("custom_value")
+                    if cv:
+                        m["new"] = cv
+                # 'v2'는 default — 그대로 둠
+
             # LLM 변환 prompt — 매핑만 reference. spec/glossary 통째 주입은 토큰 부담 큼.
-            mapping_block = "\n".join(
-                f"- [{m['category']} · {m['domain']}] '{m['old']}' → '{m['new']}'"
-                + (f"\n  · note: {m['note']}" if m.get("note") else "")
-                for m in approved_mappings
-            )
+            mapping_block_lines = []
+            for m in approved_mappings:
+                ov_tag = ""
+                if m.get("override_mode") == "v1":
+                    ov_tag = " ⚠️ 매니저 선택: LK1.0 그대로 유지 (변환 X)"
+                elif m.get("override_mode") == "hybrid":
+                    ov_tag = " ⚠️ 매니저 선택: 혼용 표현"
+                elif m.get("override_mode") == "custom":
+                    ov_tag = " ⚠️ 매니저 선택: 직접 입력 표현"
+                line = f"- [{m['category']} · {m['domain']}] '{m['old']}' → '{m['new']}'{ov_tag}"
+                if m.get("note"):
+                    line += f"\n  · note: {m['note']}"
+                mapping_block_lines.append(line)
+            mapping_block = "\n".join(mapping_block_lines)
 
             op_guide_section = ""
             if op_guide_text:
@@ -684,14 +723,68 @@ JSON 외 다른 텍스트 출력 금지."""
                 )
             except Exception as e:
                 print(f"[migration_data] lk2_migration_pairs fetch 실패: {e}")
+            # 표현 오버라이드 (매니저가 매핑별로 선택한 현재 표기)
+            expression_overrides = []
+            try:
+                expression_overrides = supabase_get(
+                    f"{SUPABASE_URL}/rest/v1/lk2_expression_overrides?select=*",
+                    SUPABASE_SERVICE_KEY,
+                )
+            except Exception as e:
+                print(f"[migration_data] lk2_expression_overrides fetch 실패: {e}")
             self._respond(200, {
                 "ok": True,
                 "mapping": mapping_data,
                 "new_features": features_data,
                 "spaces": list_docs_spaces(),
                 "migration_pairs": migration_pairs,
+                "expression_overrides": expression_overrides,
             })
             return
+
+        # ─── 표현 오버라이드 저장 ─────────────────────────────────────────
+        # 매니저가 "표현 관리" 탭에서 매핑별 현재 사용 표현을 선택·저장하는 endpoint.
+        # mode = 'v1' | 'v2' | 'hybrid' | 'custom'
+        if mode == "save_expression_override":
+            mapping_key = (body.get("mapping_key") or "").strip()
+            override_mode = (body.get("override_mode") or "").strip()
+            custom_value = (body.get("custom_value") or "").strip()
+            hybrid_format = (body.get("hybrid_format") or "").strip()
+            note_text = (body.get("note") or "").strip()
+            if not mapping_key:
+                self._respond(400, {"ok": False, "error": "mapping_key 필요"})
+                return
+            if override_mode not in ("v1", "v2", "hybrid", "custom"):
+                self._respond(400, {"ok": False, "error": "override_mode는 v1|v2|hybrid|custom"})
+                return
+            row = {
+                "mapping_key": mapping_key,
+                "mode": override_mode,
+                "custom_value": custom_value or None,
+                "hybrid_format": hybrid_format or None,
+                "note": note_text or None,
+            }
+            try:
+                # UPSERT: mapping_key PK 기준 merge-duplicates
+                req = urllib.request.Request(
+                    f"{SUPABASE_URL}/rest/v1/lk2_expression_overrides",
+                    data=json.dumps(row).encode(),
+                    headers={
+                        "apikey": SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates,return=representation",
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    saved = json.loads(r.read())
+                self._respond(200, {"ok": True, "saved": saved})
+                return
+            except Exception as e:
+                print(f"[save_expression_override] 실패: {e}")
+                self._respond(500, {"ok": False, "error": f"저장 실패: {e}"})
+                return
 
         # ─── 이미지 추천 위치 분석 ────────────────────────────────────────
         # 본문을 LLM에 보내서 "스크린샷·이미지가 필요한 위치"를 분석 요청.

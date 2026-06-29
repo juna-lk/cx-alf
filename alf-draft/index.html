@@ -555,6 +555,92 @@
   }
   .mapping-applied-card .old { color: #9ca3af; text-decoration: line-through; }
   .mapping-applied-card .new { color: #1d4ed8; font-weight: 600; }
+
+  /* ── 표현 관리 (tab-expr) ── */
+  .expr-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: box-shadow .15s;
+  }
+  .expr-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+  .expr-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .expr-terms { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .expr-term-v1 {
+    background: #fef3c7; color: #92400e;
+    border-radius: 6px; padding: 3px 9px; font-size: 13px; font-weight: 600;
+  }
+  .expr-term-v2 {
+    background: #f0fdf4; color: #15803d;
+    border-radius: 6px; padding: 3px 9px; font-size: 13px; font-weight: 600;
+  }
+  .expr-arrow { color: #9ca3af; font-size: 14px; }
+  .expr-domain-badge {
+    background: #f3f4f6; color: #6b7280;
+    border-radius: 4px; padding: 2px 7px; font-size: 11px;
+  }
+  .expr-radio-group {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 700px) {
+    .expr-radio-group { grid-template-columns: repeat(2, 1fr); }
+  }
+  .expr-radio-label {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px; padding: 10px 6px; cursor: pointer;
+    transition: border-color .12s, background .12s;
+    font-size: 12px; text-align: center;
+    user-select: none;
+  }
+  .expr-radio-label input[type=radio] { display: none; }
+  .expr-radio-label .expr-mode-icon { font-size: 20px; }
+  .expr-radio-label .expr-mode-name { font-weight: 600; font-size: 12px; }
+  .expr-radio-label .expr-mode-desc { color: #6b7280; font-size: 11px; line-height: 1.3; }
+  /* 선택 상태별 색 */
+  .expr-radio-label[data-mode=v1].selected { border-color: #f59e0b; background: #fffbeb; }
+  .expr-radio-label[data-mode=v2].selected { border-color: #22c55e; background: #f0fdf4; }
+  .expr-radio-label[data-mode=hybrid].selected { border-color: #a78bfa; background: #ede9fe; }
+  .expr-radio-label[data-mode=custom].selected { border-color: #3182F6; background: #eff6ff; }
+  .expr-custom-input {
+    margin-top: 10px; display: none;
+  }
+  .expr-custom-input input {
+    width: 100%; padding: 8px 10px; border: 1px solid #d1d5db;
+    border-radius: 8px; font-size: 13px; font-family: inherit;
+    box-sizing: border-box;
+  }
+  .expr-card-footer {
+    display: flex; justify-content: flex-end; align-items: center;
+    gap: 8px; margin-top: 12px;
+  }
+  .expr-save-btn {
+    background: #3182F6; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 7px 16px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .12s;
+  }
+  .expr-save-btn:hover { background: #2563eb; }
+  .expr-save-btn:disabled { background: #93c5fd; cursor: not-allowed; }
+  .expr-saved-chip {
+    background: #dcfce7; color: #15803d;
+    border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 600;
+    display: none;
+  }
+  .expr-stat-chip {
+    background: #f3f4f6; color: #374151;
+    border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 5px;
+  }
   </style>
 </head>
 <body>
@@ -633,6 +719,7 @@
   <div class="tab" onclick="switchTab('customerResearch')">📊 고객 인입 리서치</div>
   <div class="tab" onclick="switchTab('migrate')">🔄 마이그레이션</div>
   <div class="tab" onclick="switchTab('changes')">📊 LK 2.0 변경 가이드</div>
+  <div class="tab" onclick="switchTab('expr')">🎛 표현 관리</div>
 </div>
 
 <div class="page" id="tab-generate">
@@ -2533,6 +2620,55 @@
   <div id="changesNewList" style="display:flex;flex-direction:column;gap:8px"></div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════
+     탭: 🎛 표현 관리 (tab-expr)
+     ═══════════════════════════════════════════════════ -->
+<div class="page" id="tab-expr">
+  <div class="library-header">
+    <div>
+      <h2 style="font-size:16px;font-weight:600">🎛 LK1.0 ↔ LK2.0 표현 관리</h2>
+      <p style="font-size:13px;color:#6b7280;margin-top:4px">
+        LK2.0 개발이 진행되는 동안 ALF 문서에 표기할 현재 표현을 매핑별로 선택해주세요.
+      </p>
+    </div>
+    <button class="btn btn-secondary" onclick="loadExprTab(true)" style="font-size:12px;padding:7px 14px">↺ 새로고침</button>
+  </div>
+
+  <!-- 통계 칩 -->
+  <div id="exprStats" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+
+  <!-- 필터 바 -->
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="exprDomainBtns">
+      <button class="changes-filter-btn active" data-domain="" onclick="setExprDomain(this,'')">전체</button>
+      <button class="changes-filter-btn" data-domain="상품구조" onclick="setExprDomain(this,'상품구조')">상품구조</button>
+      <button class="changes-filter-btn" data-domain="판매설정" onclick="setExprDomain(this,'판매설정')">판매설정</button>
+      <button class="changes-filter-btn" data-domain="결제·정산" onclick="setExprDomain(this,'결제·정산')">결제·정산</button>
+    </div>
+    <div style="width:1px;height:24px;background:#e5e7eb;flex-shrink:0"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="exprModeBtns">
+      <button class="changes-filter-btn active" data-mode="" onclick="setExprMode(this,'')">전체 모드</button>
+      <button class="changes-filter-btn" data-mode="unset" onclick="setExprMode(this,'unset')">미지정</button>
+      <button class="changes-filter-btn" data-mode="v1" onclick="setExprMode(this,'v1')">LK1.0 그대로</button>
+      <button class="changes-filter-btn" data-mode="v2" onclick="setExprMode(this,'v2')">LK2.0</button>
+      <button class="changes-filter-btn" data-mode="hybrid" onclick="setExprMode(this,'hybrid')">혼용</button>
+      <button class="changes-filter-btn" data-mode="custom" onclick="setExprMode(this,'custom')">직접 입력</button>
+    </div>
+    <div style="flex:1;min-width:160px">
+      <input type="text" id="exprSearchInput" placeholder="LK1.0 또는 LK2.0 표현 검색..." oninput="renderExprCards()"
+        style="width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+    </div>
+  </div>
+
+  <!-- 상태 -->
+  <div id="exprStatus" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
+
+  <!-- 카드 목록 -->
+  <div id="exprCardList" style="display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">탭을 클릭하면 자동으로 데이터를 불러와요...</div>
+  </div>
+</div>
+
 
 <script>
 const API = '';
@@ -2995,7 +3131,7 @@ let state = {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', ['workflow','generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch','migrate','changes'][i] === name);
+    t.classList.toggle('active', ['workflow','generate','search','library','applied','rules','guide','validate','faqValidate','customerResearch','migrate','changes','expr'][i] === name);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
@@ -3004,6 +3140,7 @@ function switchTab(name) {
   if (name === 'rules') loadRules();
   if (name === 'migrate') loadMigrationDocs();
   if (name === 'changes') renderChangeGuide();
+  if (name === 'expr') loadExprTab();
 }
 
 // ─── 아티클 가이드라인 검증 ─────────────────────────────────────────────────
@@ -7933,6 +8070,258 @@ function filterChanges() {
       </div>
     `).join('');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🎛 표현 관리 탭 (tab-expr)
+// ═══════════════════════════════════════════════════════════════
+
+let _exprOverrides = null;   // { [lk1_term]: { mode, custom_text } }
+let _exprLoaded    = false;
+let _exprDomainFilter = '';
+let _exprModeFilter   = '';
+
+async function loadExprTab(force = false) {
+  if (_exprLoaded && !force) { renderExprCards(); return; }
+  _exprSetStatus('데이터 불러오는 중...', 'info');
+  try {
+    await _ensureMigrateApprovedMappings();
+    // migration_data에서 overrides 포함 응답 재활용
+    const cd = await _ensureChangesData();
+    // overrides는 _changesData.raw.overrides 에 있을 수 있음; 없으면 빈 객체
+    _exprOverrides = (cd && cd.raw && cd.raw.overrides) ? cd.raw.overrides : {};
+    _exprLoaded = true;
+    _exprSetStatus('', '');
+    renderExprCards();
+    _renderExprStats();
+  } catch (e) {
+    _exprSetStatus('오류: ' + e.message, 'error');
+  }
+}
+
+function _ensureChangesData() {
+  // _changesData가 이미 로드된 경우 재사용; 없으면 renderChangeGuide() 흐름 재현
+  if (_changesData) return Promise.resolve(_changesData);
+  return authFetch('/api/alf_generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'migration_data' })
+  }).then(r => r.json()).then(data => {
+    if (data.error) throw new Error(data.error);
+    const flatMappings = (data.mappings || []).flatMap(g =>
+      (g.items || []).map(it => ({ ...it, domain: g.domain || '' }))
+    );
+    _changesData = { mapping: flatMappings, new_features: data.new_features || [], raw: data };
+    return _changesData;
+  });
+}
+
+function _exprSetStatus(msg, type) {
+  const el = document.getElementById('exprStatus');
+  if (!el) return;
+  if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.style.display = 'block';
+  el.style.background = type === 'error' ? '#fef2f2' : type === 'success' ? '#f0fdf4' : '#eff6ff';
+  el.style.color      = type === 'error' ? '#dc2626' : type === 'success' ? '#15803d' : '#1d4ed8';
+  el.textContent = msg;
+}
+
+function setExprDomain(btn, domain) {
+  _exprDomainFilter = domain;
+  document.querySelectorAll('#exprDomainBtns .changes-filter-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.domain === domain));
+  renderExprCards();
+}
+
+function setExprMode(btn, mode) {
+  _exprModeFilter = mode;
+  document.querySelectorAll('#exprModeBtns .changes-filter-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode));
+  renderExprCards();
+}
+
+function renderExprCards() {
+  const list = document.getElementById('exprCardList');
+  if (!list) return;
+  if (!_exprLoaded || !_changesData) {
+    list.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">데이터를 불러오는 중...</div>';
+    return;
+  }
+
+  const q = (document.getElementById('exprSearchInput')?.value || '').trim().toLowerCase();
+  let items = _changesData.mapping || [];
+
+  if (_exprDomainFilter) items = items.filter(it => it.domain === _exprDomainFilter);
+  if (_exprModeFilter === 'unset') {
+    items = items.filter(it => !_exprOverrides[it.lk1] || !_exprOverrides[it.lk1].mode);
+  } else if (_exprModeFilter) {
+    items = items.filter(it => (_exprOverrides[it.lk1]?.mode || '') === _exprModeFilter);
+  }
+  if (q) {
+    items = items.filter(it =>
+      (it.lk1 || '').toLowerCase().includes(q) ||
+      (it.lk2 || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (!items.length) {
+    list.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">조건에 맞는 매핑이 없어요.</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(it => {
+    const ov = _exprOverrides[it.lk1] || {};
+    const curMode = ov.mode || '';
+    const customText = ov.custom_text || '';
+    const id = _exprCardId(it.lk1);
+    return `
+<div class="expr-card" id="card-${id}">
+  <div class="expr-card-header">
+    <div class="expr-terms">
+      <span class="expr-term-v1">${_esc(it.lk1)}</span>
+      <span class="expr-arrow">→</span>
+      <span class="expr-term-v2">${_esc(it.lk2)}</span>
+      ${it.domain ? `<span class="expr-domain-badge">${_esc(it.domain)}</span>` : ''}
+    </div>
+  </div>
+  <div class="expr-radio-group">
+    ${_exprRadioCard(id, it.lk1, it.lk2, 'v1',     '🟡', 'LK1.0 그대로', it.lk1, curMode)}
+    ${_exprRadioCard(id, it.lk1, it.lk2, 'v2',     '🟢', 'LK2.0',        it.lk2, curMode)}
+    ${_exprRadioCard(id, it.lk1, it.lk2, 'hybrid', '🟣', '혼용', `${it.lk1}(${it.lk2})`, curMode)}
+    ${_exprRadioCard(id, it.lk1, it.lk2, 'custom', '🔵', '직접 입력', '', curMode)}
+  </div>
+  <div class="expr-custom-input" id="custom-${id}" style="display:${curMode === 'custom' ? 'block' : 'none'}">
+    <input type="text" id="customText-${id}" placeholder="표시할 텍스트를 입력하세요..."
+      value="${_esc(customText)}" oninput="_exprDirty('${id}')" />
+  </div>
+  <div class="expr-card-footer">
+    <span class="expr-saved-chip" id="savedChip-${id}">저장됨 ✓</span>
+    <button class="expr-save-btn" id="saveBtn-${id}" onclick="saveExpressionOverride('${_escAttr(it.lk1)}','${id}')">저장</button>
+  </div>
+</div>`;
+  }).join('');
+}
+
+function _exprRadioCard(id, lk1, lk2, mode, icon, name, preview, curMode) {
+  const checked = curMode === mode ? 'checked' : '';
+  const selected = curMode === mode ? 'selected' : '';
+  const descMap = {
+    v1: `"${_esc(lk1)}" 표기`,
+    v2: `"${_esc(lk2)}" 표기`,
+    hybrid: `"${_esc(lk1)}(${_esc(lk2)})" 표기`,
+    custom: '직접 지정'
+  };
+  return `
+<label class="expr-radio-label ${selected}" data-mode="${mode}" data-id="${id}"
+  onclick="_exprSelectMode(this,'${id}','${mode}')">
+  <input type="radio" name="exprMode-${id}" value="${mode}" ${checked}>
+  <span class="expr-mode-icon">${icon}</span>
+  <span class="expr-mode-name">${name}</span>
+  <span class="expr-mode-desc">${descMap[mode]}</span>
+</label>`;
+}
+
+function _exprSelectMode(labelEl, id, mode) {
+  // 같은 카드의 모든 label에서 selected 제거
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  card.querySelectorAll('.expr-radio-label').forEach(l => l.classList.remove('selected'));
+  labelEl.classList.add('selected');
+  // radio 체크
+  const radio = labelEl.querySelector('input[type=radio]');
+  if (radio) radio.checked = true;
+  // custom 입력 표시/숨김
+  const customDiv = document.getElementById('custom-' + id);
+  if (customDiv) customDiv.style.display = mode === 'custom' ? 'block' : 'none';
+  _exprDirty(id);
+}
+
+function _exprDirty(id) {
+  const chip = document.getElementById('savedChip-' + id);
+  if (chip) chip.style.display = 'none';
+}
+
+function _exprCardId(lk1) {
+  return lk1.replace(/[^a-zA-Z0-9가-힣]/g, '_');
+}
+
+function _esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function _escAttr(s) {
+  return String(s || '').replace(/'/g, "\\'");
+}
+
+async function saveExpressionOverride(lk1Term, cardId) {
+  const card = document.getElementById('card-' + cardId);
+  if (!card) return;
+  const radio = card.querySelector('input[type=radio]:checked');
+  if (!radio) { _exprSetStatus('모드를 선택해주세요.', 'error'); return; }
+  const mode = radio.value;
+  const customText = mode === 'custom'
+    ? (document.getElementById('customText-' + cardId)?.value || '').trim()
+    : '';
+  if (mode === 'custom' && !customText) {
+    _exprSetStatus('직접 입력 모드는 텍스트를 입력해주세요.', 'error'); return;
+  }
+
+  const btn = document.getElementById('saveBtn-' + cardId);
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+
+  try {
+    const res = await authFetch('/api/alf_generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'save_expression_override', lk1_term: lk1Term, expr_mode: mode, custom_text: customText })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // 로컬 캐시 업데이트
+    if (!_exprOverrides) _exprOverrides = {};
+    _exprOverrides[lk1Term] = { mode, custom_text: customText };
+
+    // 저장됨 칩 표시
+    const chip = document.getElementById('savedChip-' + cardId);
+    if (chip) chip.style.display = 'inline-block';
+    _exprSetStatus('저장 완료!', 'success');
+    setTimeout(() => _exprSetStatus('', ''), 2500);
+    _renderExprStats();
+  } catch (e) {
+    _exprSetStatus('저장 실패: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '저장'; }
+  }
+}
+
+function _getExprStats() {
+  if (!_changesData) return { total: 0, unset: 0, v1: 0, v2: 0, hybrid: 0, custom: 0 };
+  const items = _changesData.mapping || [];
+  const total = items.length;
+  let v1=0, v2=0, hybrid=0, custom=0;
+  items.forEach(it => {
+    const m = _exprOverrides?.[it.lk1]?.mode || '';
+    if (m === 'v1') v1++;
+    else if (m === 'v2') v2++;
+    else if (m === 'hybrid') hybrid++;
+    else if (m === 'custom') custom++;
+  });
+  return { total, unset: total - v1 - v2 - hybrid - custom, v1, v2, hybrid, custom };
+}
+
+function _renderExprStats() {
+  const el = document.getElementById('exprStats');
+  if (!el) return;
+  const s = _getExprStats();
+  const pct = s.total ? Math.round((s.total - s.unset) / s.total * 100) : 0;
+  el.innerHTML = `
+    <span class="expr-stat-chip" style="background:#f0fdf4;color:#15803d">✅ 설정 완료 ${s.total - s.unset}/${s.total} (${pct}%)</span>
+    <span class="expr-stat-chip" style="background:#fef9c3;color:#92400e">⚠️ 미지정 ${s.unset}</span>
+    <span class="expr-stat-chip" style="background:#fef3c7;color:#92400e">🟡 LK1.0 그대로 ${s.v1}</span>
+    <span class="expr-stat-chip" style="background:#f0fdf4;color:#15803d">🟢 LK2.0 ${s.v2}</span>
+    <span class="expr-stat-chip" style="background:#ede9fe;color:#6d28d9">🟣 혼용 ${s.hybrid}</span>
+    <span class="expr-stat-chip" style="background:#eff6ff;color:#1e40af">🔵 직접 입력 ${s.custom}</span>
+  `;
 }
 </script>
 </body>
