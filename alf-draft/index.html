@@ -2435,10 +2435,10 @@
       </div>
     </div>
     <!-- 매핑 카드 & 경고 -->
-    <div style="padding:16px 24px;border-top:1px solid #e5e7eb;flex-shrink:0;max-height:260px;overflow-y:auto">
+    <div style="padding:16px 24px;border-top:1px solid #e5e7eb;flex-shrink:0;max-height:320px;overflow-y:auto">
       <div id="migrateWarnings" style="display:none;margin-bottom:10px;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#b91c1c"></div>
-      <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">적용된 매핑</div>
-      <div id="migrateMappingCards" style="display:flex;flex-wrap:wrap;gap:6px">
+      <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">🎯 적용된 매핑 <span id="migrateAppliedCount2">0</span>개</div>
+      <div id="migrateMappingCards" style="display:flex;flex-direction:column;gap:10px">
         <div style="font-size:12px;color:#9ca3af">매핑 정보 없음</div>
       </div>
     </div>
@@ -7192,6 +7192,52 @@ function _renderMigrateDocList() {
   }).join('');
 }
 
+// 매핑 표현을 텍스트에 highlight <span> 삽입
+// sentinel 방식으로 이중 치환 방지, 긴 표현 우선 처리
+function _highlightMappings(text, mappings, side) {
+  if (!mappings || !mappings.length) return escapeHtml(text);
+
+  // 길이 내림차순 정렬 (긴 표현 먼저)
+  const sorted = mappings.slice().sort((a, b) => {
+    const ka = side === 'old' ? (a.old || '') : (a.new || '');
+    const kb = side === 'old' ? (b.old || '') : (b.new || '');
+    return kb.length - ka.length;
+  });
+
+  // sentinel 치환: 이미 치환된 영역을 \x00MARKn\x00 으로 보호
+  let result = text;
+  const stash = [];
+
+  sorted.forEach((m, i) => {
+    const term = side === 'old' ? (m.old || '') : (m.new || '');
+    if (!term) return;
+    // 이스케이프된 정규식 안전 문자열
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(escaped, 'g');
+    const style = side === 'old'
+      ? 'background:#fef2f2;color:#b91c1c;padding:1px 4px;border-radius:3px;font-weight:600'
+      : 'background:#eff6ff;color:#1e40af;padding:1px 4px;border-radius:3px;font-weight:600';
+    const sentinel = `\x00MARK${stash.length}\x00`;
+    const spanHtml = `<span style="${style}">${escapeHtml(term)}</span>`;
+    stash.push(spanHtml);
+    result = result.replace(re, sentinel);
+  });
+
+  // 남은 일반 텍스트 escapeHtml (sentinel 은 보존)
+  // sentinel 기준으로 split → escape → 재조합
+  const sentinelRe = /\x00MARK(\d+)\x00/g;
+  let out = '';
+  let last = 0;
+  let match;
+  while ((match = sentinelRe.exec(result)) !== null) {
+    out += escapeHtml(result.slice(last, match.index));
+    out += stash[parseInt(match[1], 10)];
+    last = match.index + match[0].length;
+  }
+  out += escapeHtml(result.slice(last));
+  return out;
+}
+
 async function runMigration(articleId, idx) {
   _migrateCurrentArticleId = articleId;
   // 모달 열기 + 로딩 상태
@@ -7200,9 +7246,11 @@ async function runMigration(articleId, idx) {
   const doc = _migrateDocs[idx] || {};
   document.getElementById('migrateModalTitle').textContent = doc.title || '변환 중...';
   document.getElementById('migrateModalSubtitle').textContent = doc.subtitle || '';
-  document.getElementById('migrateOriginalContent').textContent = '불러오는 중...';
+  document.getElementById('migrateOriginalContent').innerHTML = '<span style="color:#9ca3af">불러오는 중...</span>';
   document.getElementById('migrateResultContent').value = '';
   document.getElementById('migrateAppliedCount').textContent = '0';
+  const ac2 = document.getElementById('migrateAppliedCount2');
+  if (ac2) ac2.textContent = '0';
   document.getElementById('migrateMappingCards').innerHTML = '<div style="font-size:12px;color:#9ca3af">변환 중...</div>';
   document.getElementById('migrateWarnings').style.display = 'none';
 
@@ -7223,21 +7271,40 @@ async function runMigration(articleId, idx) {
 
     document.getElementById('migrateModalTitle').textContent = data.migrated_title || doc.title || '';
     document.getElementById('migrateModalSubtitle').textContent = data.migrated_subtitle || doc.subtitle || '';
-    document.getElementById('migrateOriginalContent').textContent = data.original_markdown || '';
-    document.getElementById('migrateResultContent').value = data.migrated_markdown || '';
-    document.getElementById('migrateAppliedCount').textContent = (data.applied_mappings || []).length;
 
-    // 매핑 카드
     const mappings = data.applied_mappings || [];
-    if (mappings.length) {
+    const cnt = mappings.length;
+    document.getElementById('migrateAppliedCount').textContent = cnt;
+    if (ac2) ac2.textContent = cnt;
+
+    // 좌측: 원본 — old 표현 빨간 highlight
+    document.getElementById('migrateOriginalContent').innerHTML =
+      _highlightMappings(data.original_markdown || '', mappings, 'old');
+
+    // 우측: 변환 결과 — textarea (편집 가능) + 별도 highlight 미리보기
+    document.getElementById('migrateResultContent').value = data.migrated_markdown || '';
+
+    // 매핑 카드 — 카드형 vertical stack
+    const catConfig = {
+      '용어':    { bg: '#eff6ff', text: '#3182F6', border: '#bfdbfe' },
+      '기능명':  { bg: '#ede9fe', text: '#6d28d9', border: '#ddd6fe' },
+      '메뉴 경로': { bg: '#fef3c7', text: '#d97706', border: '#fde68a' },
+      '정책':    { bg: '#dcfce7', text: '#15803d', border: '#6ee7b7' },
+    };
+
+    if (cnt) {
       document.getElementById('migrateMappingCards').innerHTML = mappings.map(m => {
-        const catColor = { '용어': '#ede9fe', '메뉴 경로': '#dbeafe', '기능명': '#fef3c7', '정책': '#fce7f3' }[m.category] || '#f3f4f6';
-        const catTextColor = { '용어': '#6d28d9', '메뉴 경로': '#1d4ed8', '기능명': '#92400e', '정책': '#9d174d' }[m.category] || '#4b5563';
-        return `<div class="mapping-applied-card" title="${escapeHtml(m.note || '')}">
-          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:${catColor};color:${catTextColor};font-weight:700">${escapeHtml(m.category || '')}</span>
-          <span class="old">${escapeHtml(m.old || '')}</span>
-          <span style="color:#9ca3af">→</span>
-          <span class="new">${escapeHtml(m.new || '')}</span>
+        const cfg = catConfig[m.category] || { bg: '#f3f4f6', text: '#4b5563', border: '#e5e7eb' };
+        return `<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;background:#fff">
+          <div style="margin-bottom:8px">
+            <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:5px;background:${cfg.bg};color:${cfg.text};border:1px solid ${cfg.border}">${escapeHtml(m.category || '기타')}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600;padding:4px 10px;border-radius:6px;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5">${escapeHtml(m.old || '')}</span>
+            <span style="font-size:18px;color:#3182F6;font-weight:700">→</span>
+            <span style="font-size:13px;font-weight:600;padding:4px 10px;border-radius:6px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe">${escapeHtml(m.new || '')}</span>
+          </div>
+          ${m.note ? `<div style="margin-top:7px;font-size:11px;color:#6b7280;line-height:1.5">${escapeHtml(m.note)}</div>` : ''}
         </div>`;
       }).join('');
     } else {
@@ -7252,7 +7319,7 @@ async function runMigration(articleId, idx) {
       wEl.innerHTML = '⚠️ ' + warnings.map(w => escapeHtml(w)).join('<br>⚠️ ');
     }
   } catch (e) {
-    document.getElementById('migrateOriginalContent').textContent = '변환 중 오류 발생: ' + String(e);
+    document.getElementById('migrateOriginalContent').innerHTML = `<span style="color:#dc2626">변환 중 오류 발생: ${escapeHtml(String(e))}</span>`;
     document.getElementById('migrateResultContent').value = '';
   }
 }
