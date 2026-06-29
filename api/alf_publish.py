@@ -166,15 +166,9 @@ class handler(_Base):
             return
 
         # 채널톡 Documents API: 목록의 "제목" 컬럼은 title 필드. name만 보내면 "제목 없음"으로 표시됨.
+        # NOTE: 본문 HTML 주석은 채널톡이 sanitize 과정에서 제거함 (2026-06-29 QA로 확인).
+        # 1.0↔2.0 매핑은 Supabase lk2_migration_pairs 테이블에 저장한다 (publish 성공 후).
         body_html = markdown_to_html(content)
-        if migrated_from:
-            status_tag = "published" if do_publish else "pending-publish"
-            today = datetime.now().strftime("%Y-%m-%d")
-            # HTML 주석은 채널톡 화면에 노출되지 않음. 일괄 처리 스크립트가 이 주석으로 자동 매칭.
-            body_html += (
-                f"\n<!-- lk2-migrated-from:{migrated_from} "
-                f"lk2-status:{status_tag} migrated-at:{today} -->"
-            )
         article_body: dict = {"title": name, "name": name, "language": "ko", "bodyHtml": body_html}
         if subtitle:
             article_body["subtitle"] = subtitle
@@ -216,6 +210,36 @@ class handler(_Base):
                 published = True
             except Exception as e:
                 print(f"[alf_publish] 게시 실패: {e}")
+
+        # 마이그레이션 매핑 저장 (Supabase lk2_migration_pairs)
+        # 채널톡이 본문 HTML 주석을 sanitize로 제거하기 때문에 외부 DB로 1.0↔2.0 매칭 유지.
+        # PK = original_article_id. 같은 1.0 article을 두 번 변환하면 UPSERT(merge).
+        if migrated_from and article_id:
+            try:
+                pair_url = f"{SUPABASE_URL}/rest/v1/lk2_migration_pairs"
+                pair_data = {
+                    "original_article_id": migrated_from,
+                    "new_article_id": article_id,
+                    "new_revision_id": revision_id or None,
+                    "space": (space or "ALF_MD").upper(),
+                    "status": "published" if published else "pending-publish",
+                    "migrated_at": datetime.now().isoformat(),
+                }
+                pair_req = urllib.request.Request(
+                    pair_url,
+                    data=json.dumps(pair_data).encode(),
+                    headers={
+                        "apikey": SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates,return=minimal",
+                    },
+                    method="POST",
+                )
+                urllib.request.urlopen(pair_req, timeout=10)
+                print(f"[alf_publish] 매핑 저장: {migrated_from} → {article_id} ({pair_data['status']})")
+            except Exception as e:
+                print(f"[alf_publish] lk2_migration_pairs UPSERT 실패: {e}")
 
         # alf_drafts status 업데이트
         if draft_id:
