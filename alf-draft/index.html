@@ -2536,17 +2536,23 @@
       <!-- 변환 결과 -->
       <div style="flex:1;padding:20px;display:flex;flex-direction:column;min-width:0">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <div style="font-size:11px;font-weight:700;color:#3182F6;text-transform:uppercase;letter-spacing:.05em">변환 결과 (LK 2.0)</div>
-            <span style="font-size:11px;color:#7c3aed;background:#faf5ff;padding:2px 8px;border-radius:4px;border:1px solid #ddd6fe;font-weight:600">✏️ 클릭해서 직접 수정 가능</span>
+            <span id="migrateEditHint" style="font-size:11px;color:#7c3aed;background:#faf5ff;padding:2px 8px;border-radius:4px;border:1px solid #ddd6fe;font-weight:600">✏️ 클릭해서 직접 수정 가능</span>
+            <button type="button" id="btnMigrateTogglePreview" onclick="toggleMigratePreview()"
+              style="font-size:11px;padding:3px 10px;border-radius:5px;background:#fff;color:#4f46e5;border:1px solid #c7d2fe;cursor:pointer;font-weight:600">👁 미리보기</button>
           </div>
           <div style="font-size:11px;color:#9ca3af"><span id="migrateAppliedCount">0</span>개 매핑 적용</div>
         </div>
+        <!-- 편집 모드 (마크다운 raw, contenteditable) -->
         <div id="migrateResultContent" contenteditable="true"
           style="flex:1;width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;line-height:1.7;font-family:inherit;box-sizing:border-box;color:#111827;overflow-y:auto;white-space:pre-wrap;word-break:break-word;outline:none;min-height:200px;cursor:text;transition:border-color .15s,box-shadow .15s"
           onfocus="this.style.borderColor='#3182F6';this.style.boxShadow='0 0 0 3px rgba(49,130,246,0.12)'"
           onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'"
           spellcheck="false"></div>
+        <!-- 미리보기 모드 (HTML 렌더링, 채널톡 발행 모습) -->
+        <div id="migrateResultPreview"
+          style="display:none;flex:1;width:100%;padding:12px 16px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;line-height:1.7;font-family:inherit;box-sizing:border-box;color:#111827;overflow-y:auto;min-height:200px;background:#fafafa"></div>
       </div>
     </div>
     <!-- 매핑 카드 & 경고 -->
@@ -7662,6 +7668,48 @@ function _renderMigrateDocList() {
 
 // 매핑 표현을 텍스트에 highlight <span> 삽입
 // sentinel 방식으로 이중 치환 방지, 긴 표현 우선 처리
+// 변환 결과 미리보기 토글 (마크다운 ↔ 렌더링된 HTML)
+let _migratePreviewMode = false;
+function toggleMigratePreview() {
+  const editEl = document.getElementById('migrateResultContent');
+  const previewEl = document.getElementById('migrateResultPreview');
+  const btn = document.getElementById('btnMigrateTogglePreview');
+  const hint = document.getElementById('migrateEditHint');
+  _migratePreviewMode = !_migratePreviewMode;
+  if (_migratePreviewMode) {
+    const md = editEl.textContent || '';
+    previewEl.innerHTML = markdownToHtml(md);
+    editEl.style.display = 'none';
+    previewEl.style.display = 'block';
+    btn.textContent = '📝 편집';
+    btn.style.color = '#7c3aed';
+    btn.style.borderColor = '#ddd6fe';
+    if (hint) hint.style.display = 'none';
+  } else {
+    editEl.style.display = 'block';
+    previewEl.style.display = 'none';
+    btn.textContent = '👁 미리보기';
+    btn.style.color = '#4f46e5';
+    btn.style.borderColor = '#c7d2fe';
+    if (hint) hint.style.display = 'inline-block';
+  }
+}
+function _resetMigratePreview() {
+  _migratePreviewMode = false;
+  const editEl = document.getElementById('migrateResultContent');
+  const previewEl = document.getElementById('migrateResultPreview');
+  const btn = document.getElementById('btnMigrateTogglePreview');
+  const hint = document.getElementById('migrateEditHint');
+  if (editEl) editEl.style.display = 'block';
+  if (previewEl) { previewEl.style.display = 'none'; previewEl.innerHTML = ''; }
+  if (btn) {
+    btn.textContent = '👁 미리보기';
+    btn.style.color = '#4f46e5';
+    btn.style.borderColor = '#c7d2fe';
+  }
+  if (hint) hint.style.display = 'inline-block';
+}
+
 function _highlightMappings(text, mappings, side) {
   if (!mappings || !mappings.length) return escapeHtml(text);
 
@@ -7716,6 +7764,8 @@ async function runMigration(articleId, idx) {
   document.getElementById('migrateModalSubtitle').textContent = doc.subtitle || '';
   document.getElementById('migrateOriginalContent').innerHTML = '<span style="color:#9ca3af">불러오는 중...</span>';
   document.getElementById('migrateResultContent').innerHTML = '';
+  // 미리보기 모드 자동 해제 (새 변환 시작 시 편집 모드로 리셋)
+  if (typeof _resetMigratePreview === 'function') _resetMigratePreview();
   document.getElementById('migrateAppliedCount').textContent = '0';
   const ac2 = document.getElementById('migrateAppliedCount2');
   if (ac2) ac2.textContent = '0';
