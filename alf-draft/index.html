@@ -8086,14 +8086,41 @@ async function loadExprTab(force = false) {
   if (_exprLoaded && !force) { renderExprCards(); return; }
   _exprSetStatus('데이터 불러오는 중...', 'info');
   try {
-    // migration_data에서 매핑 + overrides 통합 fetch
-    const cd = await _ensureChangesData();
+    // 항상 fresh fetch (캐시 의존 X) — Supabase 갱신 즉시 반영
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'migration_data' })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '데이터 로드 실패');
+    console.log('[표현 관리] migration_data 응답:', data);
+    console.log('[표현 관리] expression_overrides:', data.expression_overrides);
+    // 매핑 캐시 갱신 — 변경 가이드 탭과 같은 구조로
+    const slugToLabel = {
+      'product-structure': '상품구조',
+      'product-sales-settings': '판매설정',
+      'payment-settlement': '결제·정산',
+    };
+    const flatMappings = [];
+    const domainsData = (data.mapping && data.mapping.domains) || {};
+    for (const slug of Object.keys(domainsData)) {
+      const info = domainsData[slug];
+      const label = slugToLabel[slug] || info.label || slug;
+      for (const m of (info.mappings || [])) {
+        if (m.status === 'approved') {
+          flatMappings.push(Object.assign({}, m, { domain: label, lk1: m.old, lk2: m.new }));
+        }
+      }
+    }
+    _changesData = { mapping: flatMappings, new_features: (data.new_features?.new_features || []), raw: data };
     // expression_overrides 배열 → {mapping_key: row} dict로 변환
-    const rawOv = (cd && cd.raw && Array.isArray(cd.raw.expression_overrides)) ? cd.raw.expression_overrides : [];
+    const rawOv = Array.isArray(data.expression_overrides) ? data.expression_overrides : [];
     _exprOverrides = {};
     for (const r of rawOv) {
       if (r && r.mapping_key) _exprOverrides[r.mapping_key] = r;
     }
+    console.log('[표현 관리] _exprOverrides:', _exprOverrides);
     _exprLoaded = true;
     _exprSetStatus('', '');
     renderExprCards();
