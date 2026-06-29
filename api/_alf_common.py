@@ -21,13 +21,19 @@ DOCS_SPACES = {
         "label": "alf-md (라이브클래스)",
         "key_env": "CHANNELTALK_DOCS_ACCESS_KEY",
         "secret_env": "CHANNELTALK_DOCS_ACCESS_SECRET",
+        "channel_id": "11550",
+        "space_id": "18513",
     },
     "JUNA_ALF_MD": {
         "label": "Juna-alf-md 2.0 대응",
         "key_env": "CHANNELTALK_DOCS_ACCESS_KEY_JUNA_ALF_MD",
         "secret_env": "CHANNELTALK_DOCS_ACCESS_SECRET_JUNA_ALF_MD",
+        "channel_id": "11550",
+        "space_id": "4558",
     },
 }
+# 채널톡 admin URL 템플릿 (article id를 끼워서 사용)
+DOCS_ADMIN_URL_TEMPLATE = "https://desk.channel.io/#/channels/{channel_id}/document/spaces/{space_id}/articles/{article_id}"
 DEFAULT_DOCS_SPACE = "ALF_MD"
 
 
@@ -359,8 +365,12 @@ def sanitize_korean(text: str) -> str:
     return text
 
 
-def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_key: str = "") -> str:
+def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_key: str = "", json_mode: bool = False) -> str:
     """OpenAI API 호출 → 텍스트 응답 반환. 429·네트워크 에러 시 최대 3회 재시도.
+
+    json_mode=True 시 OpenAI `response_format: {"type": "json_object"}` 적용 →
+    응답이 항상 유효한 JSON으로 보장됨. 마이그레이션·매핑 추출 등 JSON 파싱이 필요한 호출에 사용.
+    프롬프트 안에 "JSON" 키워드 1회 이상 필수 (OpenAI 요구사항).
 
     모든 retry 실패 시 implicit None이 아닌 명시적 예외 raise → 호출자가 처리 가능.
     """
@@ -372,11 +382,14 @@ def call_anthropic(prompt: str, system: str = "", max_tokens: int = 4096, api_ke
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
 
-    payload = json.dumps({
+    payload_dict: dict = {
         "model": OPENAI_MODEL,
         "max_tokens": max_tokens,
         "messages": messages,
-    }).encode()
+    }
+    if json_mode:
+        payload_dict["response_format"] = {"type": "json_object"}
+    payload = json.dumps(payload_dict).encode()
 
     last_err: Exception | None = None
     for attempt in range(3):

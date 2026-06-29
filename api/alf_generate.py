@@ -605,7 +605,7 @@ class handler(_Base):
 JSON 외 다른 텍스트 출력 금지."""
             try:
                 raw = call_anthropic(
-                    migrate_prompt, max_tokens=4096, api_key=OPENAI_API_KEY,
+                    migrate_prompt, max_tokens=4096, api_key=OPENAI_API_KEY, json_mode=True,
                 )
                 parsed = extract_json(raw)
                 if not isinstance(parsed, dict):
