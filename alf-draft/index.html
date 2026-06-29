@@ -2394,7 +2394,14 @@
         <select id="migrateSpaceSelect" onchange="onMigrateSpaceChange(this.value)"
           style="font-size:12px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:6px;font-family:inherit;color:#374151;background:#fff;cursor:pointer;min-width:180px"></select>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+        <!-- 정렬 토글 -->
+        <div style="display:flex;gap:4px;background:#f3f4f6;border-radius:8px;padding:3px">
+          <button class="migrate-sort-btn active" data-order="impact" onclick="toggleMigrateSort('impact')"
+            style="font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:#3182F6;color:#fff;transition:all .15s">🎯 영향 큰 순</button>
+          <button class="migrate-sort-btn" data-order="date" onclick="toggleMigrateSort('date')"
+            style="font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:transparent;color:#6b7280;transition:all .15s">📅 최신순</button>
+        </div>
         <button class="btn btn-secondary" id="btnMigrateReload" onclick="loadMigrationDocs(true)" style="font-size:12px;padding:7px 14px">↺ 새로고침</button>
         <button class="btn btn-primary" id="btnMigrateAll" onclick="runBatchMigrate()" style="font-size:12px;padding:7px 16px">📦 전체 자동 변환</button>
       </div>
@@ -7146,6 +7153,8 @@ let _migrateCurrentTitles = {}; // { migrated_title, migrated_subtitle }
 let _migrateDoneSet = new Set(); // 변환 완료된 article_id
 let _migrateCurrentSpace = '';  // 현재 선택된 스페이스 slug
 let _migrateSpaces = [];        // [{slug, label}] — migration_data에서 로드
+let _migrateApprovedMappings = null; // approved 매핑 캐시 (null=미로드, []=로드완료)
+let _migrateSortOrder = 'impact'; // 'impact' | 'date'
 
 function _migrateSetStatus(msg, type) {
   const el = document.getElementById('migrateStatus');
@@ -7159,6 +7168,56 @@ function _migrateSetStatus(msg, type) {
   const c = colors[type] || colors.info;
   el.style.cssText = `display:block;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;background:${c.bg};border:1px solid ${c.border};color:${c.color}`;
   el.textContent = msg;
+}
+
+// 매핑 히트 카운트 — bodyHtml의 plain text에서 old 표현 등장 횟수 집계
+function _countMappingHits(bodyHtml, approvedMappings) {
+  const text = (bodyHtml || '').replace(/<[^>]+>/g, ' ');
+  let total = 0;
+  const hits = {};
+  for (const m of approvedMappings) {
+    const old = m.old || '';
+    if (old.length < 2) continue;
+    let count = 0, idx = 0;
+    while ((idx = text.indexOf(old, idx)) !== -1) { count++; idx += old.length; }
+    if (count > 0) { hits[old] = count; total += count; }
+  }
+  return { total, hits };
+}
+
+// approved 매핑 배열 확보 — _changesData 재활용 또는 migration_data fetch
+async function _ensureMigrateApprovedMappings() {
+  if (_migrateApprovedMappings !== null) return; // 이미 로드됨
+  // 변경가이드 탭이 먼저 열린 경우 _changesData 재활용
+  if (typeof _changesData !== 'undefined' && _changesData && _changesData.mapping) {
+    _migrateApprovedMappings = _changesData.mapping;
+    return;
+  }
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'migration_data' }),
+    });
+    const data = await res.json();
+    if (!data.ok) { _migrateApprovedMappings = []; return; }
+    // spaces 초기화 (드롭다운)
+    if (Array.isArray(data.spaces) && data.spaces.length) _initMigrateSpaces(data.spaces);
+    // approved 매핑 flatten
+    const slugToLabel = { 'product-structure': '상품구조', 'product-sales-settings': '판매설정', 'payment-settlement': '결제·정산' };
+    const flat = [];
+    const domains = (data.mapping && data.mapping.domains) || {};
+    for (const slug of Object.keys(domains)) {
+      const info = domains[slug];
+      const label = slugToLabel[slug] || info.label || slug;
+      for (const m of (info.mappings || [])) {
+        if (m.status === 'approved') flat.push(Object.assign({}, m, { domain: label }));
+      }
+    }
+    _migrateApprovedMappings = flat;
+  } catch (_) {
+    _migrateApprovedMappings = [];
+  }
 }
 
 // 스페이스 드롭다운 초기화 — migration_data 응답의 spaces 배열로 채움
@@ -7214,7 +7273,17 @@ async function loadMigrationDocs(force) {
     if (Array.isArray(data.spaces) && data.spaces.length) {
       _initMigrateSpaces(data.spaces);
     }
-    _migrateDocs = data.results || [];
+    const docs = data.results || [];
+    // 매핑 데이터 병렬 확보 (이미 있으면 즉시 반환)
+    await _ensureMigrateApprovedMappings();
+    const mappings = _migrateApprovedMappings || [];
+    // 각 도큐먼트에 매핑 히트 수 계산
+    for (const doc of docs) {
+      const { total, hits } = _countMappingHits(doc.bodyHtml || doc.preview || '', mappings);
+      doc._hitTotal = total;
+      doc._hitDetail = hits;
+    }
+    _migrateDocs = docs;
     _migrateLoaded = true;
     _migrateSetStatus(null);
     _renderMigrateDocList();
@@ -7224,28 +7293,80 @@ async function loadMigrationDocs(force) {
   }
 }
 
+// 정렬 토글
+function toggleMigrateSort(order) {
+  _migrateSortOrder = order;
+  document.querySelectorAll('.migrate-sort-btn').forEach(b => {
+    const isActive = b.dataset.order === order;
+    b.classList.toggle('active', isActive);
+    b.style.background = isActive ? '#3182F6' : 'transparent';
+    b.style.color = isActive ? '#fff' : '#6b7280';
+  });
+  _renderMigrateDocList();
+}
+
 function _renderMigrateDocList() {
   const listEl = document.getElementById('migrateDocList');
   if (!_migrateDocs.length) {
     listEl.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">등록된 아티클이 없어요.</div>';
     return;
   }
-  listEl.innerHTML = _migrateDocs.map((a, idx) => {
+
+  // 정렬: impact = 히트 수 desc (동률은 published 우선 + 최신순), date = 최신순
+  const sorted = _migrateDocs.slice().map((a, origIdx) => ({ a, origIdx }));
+  if (_migrateSortOrder === 'impact') {
+    sorted.sort((x, y) => {
+      const diff = (y.a._hitTotal || 0) - (x.a._hitTotal || 0);
+      if (diff !== 0) return diff;
+      // 동률: published 우선
+      const ps = (x.a.state === 'published' ? 0 : 1) - (y.a.state === 'published' ? 0 : 1);
+      if (ps !== 0) return ps;
+      // 최신순
+      return (new Date(y.a.updatedAt || 0)) - (new Date(x.a.updatedAt || 0));
+    });
+  } else {
+    sorted.sort((x, y) => (new Date(y.a.updatedAt || 0)) - (new Date(x.a.updatedAt || 0)));
+  }
+
+  listEl.innerHTML = sorted.map(({ a, origIdx }) => {
     const isDone = _migrateDoneSet.has(a.id);
     const stateLabel = isDone ? '변환 완료' : (a.state === 'published' ? '게시됨' : '초안');
     const stateCls = isDone ? 'migrate-badge-done' : (a.state === 'published' ? 'migrate-badge-published' : 'migrate-badge-draft');
     const updatedAt = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
-    return `<div class="migrate-doc-card${isDone ? ' done' : ''}" onclick="runMigration('${escapeHtml(a.id)}', ${idx})">
+
+    // 변경 필요 배지
+    const hitTotal = a._hitTotal || 0;
+    const hits = a._hitDetail || {};
+    let impactBadge = '';
+    if (_migrateApprovedMappings !== null) {
+      // hover title: 상위 3개 표현·횟수
+      const topHits = Object.entries(hits)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([k, v]) => `${k}(${v}건)`)
+        .join(', ');
+      const titleAttr = topHits ? escapeHtml(topHits) : '';
+      if (hitTotal >= 5) {
+        impactBadge = `<span class="migrate-badge" style="background:#fef2f2;color:#b91c1c;border:none" title="${titleAttr}">🚨 변경 필요 ${hitTotal}건</span>`;
+      } else if (hitTotal >= 1) {
+        impactBadge = `<span class="migrate-badge" style="background:#fef3c7;color:#92400e;border:none" title="${titleAttr}">🎯 변경 필요 ${hitTotal}건</span>`;
+      } else {
+        impactBadge = `<span class="migrate-badge" style="background:#f3f4f6;color:#6b7280;border:none">✅ 변경 없음</span>`;
+      }
+    }
+
+    return `<div class="migrate-doc-card${isDone ? ' done' : ''}" onclick="runMigration('${escapeHtml(a.id)}', ${origIdx})">
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;flex-wrap:wrap">
           <span class="migrate-badge ${stateCls}">${stateLabel}</span>
-          <span style="font-size:14px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.title || '(제목 없음)')}</span>
-          ${isDone ? '<span style="font-size:18px">✅</span>' : ''}
+          ${impactBadge}
+          ${isDone ? '<span style="font-size:16px;line-height:1.4">✅</span>' : ''}
         </div>
+        <div style="font-size:14px;font-weight:600;color:#111827;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.title || '(제목 없음)')}</div>
         ${a.subtitle ? `<div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.subtitle)}</div>` : ''}
         ${updatedAt ? `<div style="font-size:11px;color:#9ca3af;margin-top:3px">수정 ${updatedAt}</div>` : ''}
       </div>
-      <button class="btn btn-secondary" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap" onclick="event.stopPropagation();runMigration('${escapeHtml(a.id)}', ${idx})">변환 시작</button>
+      <button class="btn btn-secondary" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap" onclick="event.stopPropagation();runMigration('${escapeHtml(a.id)}', ${origIdx})">변환 시작</button>
     </div>`;
   }).join('');
 }
