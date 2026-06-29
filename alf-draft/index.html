@@ -7909,7 +7909,7 @@ function confirmApplyMigration(publishImmediately) {
     }
   } else {
     titleEl.textContent = '🔒 비공개 발행할까요?';
-    bodyEl.innerHTML = '변환된 본문이 채널톡에 <strong>비공개 상태(초안)</strong>로 저장돼요.<br>구매자에게 노출되지 않고, LK2.0 출시일에 일괄 공개 처리할 수 있어요.<br><br>본문 끝에 메타 주석이 자동 삽입돼서 1.0 원본과 매칭됩니다.';
+    bodyEl.innerHTML = 'LK2.0 본문이 채널톡에 <strong>새 revision(draft)</strong>으로 저장돼요. 구매자에게 노출되지 않아요.<br><br><strong style="color:#b45309">⚠️ 채널톡 admin 표시 안내</strong><br>기존 LK1.0 revision이 still published 상태로 남기 때문에 admin list엔 <strong>"공개"</strong>로 그대로 보여요. (채널톡 Open API에 unpublish 기능이 없어서 article-level 상태는 변경 못 함)<br>LK2.0 출시일에 <strong>일괄 공개 발행</strong>을 누르면 새 LK2.0 revision이 publish되면서 LK1.0 → LK2.0으로 교체돼요.<br><br>본문 끝에 메타 주석이 자동 삽입돼서 1.0 원본과 매칭됩니다.';
     if (btnEl) {
       btnEl.style.background = '#f59e0b';
       btnEl.textContent = '🔒 비공개 발행';
