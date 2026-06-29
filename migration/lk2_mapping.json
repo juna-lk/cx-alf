@@ -4,9 +4,9 @@
   "source_repo": "futureschole-ai-all/liveklass-ai-workspace",
   "channeltalk_article_count": 21,
   "review_status": {
-    "product-structure": "complete (15 approved / 6 removed)",
-    "product-sales-settings": "complete (6 approved / 0 removed)",
-    "payment-settlement": "complete (4 approved / 11 removed)"
+    "product-structure": "complete (26 approved / 6 removed)",
+    "product-sales-settings": "complete (16 approved / 0 removed)",
+    "payment-settlement": "complete (11 approved / 11 removed)"
   },
   "note": "매니저(사용자) 검토 결과 반영. status=approved 채택, removed 빼기, pending 미검토.",
   "domains": {
@@ -146,6 +146,105 @@
           "confidence": "high",
           "note": "상품 상세 페이지 CTA 버튼. 결제 흐름의 '상품 구매' 표현은 별도 매핑 필요 시 추가.",
           "status": "approved"
+        },
+        {
+          "old": "사이트 관리 > 클래스 관리",
+          "new": "사이트 관리 > 상품 관리",
+          "category": "메뉴 경로",
+          "evidence": "product-structure spec [2] LNB 구조 'as-is [클래스 관리] → to-be [상품 관리]'",
+          "confidence": "high",
+          "note": "전체 LNB 1depth 경로. 단일 단어 '클래스 관리→상품 관리'는 approved에 있으나 LNB 경로 전체 표기는 누락.",
+          "status": "approved"
+        },
+        {
+          "old": "오프라인 모임 / 코칭",
+          "new": "코칭",
+          "category": "용어",
+          "evidence": "product-structure spec 용어 표 '코칭 — Coaching, 오프라인/대면 중심 상품 타입'",
+          "confidence": "high",
+          "note": "LK1.0의 '오프라인 모임'(클래스 유형)이 LK2.0에서는 별도 상품 타입 '코칭'으로 승격. 단, 상품 아이템 타입으로는 '오프라인 모임' 표기 그대로 유지.",
+          "status": "approved"
+        },
+        {
+          "old": "강의 자료 / 파일 첨부",
+          "new": "디지털 파일",
+          "category": "용어",
+          "evidence": "product-structure spec 상품 아이템 타입 '디지털 파일 — Digital File, 파일 형태의 디지털 콘텐츠 아이템 (PDF, 이미지 등)'",
+          "confidence": "low",
+          "note": "디지털 '상품' 표현은 그대로지만, 상품 아이템 레벨에서는 '디지털 파일'이라는 명칭이 신규. LK1.0에서 '강의 자료', '파일 첨부' 등으로 안내된 케이스가 LK2.0에서 '디지털 파일' 아이템에 해당.",
+          "status": "approved"
+        },
+        {
+          "old": "임시 저장",
+          "new": "설정 중(임시 저장)",
+          "category": "용어",
+          "evidence": "product-structure spec [3] '설정 중(임시 저장) — 생성 직후 기본 상태. 한 번도 판매 중 상태로 전환된 적이 없음'",
+          "confidence": "high",
+          "note": "LK1.0 '임시 저장' 상태가 LK2.0에서는 판매 상태 3단계 중 하나인 '설정 중(임시 저장)'으로 명시. 매니저 안내 시 라벨 'OOO 상태입니다' 부분 통일 필요.",
+          "status": "approved"
+        },
+        {
+          "old": "공개 / 비공개 (단일 축)",
+          "new": "판매 상태 + 노출 설정 (이원화)",
+          "category": "정책",
+          "evidence": "운영 가이드 '상품 상태란? 상품 상태는 판매 상태와 노출 설정, 두 가지로 정해져요'",
+          "confidence": "high",
+          "note": "LK1.0은 '공개/비공개' 단일 축. LK2.0은 '판매 상태(설정 중·판매 중·판매 중단) × 노출 설정(전체 공개·일부 공개)' 두 축. 노출·구매 매트릭스 5가지 케이스 안내 시 필수.",
+          "status": "approved"
+        },
+        {
+          "old": "클래스 복사하기",
+          "new": "상품 복사하기 (이름 설정 + 리뷰 복사 여부 선택)",
+          "category": "기능명",
+          "evidence": "product-structure spec [7] 복사 정책 '상품/패키지 복사 시 이름 설정 가능, 리뷰 복사 여부 선택 가능, 복사본은 설정 중 상태로 생성'",
+          "confidence": "high",
+          "note": "LK1.0 '클래스 복사' 기능명. LK2.0에서 '리뷰 복사 여부 선택' 옵션 신설.",
+          "status": "approved"
+        },
+        {
+          "old": "휴지통",
+          "new": "휴지통 (7일 보관)",
+          "category": "정책",
+          "evidence": "product-structure spec [6] 삭제 정책 '삭제된 상품/패키지는 휴지통으로 이동하여 7일간 보관'",
+          "confidence": "high",
+          "note": "용어 자체는 유지. 7일 보관 정책이 명문화됨. 매니저 안내 시 '복구는 7일 이내만 가능' 명시 필요.",
+          "status": "approved"
+        },
+        {
+          "old": "다중 삭제 시 일부만 삭제 (LK1.0)",
+          "new": "다중 삭제 시 수강생 있는 상품 1개라도 있으면 전체 삭제 처리 안 됨",
+          "category": "정책",
+          "evidence": "product-structure spec 'LK2.0 UX 추가 개선 사항 9: 수강생 있는 상품 삭제 불가 안내 모달 → 삭제 시도했던 모든 상품/패키지 삭제 처리 안됨'",
+          "confidence": "high",
+          "note": "LK1.0과 LK2.0의 다중 삭제 동작 차이. 매니저가 '왜 하나도 안 삭제됐나요?' 질문 받을 때 답변 필요.",
+          "status": "approved"
+        },
+        {
+          "old": "강사 권한 (LNB 사용)",
+          "new": "강사: LNB-less로 본인 상품만 접근",
+          "category": "정책",
+          "evidence": "product-structure spec TL;DR '소유자/운영자는 LNB 전체 접근; 강사는 LNB-less로 본인 상품만 접근', PRODUS-021",
+          "confidence": "high",
+          "note": "LK1.0과 LK2.0의 강사 접근 권한 정책 변경. 강사용 상품 생성 페이지 분리됨(PRODUS-026).",
+          "status": "approved"
+        },
+        {
+          "old": "강의 구성 / 커리큘럼",
+          "new": "콘텐츠 구성 / 상품 아이템 구성",
+          "category": "용어",
+          "evidence": "product-structure spec 'LNB 2depth: 기존 4개 유형 커리큘럼을 상품으로 분리', PRODUS-006 '상품 아이템을 추가하고 섹션 구성/순서 변경'",
+          "confidence": "high",
+          "note": "LK1.0 '커리큘럼' 표현이 LK2.0에서는 '콘텐츠 구성' 또는 '상품 아이템 구성'으로 변경. 운영 가이드 IA에 '콘텐츠 구성' 표기.",
+          "status": "approved"
+        },
+        {
+          "old": "프로그램 페이지",
+          "new": "프로그램 페이지 (MVP 이후 fade out 예정)",
+          "category": "정책",
+          "evidence": "product-structure spec [11] '기존 사용 경험 전환을 고려하여 MVP 이후 기간을 두고 fade out 예정'",
+          "confidence": "high",
+          "note": "LK2.0에도 일시적으로 유지되지만 fade out 예정. 매니저 안내 시 '추후 대체될 메뉴' 단서 필요.",
+          "status": "approved"
         }
       ],
       "removed_mappings": [
@@ -236,6 +335,96 @@
           "category": "용어",
           "evidence": "product-sales-settings spec 판매 조건 옵션 '수량 제한'",
           "confidence": "high",
+          "status": "approved"
+        },
+        {
+          "old": "오퍼 / 가격 옵션 / 수강 옵션",
+          "new": "판매 조건",
+          "category": "용어",
+          "evidence": "product-sales-settings spec TL;DR '기존 Offer + 택1형 옵션을 \"판매 조건\"으로 통합', glossary '오퍼 — Offer'",
+          "confidence": "high",
+          "note": "LK1.0 '오퍼(Offer)' 개념이 LK2.0에서 '판매 조건'으로 통합 명명. 채널톡 본문에 '오퍼' 그대로 등장한 경우 매핑 필요.",
+          "status": "approved"
+        },
+        {
+          "old": "택 1형 옵션",
+          "new": "판매 조건 (1개 카드 선택)",
+          "category": "기능명",
+          "evidence": "product-sales-settings spec '기존의 오퍼와 택1형 옵션을 단일 개념인 \"판매 조건\"으로 통합', glossary '택 1형 옵션 — Required Option'",
+          "confidence": "high",
+          "note": "LK1.0 '택 1형 옵션'(예: 30일 vs 60일 수강권) → LK2.0 '판매 조건 카드' 다중 등록.",
+          "status": "approved"
+        },
+        {
+          "old": "추가 구매형 옵션",
+          "new": "추가 구성 (선택/필수)",
+          "category": "기능명",
+          "evidence": "product-sales-settings spec '추가구매형 옵션을 \"추가 구성\"으로 분리', glossary '추가 구매형 옵션 — Optional Add-on'",
+          "confidence": "high",
+          "note": "기존 매핑 '옵션→추가 구성'(approved)을 더 정확히 좁힌 표현. '추가 구매형 옵션'이라는 정식 명칭으로 채널톡 본문에 등장 가능.",
+          "status": "approved"
+        },
+        {
+          "old": "옵션 아이템",
+          "new": "추가 구성 아이템",
+          "category": "용어",
+          "evidence": "product-sales-settings spec §5.5 '추가 구성 카드는 1개 이상의 아이템을 등록', glossary '옵션 아이템 — Option Item'",
+          "confidence": "high",
+          "note": "LK1.0 '옵션 아이템' → LK2.0 '추가 구성 아이템'(아이템 이름, 가격, 수량, 공개/비공개).",
+          "status": "approved"
+        },
+        {
+          "old": "대기 신청 / 정원 마감 대기",
+          "new": "대기자 모집",
+          "category": "기능명",
+          "evidence": "product-sales-settings spec §5.2-4 '대기자 모집을 활성화하면 판매 조건별로 대기자 신청을 수집할 수 있다'",
+          "confidence": "low",
+          "note": "LK1.0에서 정원 초과 시 대기 신청 받는 기능명 정형화. LK1.0 정식 표현은 채널톡 매니저들이 '대기 신청'으로 안내했을 가능성. 매니저 확인 필요.",
+          "status": "approved"
+        },
+        {
+          "old": "면세 클래스 / 면세 처리",
+          "new": "면세 상품 설정",
+          "category": "용어",
+          "evidence": "product-sales-settings spec §5.2-6 '면세 상품 설정 정책. 면세로 설정한 상품/패키지는 결제 시 부가세를 부과하지 않는다'",
+          "confidence": "high",
+          "note": "LK1.0 '면세 클래스' 표현이 LK2.0 '면세 상품'으로 변경. 백오피스 면세 판매 기능 ON 시에만 UI 노출.",
+          "status": "approved"
+        },
+        {
+          "old": "월 할부 표시",
+          "new": "월 할부 금액 표시",
+          "category": "기능명",
+          "evidence": "product-sales-settings spec §5.2-5 '월 할부 금액 표시를 활성화하면 상세 페이지의 가격이 월 할부 금액으로 표시된다'",
+          "confidence": "low",
+          "note": "LK1.0 정식 명칭 불명확하나 매니저들이 '월 할부 표시'로 안내했을 것으로 추정. LK2.0 정식 라벨은 '월 할부 금액 표시'.",
+          "status": "approved"
+        },
+        {
+          "old": "USD 결제 / 달러 결제",
+          "new": "KRW, USD 사용 (노출 우선 화폐 선택)",
+          "category": "기능명",
+          "evidence": "product-sales-settings spec §5.2-3 'KRW는 기본 활성. USD 사용을 활성화하는 경우 노출 우선 화폐를 KRW 또는 USD 중 1개로 선택'",
+          "confidence": "low",
+          "note": "LK1.0의 다중 통화 처리 안내. LK2.0은 '노출 우선 화폐' 개념이 명확히 정의됨.",
+          "status": "approved"
+        },
+        {
+          "old": "공개 / 비공개 (오퍼)",
+          "new": "공개 / 비공개 (판매 조건 카드)",
+          "category": "용어",
+          "evidence": "product-sales-settings spec §5.3-4 '판매 조건 카드는 카드 단위 공개·비공개 전환이 가능하다'",
+          "confidence": "high",
+          "note": "오퍼 단위 공개/비공개 → 판매 조건 카드 단위 공개/비공개. 용어 자체는 같지만 적용 단위가 변경됨. 매핑보다는 안내 정책 변경.",
+          "status": "approved"
+        },
+        {
+          "old": "할인 이름 자유 입력",
+          "new": "할인 이름 (프리셋 / 직접 입력)",
+          "category": "기능명",
+          "evidence": "product-sales-settings spec §5.3-3 '사전 정의된 프리셋(울트라 얼리버드 / 슈퍼 얼리버드 / 얼리버드) 중 1개를 선택할 수 있다'",
+          "confidence": "high",
+          "note": "LK2.0 신규: 할인 이름 프리셋 3종 제공. LK1.0은 자유 입력만 가능했음.",
           "status": "approved"
         }
       ],
@@ -387,6 +576,69 @@
           "evidence": "payment-settlement 3️⃣ 결제 페이지 2항 '결제 페이지에서 결제금액 산출 내역이 항목별로 표시된다'",
           "confidence": "high",
           "note": "LK2.0 UI 라벨: 정가 / 할인 / 추가 구성 / 총 결제 금액 / 취소 금액. 주문 상세 내역에 추가 구성 구매 건도 같이 잡힘. 매핑 #1(결제 금액 산출 공식)과 짝을 이룸.",
+          "status": "approved"
+        },
+        {
+          "old": "지급 완료",
+          "new": "지급완료 (직접 취소 불가, 라클 내부 담당자 처리)",
+          "category": "정책",
+          "evidence": "payment-settlement 5️⃣ '지급완료된 결제내역은 판매자가 직접 취소할 수 없으며, 라클 내부 담당자를 통해 수행한다', 운영 가이드 '이미 정산 완료/진행 중인 건은 직접 취소할 수 없어요. 채팅 상담으로 문의해 주세요'",
+          "confidence": "high",
+          "note": "LK2.0 공식 표현: '지급완료'. 운영 가이드에서는 '정산 완료/진행 중'으로도 표기. 매니저 안내 시 '익월 정산금에서 차감하거나 환불금 입금 후 처리' 단서 포함.",
+          "status": "approved"
+        },
+        {
+          "old": "정산 정보 / 정산 계좌",
+          "new": "정산정책 + 정산내역",
+          "category": "용어",
+          "evidence": "payment-settlement 용어 표 '정산정책 — 결제내역 건별로 정산금액 산출 방법을 정의한 규칙(수수료, 매출구분 등). 정산내역 — 결제내역에 정산정책을 적용하여 생성된 정산 결과'",
+          "confidence": "low",
+          "note": "LK2.0에서 '정산정책'과 '정산내역' 두 개념 신설. LK1.0은 '정산 정보'로 통칭. 매니저 확정 필요.",
+          "status": "approved"
+        },
+        {
+          "old": "장바구니",
+          "new": "장바구니 (MVP 미도입, 1회 결제 = 1상품/패키지)",
+          "category": "정책",
+          "evidence": "payment-settlement 2️⃣ '장바구니 개념은 도입은 추후 고려', '제외 항목 (Won't): 장바구니 (MVP 미도입)'",
+          "confidence": "high",
+          "note": "LK2.0 MVP에서는 장바구니 명시적 제외. 매니저 안내 시 '장바구니 없음' 명시 가능.",
+          "status": "approved"
+        },
+        {
+          "old": "쿠폰 사용",
+          "new": "쿠폰 사용 허용 (판매 조건 카드별 토글)",
+          "category": "기능명",
+          "evidence": "product-sales-settings spec §5.3-3 '쿠폰 사용 허용은 카드별 독립 설정이며 기본값은 활성', payment-settlement 8️⃣",
+          "confidence": "high",
+          "note": "LK1.0은 상품 단위 쿠폰 사용 여부. LK2.0은 판매 조건 카드별 개별 토글. 매니저 안내 시 '카드별로 쿠폰 허용/차단 따로 설정' 필요.",
+          "status": "approved"
+        },
+        {
+          "old": "결제 환불 (가상계좌 부분 환불 포함)",
+          "new": "결제 취소 (전액) / 부분 취소",
+          "category": "정책",
+          "evidence": "운영 가이드 '환불 (전액 / 부분), 부분 환불은 한 번만 가능'",
+          "confidence": "high",
+          "note": "LK2.0 운영 가이드의 공식 정책: 부분 환불은 1회만 가능. LK1.0 가상계좌 부분 환불 (수동 처리) → LK2.0 시스템 내 '부분 취소' 단일 흐름.",
+          "status": "approved"
+        },
+        {
+          "old": "수강 취소 (수강생 탭)",
+          "new": "수강 취소 (체크박스 선택 → 적용 → 자동 전액 환불)",
+          "category": "기능명",
+          "evidence": "운영 가이드 '2-1. 수강생 탭에서 — 전액 취소. 수강 취소로 변경하면 신청이 취소되고, 자동으로 결제 취소·전액 환불돼요'",
+          "confidence": "high",
+          "note": "LK2.0 운영 가이드 명시: 수강생 탭에서의 수강 취소는 자동 전액 환불 트리거. 재참가 시 수강생이 다시 신청 필요. 매니저 안내 시 핵심 동작.",
+          "status": "approved"
+        },
+        {
+          "old": "결제 페이지 (정가만 노출)",
+          "new": "결제 페이지 (정가 / 할인 / 추가 구성 / 총 결제 금액 항목별 표시)",
+          "category": "기능명",
+          "evidence": "payment-settlement 3️⃣ '결제 페이지에서 결제금액 산출 내역이 항목별로 표시된다. 1) 판매조건 가격 2) 추가구성 선택 아이템 및 price_delta 3) 쿠폰 할인 금액 4) 최종 결제금액'",
+          "confidence": "high",
+          "note": "approved의 '결제 페이지: 정가/할인/추가 구성/총 결제 금액 항목별 표시'(payment #15)와 유사하지만 LK2.0 결제 페이지 4항목 노출 강조 측면에서 매니저 안내 시 사용. 기존 매핑 보완용.",
           "status": "approved"
         }
       ],
