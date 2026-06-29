@@ -8223,15 +8223,40 @@ function renderExprCards() {
     // 백엔드 필드명: custom_value
     const customText = ov.custom_value || '';
     const id = _exprCardId(it.lk1);
+    // 실제 반영되는 표현 (현재 모드 기준)
+    let effective = '';
+    let effectiveColor = { bg: '#f3f4f6', text: '#6b7280' };  // 미설정
+    let effectiveLabel = '미설정';
+    if (curMode === 'v1') {
+      effective = it.lk1;
+      effectiveColor = { bg: '#fef3c7', text: '#92400e' };
+      effectiveLabel = 'LK1.0 그대로';
+    } else if (curMode === 'v2') {
+      effective = it.lk2;
+      effectiveColor = { bg: '#f0fdf4', text: '#15803d' };
+      effectiveLabel = 'LK2.0';
+    } else if (curMode === 'hybrid') {
+      effective = ov.hybrid_format || `${it.lk1}(${it.lk2})`;
+      effectiveColor = { bg: '#ede9fe', text: '#6d28d9' };
+      effectiveLabel = '혼용';
+    } else if (curMode === 'custom') {
+      effective = customText;
+      effectiveColor = { bg: '#eff6ff', text: '#1e40af' };
+      effectiveLabel = '직접 입력';
+    }
+    const effectiveBadge = curMode
+      ? `<span class="expr-effective-badge" title="${_esc(effectiveLabel)}" style="background:${effectiveColor.bg};color:${effectiveColor.text};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;white-space:nowrap;margin-left:auto">📌 현재: ${_esc(effective)}</span>`
+      : `<span class="expr-effective-badge" style="background:#f3f4f6;color:#9ca3af;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;margin-left:auto">📌 미설정</span>`;
     return `
 <div class="expr-card" id="card-${id}">
-  <div class="expr-card-header">
+  <div class="expr-card-header" style="display:flex;align-items:center;gap:8px">
     <div class="expr-terms">
       <span class="expr-term-v1">${_esc(it.lk1)}</span>
       <span class="expr-arrow">→</span>
       <span class="expr-term-v2">${_esc(it.lk2)}</span>
       ${it.domain ? `<span class="expr-domain-badge">${_esc(it.domain)}</span>` : ''}
     </div>
+    ${effectiveBadge}
   </div>
   <div class="expr-radio-group">
     ${_exprRadioCard(id, it.lk1, it.lk2, 'v1',     '🟡', 'LK1.0 그대로', it.lk1, curMode, '')}
