@@ -2631,7 +2631,10 @@
         LK2.0 개발이 진행되는 동안 ALF 문서에 표기할 현재 표현을 매핑별로 선택해주세요.
       </p>
     </div>
-    <button class="btn btn-secondary" onclick="loadExprTab(true)" style="font-size:12px;padding:7px 14px">↺ 새로고침</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-secondary" onclick="loadExprTab(true)" style="font-size:12px;padding:7px 14px">↺ 새로고침</button>
+      <button class="expr-save-btn" onclick="openAddMappingModal()" style="padding:7px 14px;font-size:13px">+ 새 매핑 추가</button>
+    </div>
   </div>
 
   <!-- 통계 칩 -->
@@ -2669,6 +2672,79 @@
   </div>
 </div>
 
+<!-- 새 매핑 추가 모달 -->
+<div id="addMappingModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:28px 28px 24px;width:100%;max-width:480px;box-shadow:0 8px 40px rgba(0,0,0,.18);position:relative;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 style="font-size:16px;font-weight:700;color:#111827">+ 새 매핑 추가</h3>
+      <button onclick="closeAddMappingModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;line-height:1">✕</button>
+    </div>
+    <!-- 경고 배너 (기존 표준 매핑 중복 시) -->
+    <div id="addMappingWarn" style="display:none;background:#fef3c7;color:#92400e;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:14px">
+      ⚠️ 이미 표준 매핑에 있는 표현이에요. 그래도 저장하면 매니저 추가 매핑으로 등록돼요.
+    </div>
+    <!-- LK1.0 -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:6px">LK 1.0 표현 <span style="color:#ef4444">*</span></label>
+      <input type="text" id="addMappingOld" placeholder="예) 클래스 게시판" oninput="_checkDuplicateMapping()"
+        style="width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box;transition:border-color .12s"
+        onfocus="this.style.borderColor='#3182F6'" onblur="this.style.borderColor='#e5e7eb'" />
+    </div>
+    <!-- LK2.0 -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:6px">LK 2.0 표현 <span style="color:#ef4444">*</span></label>
+      <input type="text" id="addMappingNew" placeholder="예) 상품 게시판"
+        style="width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box;transition:border-color .12s"
+        onfocus="this.style.borderColor='#3182F6'" onblur="this.style.borderColor='#e5e7eb'" />
+    </div>
+    <!-- 카테고리 -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:8px">카테고리 <span style="color:#ef4444">*</span></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label class="expr-radio-label" data-mode="cat" style="flex:1;min-width:90px;padding:8px 6px" id="catLabel_용어">
+          <input type="radio" name="addMappingCat" value="용어" checked onchange="_selectAddCat('용어')">
+          <span class="expr-mode-name">용어</span>
+        </label>
+        <label class="expr-radio-label" data-mode="cat" style="flex:1;min-width:90px;padding:8px 6px" id="catLabel_메뉴경로">
+          <input type="radio" name="addMappingCat" value="메뉴 경로" onchange="_selectAddCat('메뉴 경로')">
+          <span class="expr-mode-name">메뉴 경로</span>
+        </label>
+        <label class="expr-radio-label" data-mode="cat" style="flex:1;min-width:90px;padding:8px 6px" id="catLabel_기능명">
+          <input type="radio" name="addMappingCat" value="기능명" onchange="_selectAddCat('기능명')">
+          <span class="expr-mode-name">기능명</span>
+        </label>
+        <label class="expr-radio-label" data-mode="cat" style="flex:1;min-width:90px;padding:8px 6px" id="catLabel_정책">
+          <input type="radio" name="addMappingCat" value="정책" onchange="_selectAddCat('정책')">
+          <span class="expr-mode-name">정책</span>
+        </label>
+      </div>
+    </div>
+    <!-- 도메인 -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:6px">도메인 <span style="color:#ef4444">*</span></label>
+      <select id="addMappingDomain"
+        style="width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box;background:#fff;cursor:pointer"
+        onfocus="this.style.borderColor='#3182F6'" onblur="this.style.borderColor='#e5e7eb'">
+        <option value="product-structure">상품구조</option>
+        <option value="product-sales-settings">판매설정</option>
+        <option value="payment-settlement">결제·정산</option>
+        <option value="기타">기타</option>
+      </select>
+    </div>
+    <!-- 메모 -->
+    <div style="margin-bottom:22px">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:6px">메모 <span style="font-weight:400;color:#9ca3af">(옵션)</span></label>
+      <textarea id="addMappingNote" placeholder="추가 배경이나 설명을 입력하세요..." rows="2"
+        style="width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical;transition:border-color .12s"
+        onfocus="this.style.borderColor='#3182F6'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
+    </div>
+    <!-- 버튼 -->
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="closeAddMappingModal()" class="btn btn-secondary" style="padding:9px 20px;font-size:14px">취소</button>
+      <button onclick="submitAddMapping()" id="addMappingSubmitBtn" class="expr-save-btn" style="padding:9px 20px;font-size:14px">저장</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const API = '';
@@ -8095,6 +8171,7 @@ let _exprOverrides = null;   // { [lk1_term]: { mode, custom_text } }
 let _exprLoaded    = false;
 let _exprDomainFilter = '';
 let _exprModeFilter   = '';
+let _customMappings = [];    // 매니저 직접 추가 매핑 배열
 
 async function loadExprTab(force = false) {
   if (_exprLoaded && !force) { renderExprCards(); return; }
@@ -8108,8 +8185,6 @@ async function loadExprTab(force = false) {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '데이터 로드 실패');
-    console.log('[표현 관리] migration_data 응답:', data);
-    console.log('[표현 관리] expression_overrides:', data.expression_overrides);
     // 매핑 캐시 갱신 — 변경 가이드 탭과 같은 구조로
     const slugToLabel = {
       'product-structure': '상품구조',
@@ -8127,6 +8202,15 @@ async function loadExprTab(force = false) {
         }
       }
     }
+    // 매니저 추가 custom_mappings 정규화
+    _customMappings = (data.custom_mappings || []).map(c => ({
+      old: c.old_term, new: c.new_term,
+      lk1: c.old_term, lk2: c.new_term,
+      category: c.category, domain: slugToLabel[c.domain] || c.domain || '기타',
+      note: c.note || '(매니저 직접 추가)',
+      isCustom: true,
+      customId: c.id,
+    }));
     _changesData = { mapping: flatMappings, new_features: (data.new_features?.new_features || []), raw: data };
     // expression_overrides 배열 → {mapping_key: row} dict로 변환
     const rawOv = Array.isArray(data.expression_overrides) ? data.expression_overrides : [];
@@ -8134,7 +8218,6 @@ async function loadExprTab(force = false) {
     for (const r of rawOv) {
       if (r && r.mapping_key) _exprOverrides[r.mapping_key] = r;
     }
-    console.log('[표현 관리] _exprOverrides:', _exprOverrides);
     _exprLoaded = true;
     _exprSetStatus('', '');
     renderExprCards();
@@ -8211,7 +8294,8 @@ function renderExprCards() {
   }
 
   const q = (document.getElementById('exprSearchInput')?.value || '').trim().toLowerCase();
-  let items = _changesData.mapping || [];
+  // approved 매핑 + 매니저 추가 매핑 합치기 (중복 old_term은 custom 우선 유지, 단순 concat)
+  let items = [...(_changesData.mapping || []), ...(_customMappings || [])];
 
   if (_exprDomainFilter) items = items.filter(it => it.domain === _exprDomainFilter);
   if (_exprModeFilter === 'unset') {
@@ -8261,14 +8345,21 @@ function renderExprCards() {
     const effectiveBadge = curMode
       ? `<span class="expr-effective-badge" title="${_esc(effectiveLabel)}" style="background:${effectiveColor.bg};color:${effectiveColor.text};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;white-space:nowrap;margin-left:auto">📌 현재: ${_esc(effective)}</span>`
       : `<span class="expr-effective-badge" style="background:#f3f4f6;color:#9ca3af;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;margin-left:auto">📌 미설정</span>`;
+    const managerBadge = it.isCustom
+      ? `<span style="background:#ede9fe;color:#6d28d9;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;white-space:nowrap">👤 매니저 추가</span>`
+      : '';
+    const deleteBtn = it.isCustom
+      ? `<button onclick="deleteCustomMapping('${_escAttr(it.lk1)}')" style="background:none;border:1px solid #fca5a5;color:#ef4444;border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer;font-weight:600" title="매핑 삭제">🗑 삭제</button>`
+      : '';
     return `
 <div class="expr-card" id="card-${id}">
-  <div class="expr-card-header" style="display:flex;align-items:center;gap:8px">
-    <div class="expr-terms">
+  <div class="expr-card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="expr-terms" style="flex:1;min-width:0">
       <span class="expr-term-v1">${_esc(it.lk1)}</span>
       <span class="expr-arrow">→</span>
       <span class="expr-term-v2">${_esc(it.lk2)}</span>
       ${it.domain ? `<span class="expr-domain-badge">${_esc(it.domain)}</span>` : ''}
+      ${managerBadge}
     </div>
     ${effectiveBadge}
   </div>
@@ -8283,6 +8374,7 @@ function renderExprCards() {
       value="${_esc(customText)}" oninput="_exprDirty('${id}')" />
   </div>
   <div class="expr-card-footer">
+    ${deleteBtn}
     <span class="expr-saved-chip" id="savedChip-${id}">저장됨 ✓</span>
     <button class="expr-save-btn" id="saveBtn-${id}" onclick="saveExpressionOverride('${_escAttr(it.lk1)}','${id}')">저장</button>
   </div>
@@ -8414,15 +8506,122 @@ function _renderExprStats() {
   const el = document.getElementById('exprStats');
   if (!el) return;
   const s = _getExprStats();
-  const pct = s.total ? Math.round((s.total - s.unset) / s.total * 100) : 0;
+  const customCount = (_customMappings || []).length;
+  const total = s.total + customCount;
+  const set = (s.total - s.unset) + customCount; // custom 매핑은 항상 "설정됨" 취급
+  const pct = total ? Math.round(set / total * 100) : 0;
   el.innerHTML = `
-    <span class="expr-stat-chip" style="background:#f0fdf4;color:#15803d">✅ 설정 완료 ${s.total - s.unset}/${s.total} (${pct}%)</span>
+    <span class="expr-stat-chip" style="background:#f0fdf4;color:#15803d">✅ 설정 완료 ${set}/${total} (${pct}%)</span>
     <span class="expr-stat-chip" style="background:#fef9c3;color:#92400e">⚠️ 미지정 ${s.unset}</span>
     <span class="expr-stat-chip" style="background:#fef3c7;color:#92400e">🟡 LK1.0 그대로 ${s.v1}</span>
     <span class="expr-stat-chip" style="background:#f0fdf4;color:#15803d">🟢 LK2.0 ${s.v2}</span>
     <span class="expr-stat-chip" style="background:#ede9fe;color:#6d28d9">🟣 혼용 ${s.hybrid}</span>
     <span class="expr-stat-chip" style="background:#eff6ff;color:#1e40af">🔵 직접 입력 ${s.custom}</span>
+    ${customCount ? `<span class="expr-stat-chip" style="background:#f5f3ff;color:#7c3aed">👤 매니저 추가 ${customCount}</span>` : ''}
   `;
+}
+
+// ── 새 매핑 추가 모달 ──────────────────────────────────────────
+
+function openAddMappingModal() {
+  const modal = document.getElementById('addMappingModal');
+  if (!modal) return;
+  // 폼 초기화
+  document.getElementById('addMappingOld').value = '';
+  document.getElementById('addMappingNew').value = '';
+  document.getElementById('addMappingNote').value = '';
+  document.getElementById('addMappingDomain').value = 'product-structure';
+  document.getElementById('addMappingWarn').style.display = 'none';
+  // 카테고리 초기화 — "용어" 선택 상태로
+  document.querySelectorAll('[name=addMappingCat]').forEach(r => { r.checked = r.value === '용어'; });
+  document.querySelectorAll('#addMappingModal .expr-radio-label[data-mode=cat]').forEach(l => {
+    const r = l.querySelector('input[type=radio]');
+    l.classList.toggle('selected', r && r.value === '용어');
+  });
+  modal.style.display = 'flex';
+}
+
+function closeAddMappingModal() {
+  const modal = document.getElementById('addMappingModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function _selectAddCat(val) {
+  document.querySelectorAll('#addMappingModal .expr-radio-label[data-mode=cat]').forEach(l => {
+    const r = l.querySelector('input[type=radio]');
+    l.classList.toggle('selected', r && r.value === val);
+  });
+}
+
+function _checkDuplicateMapping() {
+  const oldVal = (document.getElementById('addMappingOld')?.value || '').trim();
+  const warn = document.getElementById('addMappingWarn');
+  if (!warn || !oldVal) { if (warn) warn.style.display = 'none'; return; }
+  const exists = (_changesData?.mapping || []).some(m =>
+    (m.lk1 || '').trim() === oldVal
+  );
+  warn.style.display = exists ? 'block' : 'none';
+}
+
+async function submitAddMapping() {
+  const oldTerm  = (document.getElementById('addMappingOld')?.value || '').trim();
+  const newTerm  = (document.getElementById('addMappingNew')?.value || '').trim();
+  const category = document.querySelector('[name=addMappingCat]:checked')?.value || '용어';
+  const domain   = document.getElementById('addMappingDomain')?.value || '기타';
+  const note     = (document.getElementById('addMappingNote')?.value || '').trim();
+
+  if (!oldTerm || !newTerm) {
+    alert('LK1.0 표현과 LK2.0 표현을 모두 입력해주세요.');
+    return;
+  }
+
+  const btn = document.getElementById('addMappingSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'save_custom_mapping', old_term: oldTerm, new_term: newTerm, category, domain, note })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '저장 실패');
+    closeAddMappingModal();
+    // 목록 새로고침
+    await loadExprTab(true);
+    _exprSetStatus(`"${oldTerm}" 매핑이 추가됐어요.`, 'success');
+    setTimeout(() => _exprSetStatus('', ''), 3000);
+  } catch (e) {
+    alert('저장 실패: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '저장'; }
+  }
+}
+
+// 모달 배경 클릭 시 닫기
+document.addEventListener('click', e => {
+  const modal = document.getElementById('addMappingModal');
+  if (modal && e.target === modal) closeAddMappingModal();
+});
+
+// ── 매니저 추가 매핑 삭제 ─────────────────────────────────────
+
+async function deleteCustomMapping(oldTerm) {
+  if (!confirm(`"${oldTerm}" 매핑을 삭제할까요?`)) return;
+  try {
+    const res = await authFetch(`${API}/api/alf_generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'delete_custom_mapping', old_term: oldTerm })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '삭제 실패');
+    await loadExprTab(true);
+    _exprSetStatus(`"${oldTerm}" 매핑이 삭제됐어요.`, 'success');
+    setTimeout(() => _exprSetStatus('', ''), 3000);
+  } catch (e) {
+    alert('삭제 실패: ' + e.message);
+  }
 }
 </script>
 </body>

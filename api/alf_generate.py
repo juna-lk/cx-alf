@@ -556,6 +556,22 @@ class handler(_Base):
                             "note": m.get("note", ""),
                             "domain": domain_slug,
                         })
+            # 매니저 직접 추가 매핑 (lk2_custom_mappings) 합치기
+            try:
+                custom_rows = supabase_get(
+                    f"{SUPABASE_URL}/rest/v1/lk2_custom_mappings?select=*",
+                    SUPABASE_SERVICE_KEY,
+                )
+                for cm in (custom_rows or []):
+                    approved_mappings.append({
+                        "old": cm.get("old_term", ""),
+                        "new": cm.get("new_term", ""),
+                        "category": cm.get("category", "용어"),
+                        "note": cm.get("note", "") or "(매니저 직접 추가)",
+                        "domain": cm.get("domain", "기타"),
+                    })
+            except Exception as e:
+                print(f"[migrate] lk2_custom_mappings fetch 실패: {e}")
 
             # 표현 오버라이드 적용 — 매니저가 매핑별로 선택한 현재 표기.
             # mode='v1' = LK1.0 그대로 (변환 안 함), 'v2' = LK2.0 표현 (기본),
@@ -732,6 +748,15 @@ JSON 외 다른 텍스트 출력 금지."""
                 )
             except Exception as e:
                 print(f"[migration_data] lk2_expression_overrides fetch 실패: {e}")
+            # 매니저 직접 추가 매핑
+            custom_mappings = []
+            try:
+                custom_mappings = supabase_get(
+                    f"{SUPABASE_URL}/rest/v1/lk2_custom_mappings?select=*&order=created_at.desc",
+                    SUPABASE_SERVICE_KEY,
+                )
+            except Exception as e:
+                print(f"[migration_data] lk2_custom_mappings fetch 실패: {e}")
             self._respond(200, {
                 "ok": True,
                 "mapping": mapping_data,
@@ -739,8 +764,71 @@ JSON 외 다른 텍스트 출력 금지."""
                 "spaces": list_docs_spaces(),
                 "migration_pairs": migration_pairs,
                 "expression_overrides": expression_overrides,
+                "custom_mappings": custom_mappings,
             })
             return
+
+        # ─── 매니저 직접 추가 매핑 저장 ─────────────────────────────────
+        # 매니저가 lk2_mapping.json에 없는 누락 매핑(예: 클래스 게시판→...)을 직접 추가하는 endpoint.
+        if mode == "save_custom_mapping":
+            old_term = (body.get("old_term") or "").strip()
+            new_term = (body.get("new_term") or "").strip()
+            category = (body.get("category") or "용어").strip()
+            domain = (body.get("domain") or "product-structure").strip()
+            note_text = (body.get("note") or "").strip()
+            if not old_term or not new_term:
+                self._respond(400, {"ok": False, "error": "old_term · new_term 필수"})
+                return
+            row = {
+                "old_term": old_term,
+                "new_term": new_term,
+                "category": category,
+                "domain": domain,
+                "note": note_text or None,
+            }
+            try:
+                req = urllib.request.Request(
+                    f"{SUPABASE_URL}/rest/v1/lk2_custom_mappings",
+                    data=json.dumps(row).encode(),
+                    headers={
+                        "apikey": SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates,return=representation",
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    saved = json.loads(r.read())
+                self._respond(200, {"ok": True, "saved": saved})
+                return
+            except Exception as e:
+                print(f"[save_custom_mapping] 실패: {e}")
+                self._respond(500, {"ok": False, "error": f"매핑 저장 실패: {e}"})
+                return
+
+        # ─── 매니저 추가 매핑 삭제 ──────────────────────────────────────
+        if mode == "delete_custom_mapping":
+            old_term = (body.get("old_term") or "").strip()
+            if not old_term:
+                self._respond(400, {"ok": False, "error": "old_term 필수"})
+                return
+            try:
+                req = urllib.request.Request(
+                    f"{SUPABASE_URL}/rest/v1/lk2_custom_mappings?old_term=eq.{urllib.parse.quote(old_term)}",
+                    headers={
+                        "apikey": SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    },
+                    method="DELETE",
+                )
+                urllib.request.urlopen(req, timeout=10)
+                self._respond(200, {"ok": True})
+                return
+            except Exception as e:
+                print(f"[delete_custom_mapping] 실패: {e}")
+                self._respond(500, {"ok": False, "error": f"삭제 실패: {e}"})
+                return
 
         # ─── 표현 오버라이드 저장 ─────────────────────────────────────────
         # 매니저가 "표현 관리" 탭에서 매핑별 현재 사용 표현을 선택·저장하는 endpoint.
