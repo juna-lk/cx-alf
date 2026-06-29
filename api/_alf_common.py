@@ -38,13 +38,19 @@ DEFAULT_DOCS_SPACE = "ALF_MD"
 
 
 def list_docs_spaces() -> list:
-    """활성 스페이스 목록 — 환경변수에 키가 있는 것만 반환. UI 드롭다운용."""
+    """활성 스페이스 목록 — 환경변수에 키가 있는 것만 반환. UI 드롭다운·admin 링크용."""
     out = []
     for slug, conf in DOCS_SPACES.items():
         key = os.environ.get(conf["key_env"], "")
         secret = os.environ.get(conf["secret_env"], "")
         if key and secret:
-            out.append({"slug": slug, "label": conf["label"]})
+            out.append({
+                "slug": slug,
+                "label": conf["label"],
+                "channel_id": conf.get("channel_id", ""),
+                "space_id": conf.get("space_id", ""),
+                "admin_url_template": DOCS_ADMIN_URL_TEMPLATE,
+            })
     return out
 
 

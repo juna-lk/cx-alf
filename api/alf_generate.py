@@ -463,12 +463,22 @@ class handler(_Base):
             else:
                 # 빈 query: published 먼저, 그 안에서 최신순. limit 없음 (전체 반환)
                 results.sort(key=lambda x: (0 if x["state"] == "published" else 1, -(x.get("updatedAt") or 0)))
+            # 마이그레이션 매핑 쌍 (이미 변환된 도큐먼트 표시용)
+            migration_pairs = []
+            try:
+                migration_pairs = supabase_get(
+                    f"{SUPABASE_URL}/rest/v1/lk2_migration_pairs?select=*&order=migrated_at.desc",
+                    SUPABASE_SERVICE_KEY,
+                )
+            except Exception as e:
+                print(f"[kb_search] lk2_migration_pairs fetch 실패: {e}")
             self._respond(200, {
                 "ok": True,
                 "results": results,
                 "total_scanned": len(articles),
                 "matched": len(results),
                 "spaces": list_docs_spaces(),
+                "migration_pairs": migration_pairs,
             })
             return
 
@@ -654,11 +664,21 @@ JSON 외 다른 텍스트 출력 금지."""
                     features_data = json.loads(f.read())
             except Exception:
                 features_data = {"new_features": [], "stats": {}}
+            # 마이그레이션 매핑 쌍 (1.0 → 2.0 article pairing) Supabase fetch
+            migration_pairs = []
+            try:
+                migration_pairs = supabase_get(
+                    f"{SUPABASE_URL}/rest/v1/lk2_migration_pairs?select=*&order=migrated_at.desc",
+                    SUPABASE_SERVICE_KEY,
+                )
+            except Exception as e:
+                print(f"[migration_data] lk2_migration_pairs fetch 실패: {e}")
             self._respond(200, {
                 "ok": True,
                 "mapping": mapping_data,
                 "new_features": features_data,
                 "spaces": list_docs_spaces(),
+                "migration_pairs": migration_pairs,
             })
             return
 

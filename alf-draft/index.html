@@ -7150,7 +7150,8 @@ let _migrateDocs = [];          // 불러온 아티클 목록 캐시
 let _migrateLoaded = false;     // 최초 1회 로드 여부
 let _migrateCurrentArticleId = null;
 let _migrateCurrentTitles = {}; // { migrated_title, migrated_subtitle }
-let _migrateDoneSet = new Set(); // 변환 완료된 article_id
+let _migrateDoneSet = new Set(); // 변환 완료된 article_id (세션 임시)
+let _migratePairs = [];          // migration_pairs — 백엔드 영구 기록
 let _migrateCurrentSpace = '';  // 현재 선택된 스페이스 slug
 let _migrateSpaces = [];        // [{slug, label}] — migration_data에서 로드
 let _migrateApprovedMappings = null; // approved 매핑 캐시 (null=미로드, []=로드완료)
@@ -7244,7 +7245,18 @@ function onMigrateSpaceChange(newSlug) {
   // 목록 강제 재로드
   _migrateLoaded = false;
   _migrateDoneSet = new Set();
+  _migratePairs = [];
   loadMigrationDocs(true);
+}
+
+// 채널톡 admin URL 생성
+function _buildAdminUrl(articleId) {
+  const space = _migrateSpaces.find(s => s.slug === _migrateCurrentSpace);
+  if (!space || !space.admin_url_template) return null;
+  return space.admin_url_template
+    .replace('{channel_id}', space.channel_id || '')
+    .replace('{space_id}', space.space_id || '')
+    .replace('{article_id}', articleId);
 }
 
 // 현재 스페이스의 라벨 반환 (배지 표시용)
@@ -7269,10 +7281,12 @@ async function loadMigrationDocs(force) {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '목록 로드 실패');
-    // 스페이스 드롭다운 초기화 (마이그레이션 탭에 진입한 첫 호출 시)
+    // 스페이스 드롭다운 초기화 (admin_url_template 포함 전체 캐시)
     if (Array.isArray(data.spaces) && data.spaces.length) {
       _initMigrateSpaces(data.spaces);
     }
+    // migration_pairs 캐시 (영구 발행 기록)
+    _migratePairs = Array.isArray(data.migration_pairs) ? data.migration_pairs : [];
     const docs = data.results || [];
     // 매핑 데이터 병렬 확보 (이미 있으면 즉시 반환)
     await _ensureMigrateApprovedMappings();
@@ -7312,36 +7326,69 @@ function _renderMigrateDocList() {
     return;
   }
 
-  // 정렬: impact = 히트 수 desc (동률은 published 우선 + 최신순), date = 최신순
-  const sorted = _migrateDocs.slice().map((a, origIdx) => ({ a, origIdx }));
+  // migration_pairs lookup 맵 (original_article_id → pair)
+  const pairsMap = {};
+  for (const p of _migratePairs) {
+    if (p.original_article_id) pairsMap[p.original_article_id] = p;
+  }
+
+  // 정렬: 발행 완료(pairs 있음) 는 항상 하단 분리
+  // impact 모드: 미완료 → 히트 수 desc → published 우선 → 최신순 / 완료 → migrated_at desc
+  // date 모드: 미완료 → updatedAt desc / 완료 → migrated_at desc
+  const withMeta = _migrateDocs.slice().map((a, origIdx) => ({
+    a, origIdx, pair: pairsMap[a.id] || null,
+  }));
+
+  const incomplete = withMeta.filter(x => !x.pair);
+  const complete   = withMeta.filter(x => !!x.pair);
+
   if (_migrateSortOrder === 'impact') {
-    sorted.sort((x, y) => {
+    incomplete.sort((x, y) => {
       const diff = (y.a._hitTotal || 0) - (x.a._hitTotal || 0);
       if (diff !== 0) return diff;
-      // 동률: published 우선
       const ps = (x.a.state === 'published' ? 0 : 1) - (y.a.state === 'published' ? 0 : 1);
       if (ps !== 0) return ps;
-      // 최신순
       return (new Date(y.a.updatedAt || 0)) - (new Date(x.a.updatedAt || 0));
     });
   } else {
-    sorted.sort((x, y) => (new Date(y.a.updatedAt || 0)) - (new Date(x.a.updatedAt || 0)));
+    incomplete.sort((x, y) => (new Date(y.a.updatedAt || 0)) - (new Date(x.a.updatedAt || 0)));
   }
+  complete.sort((x, y) => (new Date(y.pair.migrated_at || 0)) - (new Date(x.pair.migrated_at || 0)));
 
-  listEl.innerHTML = sorted.map(({ a, origIdx }) => {
-    const isDone = _migrateDoneSet.has(a.id);
-    const stateLabel = isDone ? '변환 완료' : (a.state === 'published' ? '게시됨' : '초안');
-    const stateCls = isDone ? 'migrate-badge-done' : (a.state === 'published' ? 'migrate-badge-published' : 'migrate-badge-draft');
-    const updatedAt = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+  const sorted = [...incomplete, ...complete];
 
-    // 변경 필요 배지
+  listEl.innerHTML = sorted.map(({ a, origIdx, pair }) => {
+    // 발행 배지 (백엔드 pairs 우선, 세션 _migrateDoneSet 보조)
+    const isDoneSession = _migrateDoneSet.has(a.id);
+    let publishBadge = '';
+    let cardDoneCls = '';
+    if (pair) {
+      cardDoneCls = ' done';
+      const migratedDate = pair.migrated_at
+        ? new Date(pair.migrated_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+        : '';
+      const dateStr = migratedDate ? ` (${migratedDate})` : '';
+      if (pair.status === 'published') {
+        publishBadge = `<span class="migrate-badge" style="background:#dcfce7;color:#15803d;border:none">✅ 공개 발행됨${dateStr}</span>`;
+      } else {
+        publishBadge = `<span class="migrate-badge" style="background:#fef3c7;color:#92400e;border:none">🔒 비공개 발행됨${dateStr}</span>`;
+      }
+    } else if (isDoneSession) {
+      cardDoneCls = ' done';
+      publishBadge = `<span class="migrate-badge migrate-badge-done">변환 완료</span>`;
+    }
+
+    const stateLabel = a.state === 'published' ? '게시됨' : '초안';
+    const stateCls   = a.state === 'published' ? 'migrate-badge-published' : 'migrate-badge-draft';
+    const updatedAt  = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+
+    // 변경 필요 배지 (발행 완료 항목엔 생략)
     const hitTotal = a._hitTotal || 0;
-    const hits = a._hitDetail || {};
+    const hits     = a._hitDetail || {};
     let impactBadge = '';
-    if (_migrateApprovedMappings !== null) {
-      // hover title: 상위 3개 표현·횟수
+    if (!pair && _migrateApprovedMappings !== null) {
       const topHits = Object.entries(hits)
-        .sort((a, b) => b[1] - a[1])
+        .sort((p, q) => q[1] - p[1])
         .slice(0, 3)
         .map(([k, v]) => `${k}(${v}건)`)
         .join(', ');
@@ -7355,18 +7402,28 @@ function _renderMigrateDocList() {
       }
     }
 
-    return `<div class="migrate-doc-card${isDone ? ' done' : ''}" onclick="runMigration('${escapeHtml(a.id)}', ${origIdx})">
+    // 채널톡 admin 링크
+    const adminUrl = _buildAdminUrl(a.id);
+    const adminLink = adminUrl
+      ? `<a href="${escapeHtml(adminUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
+           style="font-size:11px;padding:5px 10px;border-radius:5px;background:#f3f4f6;color:#374151;text-decoration:none;border:1px solid #e5e7eb;white-space:nowrap">🔗 채널톡에서 보기</a>`
+      : '';
+
+    return `<div class="migrate-doc-card${cardDoneCls}" onclick="runMigration('${escapeHtml(a.id)}', ${origIdx})">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;flex-wrap:wrap">
           <span class="migrate-badge ${stateCls}">${stateLabel}</span>
+          ${publishBadge}
           ${impactBadge}
-          ${isDone ? '<span style="font-size:16px;line-height:1.4">✅</span>' : ''}
         </div>
         <div style="font-size:14px;font-weight:600;color:#111827;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.title || '(제목 없음)')}</div>
         ${a.subtitle ? `<div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.subtitle)}</div>` : ''}
         ${updatedAt ? `<div style="font-size:11px;color:#9ca3af;margin-top:3px">수정 ${updatedAt}</div>` : ''}
       </div>
-      <button class="btn btn-secondary" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap" onclick="event.stopPropagation();runMigration('${escapeHtml(a.id)}', ${origIdx})">변환 시작</button>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
+        ${adminLink}
+        <button class="btn btn-secondary" style="font-size:12px;padding:7px 14px;white-space:nowrap" onclick="event.stopPropagation();runMigration('${escapeHtml(a.id)}', ${origIdx})">변환 시작</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -7618,7 +7675,9 @@ async function applyMigration() {
       : `🔒 비공개 발행 완료 (LK2.0 출시일 일괄 공개 대상) — revision: ${data.revision_id || '-'}`;
     _migrateSetStatus(statusMsg, 'success');
     closeMigrateModal();
-    _renderMigrateDocList();
+    // migration_pairs 포함 최신 상태로 재fetch
+    _migrateLoaded = false;
+    loadMigrationDocs(true);
   } catch (e) {
     _migrateSetStatus('채널톡 적용 실패: ' + String(e), 'error');
   }
