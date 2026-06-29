@@ -2431,7 +2431,9 @@
           <div style="font-size:11px;font-weight:700;color:#3182F6;text-transform:uppercase;letter-spacing:.05em">변환 결과 (LK 2.0)</div>
           <div style="font-size:11px;color:#9ca3af"><span id="migrateAppliedCount">0</span>개 매핑 적용</div>
         </div>
-        <textarea id="migrateResultContent" rows="20" style="flex:1;width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;line-height:1.7;font-family:inherit;resize:none;box-sizing:border-box;color:#111827"></textarea>
+        <div id="migrateResultContent" contenteditable="true"
+          style="flex:1;width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;line-height:1.7;font-family:inherit;box-sizing:border-box;color:#111827;overflow-y:auto;white-space:pre-wrap;word-break:break-word;outline:none;min-height:200px"
+          spellcheck="false"></div>
       </div>
     </div>
     <!-- 매핑 카드 & 경고 -->
@@ -7216,7 +7218,7 @@ function _highlightMappings(text, mappings, side) {
     const re = new RegExp(escaped, 'g');
     const style = side === 'old'
       ? 'background:#fef2f2;color:#b91c1c;padding:1px 4px;border-radius:3px;font-weight:600'
-      : 'background:#eff6ff;color:#1e40af;padding:1px 4px;border-radius:3px;font-weight:600';
+      : 'background:#f0fdf4;color:#15803d;padding:1px 4px;border-radius:3px;font-weight:600';
     const sentinel = `\x00MARK${stash.length}\x00`;
     const spanHtml = `<span style="${style}">${escapeHtml(term)}</span>`;
     stash.push(spanHtml);
@@ -7247,7 +7249,7 @@ async function runMigration(articleId, idx) {
   document.getElementById('migrateModalTitle').textContent = doc.title || '변환 중...';
   document.getElementById('migrateModalSubtitle').textContent = doc.subtitle || '';
   document.getElementById('migrateOriginalContent').innerHTML = '<span style="color:#9ca3af">불러오는 중...</span>';
-  document.getElementById('migrateResultContent').value = '';
+  document.getElementById('migrateResultContent').innerHTML = '';
   document.getElementById('migrateAppliedCount').textContent = '0';
   const ac2 = document.getElementById('migrateAppliedCount2');
   if (ac2) ac2.textContent = '0';
@@ -7281,8 +7283,9 @@ async function runMigration(articleId, idx) {
     document.getElementById('migrateOriginalContent').innerHTML =
       _highlightMappings(data.original_markdown || '', mappings, 'old');
 
-    // 우측: 변환 결과 — textarea (편집 가능) + 별도 highlight 미리보기
-    document.getElementById('migrateResultContent').value = data.migrated_markdown || '';
+    // 우측: 변환 결과 — contenteditable div, new 표현 초록 highlight
+    document.getElementById('migrateResultContent').innerHTML =
+      _highlightMappings(data.migrated_markdown || '', mappings, 'new');
 
     // 매핑 카드 — 카드형 vertical stack
     const catConfig = {
@@ -7302,7 +7305,7 @@ async function runMigration(articleId, idx) {
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-size:13px;font-weight:600;padding:4px 10px;border-radius:6px;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5">${escapeHtml(m.old || '')}</span>
             <span style="font-size:18px;color:#3182F6;font-weight:700">→</span>
-            <span style="font-size:13px;font-weight:600;padding:4px 10px;border-radius:6px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe">${escapeHtml(m.new || '')}</span>
+            <span style="font-size:13px;font-weight:600;padding:4px 10px;border-radius:6px;background:#f0fdf4;color:#15803d;border:1px solid #6ee7b7">${escapeHtml(m.new || '')}</span>
           </div>
           ${m.note ? `<div style="margin-top:7px;font-size:11px;color:#6b7280;line-height:1.5">${escapeHtml(m.note)}</div>` : ''}
         </div>`;
@@ -7320,7 +7323,7 @@ async function runMigration(articleId, idx) {
     }
   } catch (e) {
     document.getElementById('migrateOriginalContent').innerHTML = `<span style="color:#dc2626">변환 중 오류 발생: ${escapeHtml(String(e))}</span>`;
-    document.getElementById('migrateResultContent').value = '';
+    document.getElementById('migrateResultContent').innerHTML = '';
   }
 }
 
@@ -7329,8 +7332,14 @@ function closeMigrateModal() {
   _migrateCurrentArticleId = null;
 }
 
+function _getMigratedText() {
+  // contenteditable div → innerText로 마크다운 텍스트 추출 (줄바꿈 보존)
+  const el = document.getElementById('migrateResultContent');
+  return el ? el.innerText : '';
+}
+
 function copyMigratedText() {
-  const val = document.getElementById('migrateResultContent').value;
+  const val = _getMigratedText();
   navigator.clipboard.writeText(val).then(() => {
     const btn = event.target;
     const orig = btn.textContent;
@@ -7341,7 +7350,7 @@ function copyMigratedText() {
 
 function copyMigratedRich() {
   // markdownToHtml이 있으면 서식 복사, 없으면 텍스트 복사 fallback
-  const val = document.getElementById('migrateResultContent').value;
+  const val = _getMigratedText();
   if (typeof markdownToHtml === 'function') {
     const html = markdownToHtml(val);
     try {
@@ -7369,7 +7378,7 @@ async function applyMigration() {
   document.getElementById('migrateConfirmModal').classList.remove('open');
   const articleId = _migrateCurrentArticleId;
   if (!articleId) return;
-  const migratedContent = document.getElementById('migrateResultContent').value;
+  const migratedContent = _getMigratedText();
   const migratedTitle = _migrateCurrentTitles.migrated_title;
   const migratedSubtitle = _migrateCurrentTitles.migrated_subtitle;
 
