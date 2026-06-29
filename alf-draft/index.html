@@ -7207,6 +7207,10 @@ async function loadMigrationDocs(force) {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '목록 로드 실패');
+    // 스페이스 드롭다운 초기화 (마이그레이션 탭에 진입한 첫 호출 시)
+    if (Array.isArray(data.spaces) && data.spaces.length) {
+      _initMigrateSpaces(data.spaces);
+    }
     _migrateDocs = data.results || [];
     _migrateLoaded = true;
     _migrateSetStatus(null);

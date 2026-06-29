@@ -468,6 +468,7 @@ class handler(_Base):
                 "results": results,
                 "total_scanned": len(articles),
                 "matched": len(results),
+                "spaces": list_docs_spaces(),
             })
             return
 
