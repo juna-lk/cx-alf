@@ -109,11 +109,12 @@ class handler(_Base):
     def do_GET(self):
         if not self._check_auth():
             return
-        if not DOCS_ACCESS_KEY or not DOCS_ACCESS_SECRET:
-            self._respond(500, {"ok": False, "error": "채널톡 Documents API 키가 설정되지 않았어요."})
-            return
+        # ?space=<SLUG> 쿼리로 스페이스 지정 (미지정 시 default = ALF_MD)
+        parsed = urllib.parse.urlparse(self.path)
+        qs = urllib.parse.parse_qs(parsed.query)
+        space = (qs.get("space") or [None])[0]
         try:
-            data = docs_req("/open/v1/spaces/$me/articles?language=ko&limit=100", method="GET")
+            data = docs_req("/open/v1/spaces/$me/articles?language=ko&limit=100", method="GET", space=space)
         except urllib.error.HTTPError as e:
             self._respond(500, {"ok": False, "error": f"채널톡 API 오류: {e.read().decode()}"})
             return
@@ -140,9 +141,6 @@ class handler(_Base):
     def do_POST(self):
         if not self._check_auth():
             return
-        if not DOCS_ACCESS_KEY or not DOCS_ACCESS_SECRET:
-            self._respond(500, {"ok": False, "error": "채널톡 Documents API 키가 설정되지 않았어요."})
-            return
 
         content_length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(content_length)) if content_length else {}
@@ -152,6 +150,7 @@ class handler(_Base):
         subtitle = (body.get("subtitle") or "").strip()
         draft_id = body.get("draft_id")
         do_publish = bool(body.get("publish", False))
+        space = body.get("space") or None
         # 기존 article_id가 있으면 update mode — 새 revision 추가
         existing_article_id = (body.get("article_id") or "").strip()
         is_update = bool(existing_article_id)
@@ -174,10 +173,12 @@ class handler(_Base):
                 # 기존 article에 새 revision 생성 (마이그레이션·재게시용)
                 result = docs_req(
                     f"/open/v1/spaces/$me/articles/{existing_article_id}/revisions",
-                    method="POST", body=article_body,
+                    method="POST", body=article_body, space=space,
                 )
             else:
-                result = docs_req("/open/v1/spaces/$me/articles", method="POST", body=article_body)
+                result = docs_req(
+                    "/open/v1/spaces/$me/articles", method="POST", body=article_body, space=space,
+                )
         except urllib.error.HTTPError as e:
             action = "업데이트" if is_update else "생성"
             self._respond(500, {"ok": False, "error": f"아티클 {action} 실패: {e.read().decode()}"})
@@ -198,7 +199,7 @@ class handler(_Base):
             try:
                 docs_req(
                     f"/open/v1/spaces/$me/articles/{article_id}/revisions/{revision_id}/publish",
-                    method="PUT",
+                    method="PUT", space=space,
                 )
                 published = True
             except Exception as e:

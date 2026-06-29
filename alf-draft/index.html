@@ -2387,9 +2387,17 @@
         채널톡 ALF 도큐먼트를 LK 2.0 표현으로 변환하고 채널톡에 즉시 적용해요.
       </p>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-secondary" id="btnMigrateReload" onclick="loadMigrationDocs(true)" style="font-size:12px;padding:7px 14px">↺ 새로고침</button>
-      <button class="btn btn-primary" id="btnMigrateAll" onclick="runBatchMigrate()" style="font-size:12px;padding:7px 16px">📦 전체 자동 변환</button>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+      <!-- 스페이스 드롭다운 (migration_data 응답의 spaces 배열로 채움) -->
+      <div id="migrateSpaceWrap" style="display:none;align-items:center;gap:8px">
+        <span style="font-size:12px;color:#6b7280;font-weight:600;white-space:nowrap">🌐 스페이스</span>
+        <select id="migrateSpaceSelect" onchange="onMigrateSpaceChange(this.value)"
+          style="font-size:12px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:6px;font-family:inherit;color:#374151;background:#fff;cursor:pointer;min-width:180px"></select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary" id="btnMigrateReload" onclick="loadMigrationDocs(true)" style="font-size:12px;padding:7px 14px">↺ 새로고침</button>
+        <button class="btn btn-primary" id="btnMigrateAll" onclick="runBatchMigrate()" style="font-size:12px;padding:7px 16px">📦 전체 자동 변환</button>
+      </div>
     </div>
   </div>
 
@@ -2408,7 +2416,10 @@
     <!-- 모달 헤더 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #e5e7eb;flex-shrink:0">
       <div>
-        <div id="migrateModalTitle" style="font-size:15px;font-weight:700;color:#111827"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+          <div id="migrateModalTitle" style="font-size:15px;font-weight:700;color:#111827"></div>
+          <span id="migrateModalSpaceBadge" style="display:none;font-size:10px;padding:2px 8px;border-radius:4px;background:#eff6ff;color:#3182F6;border:1px solid #bfdbfe;font-weight:600;white-space:nowrap"></span>
+        </div>
         <div id="migrateModalSubtitle" style="font-size:12px;color:#6b7280;margin-top:2px"></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -7130,6 +7141,8 @@ let _migrateLoaded = false;     // 최초 1회 로드 여부
 let _migrateCurrentArticleId = null;
 let _migrateCurrentTitles = {}; // { migrated_title, migrated_subtitle }
 let _migrateDoneSet = new Set(); // 변환 완료된 article_id
+let _migrateCurrentSpace = '';  // 현재 선택된 스페이스 slug
+let _migrateSpaces = [];        // [{slug, label}] — migration_data에서 로드
 
 function _migrateSetStatus(msg, type) {
   const el = document.getElementById('migrateStatus');
@@ -7145,16 +7158,52 @@ function _migrateSetStatus(msg, type) {
   el.textContent = msg;
 }
 
+// 스페이스 드롭다운 초기화 — migration_data 응답의 spaces 배열로 채움
+function _initMigrateSpaces(spaces) {
+  if (!spaces || !spaces.length) return; // 빈 배열이면 드롭다운 숨김 유지
+  _migrateSpaces = spaces;
+  if (!_migrateCurrentSpace) _migrateCurrentSpace = spaces[0].slug;
+  const select = document.getElementById('migrateSpaceSelect');
+  const wrap = document.getElementById('migrateSpaceWrap');
+  if (!select || !wrap) return;
+  select.innerHTML = spaces.map(s =>
+    `<option value="${escapeHtml(s.slug)}"${s.slug === _migrateCurrentSpace ? ' selected' : ''}>${escapeHtml(s.label)}</option>`
+  ).join('');
+  wrap.style.display = 'flex';
+}
+
+// 드롭다운 변경 핸들러
+function onMigrateSpaceChange(newSlug) {
+  if (newSlug === _migrateCurrentSpace) return;
+  _migrateCurrentSpace = newSlug;
+  // 진행 중인 변환 모달이 열려 있으면 닫기
+  const modal = document.getElementById('migrateModal');
+  if (modal && modal.classList.contains('open')) closeMigrateModal();
+  // 목록 강제 재로드
+  _migrateLoaded = false;
+  _migrateDoneSet = new Set();
+  loadMigrationDocs(true);
+}
+
+// 현재 스페이스의 라벨 반환 (배지 표시용)
+function _getMigrateSpaceLabel() {
+  if (!_migrateCurrentSpace || !_migrateSpaces.length) return '';
+  const found = _migrateSpaces.find(s => s.slug === _migrateCurrentSpace);
+  return found ? found.label : _migrateCurrentSpace;
+}
+
 async function loadMigrationDocs(force) {
   if (_migrateLoaded && !force) return;
   const listEl = document.getElementById('migrateDocList');
   _migrateSetStatus('채널톡 아티클 목록을 불러오는 중...', 'loading');
   listEl.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:24px;text-align:center">불러오는 중...</div>';
   try {
+    const body = { mode: 'kb_search', query: '' };
+    if (_migrateCurrentSpace) body.space = _migrateCurrentSpace;
     const res = await authFetch(`${API}/api/alf_generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'kb_search', query: '' }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '목록 로드 실패');
@@ -7260,7 +7309,7 @@ async function runMigration(articleId, idx) {
     const res = await authFetch(`${API}/api/alf_generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'migrate', article_id: articleId }),
+      body: JSON.stringify(Object.assign({ mode: 'migrate', article_id: articleId }, _migrateCurrentSpace ? { space: _migrateCurrentSpace } : {})),
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '변환 실패');
@@ -7273,6 +7322,13 @@ async function runMigration(articleId, idx) {
 
     document.getElementById('migrateModalTitle').textContent = data.migrated_title || doc.title || '';
     document.getElementById('migrateModalSubtitle').textContent = data.migrated_subtitle || doc.subtitle || '';
+    // 스페이스 배지
+    const badge = document.getElementById('migrateModalSpaceBadge');
+    if (badge) {
+      const spaceLabel = _getMigrateSpaceLabel();
+      if (spaceLabel) { badge.textContent = '📍 ' + spaceLabel; badge.style.display = 'inline-block'; }
+      else { badge.style.display = 'none'; }
+    }
 
     const mappings = data.applied_mappings || [];
     const cnt = mappings.length;
@@ -7387,13 +7443,13 @@ async function applyMigration() {
     const res = await authFetch(`${API}/api/alf_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify(Object.assign({
         article_id: articleId,
         name: migratedTitle,
         content: migratedContent,
         subtitle: migratedSubtitle,
         publish: true,
-      }),
+      }, _migrateCurrentSpace ? { space: _migrateCurrentSpace } : {})),
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '적용 실패');
@@ -7422,7 +7478,7 @@ async function runBatchMigrate() {
       const res = await authFetch(`${API}/api/alf_generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'migrate', article_id: doc.id }),
+        body: JSON.stringify(Object.assign({ mode: 'migrate', article_id: doc.id }, _migrateCurrentSpace ? { space: _migrateCurrentSpace } : {})),
       });
       const data = await res.json();
       results.push({ doc, data, ok: data.ok });
@@ -7459,7 +7515,7 @@ async function _batchApplyOne(idx, articleId, payloadJson) {
     const res = await authFetch(`${API}/api/alf_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ article_id: articleId, name: payload.t, content: payload.c, subtitle: payload.s, publish: true }),
+      body: JSON.stringify(Object.assign({ article_id: articleId, name: payload.t, content: payload.c, subtitle: payload.s, publish: true }, _migrateCurrentSpace ? { space: _migrateCurrentSpace } : {})),
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '');
@@ -7510,6 +7566,10 @@ async function renderChangeGuide(force) {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || '데이터 로드 실패');
+    // 스페이스 드롭다운 초기화 (spaces 배열이 있을 때만)
+    if (Array.isArray(data.spaces) && data.spaces.length) {
+      _initMigrateSpaces(data.spaces);
+    }
     // 데이터 정규화: lk2_mapping.json의 domains.{slug}.mappings를 flatten + slug→한국어 label 변환
     const slugToLabel = {
       'product-structure': '상품구조',

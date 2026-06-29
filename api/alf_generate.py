@@ -10,7 +10,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, is_safe_postgrest_tag, select_specific_tag, docs_req
+from _alf_common import call_anthropic, supabase_get, supabase_post, make_handler_base, strip_article_boilerplate, verify_draft, extract_json, is_safe_postgrest_tag, select_specific_tag, docs_req, list_docs_spaces
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -389,11 +389,13 @@ class handler(_Base):
         # 채널톡 도큐먼트 API의 list endpoint를 호출하고 query로 필터링.
         if mode == "kb_search":
             query = (body.get("query") or "").strip()
+            space = body.get("space") or None
             # 빈 query → 전체 list 반환 (마이그레이션 탭에서 도큐먼트 list 받을 때 사용)
             try:
                 data = docs_req(
                     "/open/v1/spaces/$me/articles?language=ko&limit=100",
                     method="GET",
+                    space=space,
                 )
             except urllib.error.HTTPError as e:
                 err_body = ""
@@ -475,6 +477,7 @@ class handler(_Base):
         # 별도 mode "migrate_apply"가 alf_publish.py에서 채널톡 update PUT 호출.
         if mode == "migrate":
             article_id = (body.get("article_id") or "").strip()
+            space = body.get("space") or None
             if not article_id:
                 self._respond(400, {"ok": False, "error": "article_id 필요"})
                 return
@@ -482,6 +485,7 @@ class handler(_Base):
                 data = docs_req(
                     "/open/v1/spaces/$me/articles?language=ko&limit=100",
                     method="GET",
+                    space=space,
                 )
             except Exception as e:
                 print(f"[migrate] 도큐먼트 fetch 실패: {e}")
@@ -653,6 +657,7 @@ JSON 외 다른 텍스트 출력 금지."""
                 "ok": True,
                 "mapping": mapping_data,
                 "new_features": features_data,
+                "spaces": list_docs_spaces(),
             })
             return
 

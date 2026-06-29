@@ -14,18 +14,52 @@ OPENAI_MODEL = "gpt-4o-mini"
 
 DOCS_BASE = "https://document-api.channel.io"
 
+# 채널톡 Documents API를 사용하는 스페이스 정의.
+# 각 스페이스마다 별도 Access Key/Secret 환경변수를 가짐.
+DOCS_SPACES = {
+    "ALF_MD": {
+        "label": "alf-md (라이브클래스)",
+        "key_env": "CHANNELTALK_DOCS_ACCESS_KEY",
+        "secret_env": "CHANNELTALK_DOCS_ACCESS_SECRET",
+    },
+    "JUNA_ALF_MD": {
+        "label": "Juna-alf-md 2.0 대응",
+        "key_env": "CHANNELTALK_DOCS_ACCESS_KEY_JUNA_ALF_MD",
+        "secret_env": "CHANNELTALK_DOCS_ACCESS_SECRET_JUNA_ALF_MD",
+    },
+}
+DEFAULT_DOCS_SPACE = "ALF_MD"
 
-def docs_req(path: str, method: str = "GET", body=None) -> dict:
+
+def list_docs_spaces() -> list:
+    """활성 스페이스 목록 — 환경변수에 키가 있는 것만 반환. UI 드롭다운용."""
+    out = []
+    for slug, conf in DOCS_SPACES.items():
+        key = os.environ.get(conf["key_env"], "")
+        secret = os.environ.get(conf["secret_env"], "")
+        if key and secret:
+            out.append({"slug": slug, "label": conf["label"]})
+    return out
+
+
+def docs_req(path: str, method: str = "GET", body=None, space: str | None = None) -> dict:
     """채널톡 Documents Open API 호출.
 
-    환경변수 CHANNELTALK_DOCS_ACCESS_KEY/SECRET 필수.
+    space 인자로 어느 스페이스의 키를 쓸지 지정. 미지정 시 DEFAULT_DOCS_SPACE.
     인증은 Basic auth (key:secret base64).
     """
     import base64
-    access_key = os.environ.get("CHANNELTALK_DOCS_ACCESS_KEY", "")
-    access_secret = os.environ.get("CHANNELTALK_DOCS_ACCESS_SECRET", "")
+    space_slug = (space or DEFAULT_DOCS_SPACE).upper()
+    conf = DOCS_SPACES.get(space_slug)
+    if not conf:
+        raise RuntimeError(f"알 수 없는 채널톡 스페이스: {space_slug}")
+    access_key = os.environ.get(conf["key_env"], "")
+    access_secret = os.environ.get(conf["secret_env"], "")
     if not access_key or not access_secret:
-        raise RuntimeError("CHANNELTALK_DOCS_ACCESS_KEY/SECRET 환경변수 누락")
+        raise RuntimeError(
+            f"{space_slug} 스페이스의 채널톡 API 키 환경변수 누락 "
+            f"({conf['key_env']}/{conf['secret_env']})"
+        )
     token = base64.b64encode(f"{access_key}:{access_secret}".encode()).decode()
     headers = {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
     data = json.dumps(body).encode() if body is not None else None
