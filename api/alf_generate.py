@@ -715,6 +715,15 @@ JSON 외 다른 텍스트 출력 금지."""
                     return
                 migrated_md = (parsed.get("migrated_markdown") or "").strip()
                 migrated_md = strip_article_boilerplate(migrated_md)
+                # 후처리 안전망: LLM이 prompt 무시 시 자동 보정
+                # 1) "** 키워드 **" 양옆 공백 제거 → "**키워드**"
+                migrated_md = re.sub(r"\*\*\s+([^\*\n]+?)\s+\*\*", r"**\1**", migrated_md)
+                # 2) "**키워드 **" / "** 키워드**" 한 쪽만 공백
+                migrated_md = re.sub(r"\*\*([^\*\n]+?)\s+\*\*", r"**\1**", migrated_md)
+                migrated_md = re.sub(r"\*\*\s+([^\*\n]+?)\*\*", r"**\1**", migrated_md)
+                # 3) 헤딩 누락 감지 (warning에 추가, 사용자가 prompt 무시 확인)
+                if "##" not in migrated_md and "###" not in migrated_md:
+                    print(f"[migrate] ⚠️ 변환 결과에 헤딩(## 또는 ###) 없음. LLM이 prompt 무시.")
                 self._respond(200, {
                     "ok": True,
                     "article_id": article_id,
