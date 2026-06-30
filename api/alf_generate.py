@@ -721,7 +721,23 @@ JSON 외 다른 텍스트 출력 금지."""
                 # 2) "**키워드 **" / "** 키워드**" 한 쪽만 공백
                 migrated_md = re.sub(r"\*\*([^\*\n]+?)\s+\*\*", r"**\1**", migrated_md)
                 migrated_md = re.sub(r"\*\*\s+([^\*\n]+?)\*\*", r"**\1**", migrated_md)
-                # 3) 헤딩 누락 감지 (warning에 추가, 사용자가 prompt 무시 확인)
+                # 3) 질문 패턴 자동 ### 변환 — LLM이 prompt 무시 시 휴리스틱으로 헤딩 자동 부여
+                #    조건: 라인 단독 + ?로 끝 + 길이 5~60자 + 헤딩·불릿·번호 아님
+                def _auto_h3(m):
+                    line = m.group(1).strip()
+                    if line.startswith("#") or line.startswith("-") or line.startswith(">"):
+                        return m.group(0)
+                    if re.match(r"^\d+\.\s", line):
+                        return m.group(0)
+                    if not (line.endswith("?") or line.endswith("？")):
+                        return m.group(0)
+                    if len(line) > 60 or len(line) < 5:
+                        return m.group(0)
+                    return f"\n\n### {line}\n"
+                migrated_md = re.sub(r"(?:^|\n)([^\n]+)(?=\n|$)", _auto_h3, migrated_md)
+                # 연속 빈 줄 정리
+                migrated_md = re.sub(r"\n{3,}", "\n\n", migrated_md).strip()
+                # 4) 헤딩 누락 감지 (warning에 추가, 사용자가 prompt 무시 확인)
                 if "##" not in migrated_md and "###" not in migrated_md:
                     print(f"[migrate] ⚠️ 변환 결과에 헤딩(## 또는 ###) 없음. LLM이 prompt 무시.")
                 self._respond(200, {
