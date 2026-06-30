@@ -7414,9 +7414,17 @@ function _countMappingHits(bodyHtml, approvedMappings) {
   const text = (bodyHtml || '').replace(/<[^>]+>/g, ' ');
   let total = 0;
   const hits = {};
+  // 표현 관리 override 반영 — v1(LK1.0 그대로)이면 변환 안 되니 카운트 제외
+  const ovs = (typeof _exprOverrides === 'object' && _exprOverrides) ? _exprOverrides : {};
   for (const m of approvedMappings) {
     const old = m.old || '';
+    const newTerm = m.new || '';
     if (old.length < 2) continue;
+    // 1) old === new (같은 표현)이면 변환 안 됨 → 카운트 제외
+    if (old === newTerm) continue;
+    // 2) override mode='v1'이면 LK1.0 그대로 유지 → 카운트 제외
+    const ov = ovs[old];
+    if (ov && ov.mode === 'v1') continue;
     let count = 0, idx = 0;
     while ((idx = text.indexOf(old, idx)) !== -1) { count++; idx += old.length; }
     if (count > 0) { hits[old] = count; total += count; }
