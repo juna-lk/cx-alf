@@ -173,6 +173,11 @@ class handler(_Base):
         if subtitle:
             article_body["subtitle"] = subtitle
             article_body["summary"] = subtitle
+        # LK2.0 마이그레이션 흐름이면 "LK2.0" 토픽 자동 부착 (id=10324, env로 override 가능)
+        if migrated_from:
+            lk2_topic_id = os.environ.get("CHANNELTALK_LK2_TOPIC_ID", "10324").strip()
+            if lk2_topic_id:
+                article_body["topicIds"] = [lk2_topic_id]
 
         try:
             if is_update:
