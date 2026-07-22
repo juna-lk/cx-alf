@@ -24,7 +24,7 @@ for line in _env_lines:
         os.environ.setdefault(k.strip(), v.strip())
 
 sys.path.insert(0, str(Path(__file__).parent / "api"))
-from _alf_common import supabase_get, supabase_post  # noqa: E402
+from _alf_common import supabase_get, supabase_post, supabase_upsert, user_to_row  # noqa: E402
 from alf_collect import fetch_messages_for_chat, parse_messages, build_row, fetch_all_managers  # noqa: E402
 
 CT_HEADERS = {
@@ -54,11 +54,12 @@ def get_existing_chat_ids() -> set:
     return existing
 
 
-def fetch_chats_full(state: str, since_ts: float = 0) -> list:
+def fetch_chats_full(state: str, since_ts: float = 0, user_map: dict | None = None) -> list:
     """state별 모든 페이지를 끝까지 가져온 후 date 필터링.
 
     since_ts=0 이면 날짜 제한 없이 전체 수집.
     안전장치: 200페이지(=100,000건)를 초과하면 중단.
+    user_map(dict)을 넘기면 응답에 동봉된 users[]를 {user_id: user}로 누적한다.
     """
     all_chats = []
     cursor = None
@@ -78,6 +79,10 @@ def fetch_chats_full(state: str, since_ts: float = 0) -> list:
         except Exception as e:
             print(f"      [{state}] page{page} 실패: {e}")
             break
+        if user_map is not None:
+            for u in data.get("users", []):
+                if u.get("id"):
+                    user_map[u["id"]] = u
         batch = data.get("userChats", [])
         if since_ts > 0:
             in_range = [c for c in batch if c.get("createdAt", 0) / 1000 >= since_ts]
@@ -127,11 +132,12 @@ if __name__ == "__main__":
 
     print("[2/5] 채널톡 채팅 목록 수집 (state별 끝까지 페이지네이션)...")
     all_chats = []
+    user_map = {}  # {user.id: user} — user-chats 응답에 동봉된 users[] 누적
     for state in ("closed", "opened", "snoozed", "initial", "missed"):
-        chats = fetch_chats_full(state, since_ts_val)
+        chats = fetch_chats_full(state, since_ts_val, user_map)
         all_chats.extend(chats)
         print(f"   {state}: {len(chats)}건 누적")
-    print(f"      총 {len(all_chats)}건 (중복 포함)")
+    print(f"      총 {len(all_chats)}건 (중복 포함), 유저 {len(user_map)}명 수집")
     print()
 
     # 중복 제거
@@ -213,3 +219,19 @@ if __name__ == "__main__":
         print(f"      ... 최종 {total}/{total} 수집, {stored}건 저장됨")
 
     print(f"\n[완료] 신규 {stored}건 저장, 메시지 수집 실패 {errors}건")
+
+    # [5/5] cx_users: 이번 스윕에 등장한 유저 프로필 upsert (신규 상담 유무와 무관)
+    print(f"\n[5/5] cx_users 유저 프로필 저장 ({len(user_map)}명)...")
+    user_rows = [user_to_row(u) for u in user_map.values() if u.get("id")]
+    users_stored = 0
+    for i in range(0, len(user_rows), 100):
+        chunk = user_rows[i:i + 100]
+        try:
+            supabase_upsert(
+                f"{SUPABASE_URL}/rest/v1/cx_users",
+                chunk, SUPABASE_SERVICE_KEY, on_conflict="user_id",
+            )
+            users_stored += len(chunk)
+        except Exception as e:
+            print(f"      [warn] cx_users upsert 실패: {e}")
+    print(f"[완료] cx_users {users_stored}명 저장")
