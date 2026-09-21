@@ -24,6 +24,7 @@ if ENV_PATH.exists():
 
 sys.path.insert(0, str(Path(__file__).parent / "api"))
 from alf_collect import fetch_messages_for_chat, parse_messages, fetch_all_managers  # noqa: E402
+from _pii import mask_messages  # noqa: E402
 from _alf_common import supabase_get  # noqa: E402
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
@@ -31,11 +32,16 @@ SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 
 
 def patch_chat_messages(chat_id: str, messages: list) -> bool:
-    """messages·message_count 컬럼만 PATCH로 강제 업데이트. 3회 retry."""
+    """messages·message_count 컬럼만 PATCH로 강제 업데이트. 3회 retry.
+
+    채널톡에서 갓 받아온 원문이라 개인정보가 그대로 들어 있다. 저장 전에
+    가린다(_pii.py) — alf_collect.build_row 와 같은 규칙.
+    """
+    messages = mask_messages(messages)
     payload = json.dumps({
         "messages": messages,
         "message_count": len(messages),
-    }).encode()
+    }, ensure_ascii=False).encode()
     for attempt in range(3):
         req = urllib.request.Request(
             f"{SUPABASE_URL}/rest/v1/cx_full_messages?chat_id=eq.{chat_id}",
@@ -69,35 +75,42 @@ def patch_chat_messages(chat_id: str, messages: list) -> bool:
 
 
 if __name__ == "__main__":
-    # 기본 = 전체 chat 재처리. --old-only 옵션 줄 때만 옛 schema chat만.
-    old_only = "--old-only" in sys.argv
-    mode_label = "옛 schema chat_id" if old_only else "전체 chat_id"
+    # 기본 = 옛 schema chat만 (messages[0].time IS NULL). --all로 전체 재처리 강제.
+    all_mode = "--all" in sys.argv
+    mode_label = "전체 chat_id" if all_mode else "옛 schema chat_id (서버 필터)"
 
     print("[0/3] 채널톡 매니저 목록 fetch...")
     manager_map = fetch_all_managers()
     print(f"      매니저 {len(manager_map)}명 캐시")
     print()
 
-    print(f"[1/3] {mode_label} 조회 (페이지네이션)...")
+    print(f"[1/3] {mode_label} 조회 (ORDER + 페이지네이션)...")
     old_chat_ids = []
     offset = 0
     PAGE = 1000
+    base_filter = "" if all_mode else "&messages->0->>time=is.null"
     while True:
-        url = f"{SUPABASE_URL}/rest/v1/cx_full_messages?select=chat_id,messages&limit={PAGE}&offset={offset}"
+        url = (
+            f"{SUPABASE_URL}/rest/v1/cx_full_messages"
+            f"?select=chat_id{base_filter}"
+            f"&date=gte.2024-01-01"
+            f"&order=chat_id"
+            f"&limit={PAGE}&offset={offset}"
+        )
         rows = supabase_get(url, SUPABASE_SERVICE_KEY)
         if not rows:
             break
         for r in rows:
-            msgs = r.get("messages") or []
-            if old_only:
-                if msgs and isinstance(msgs[0], dict) and "time" not in msgs[0]:
-                    old_chat_ids.append(r["chat_id"])
-            else:
-                old_chat_ids.append(r["chat_id"])
+            old_chat_ids.append(r["chat_id"])
         print(f"      ... offset={offset}, 누적 {len(old_chat_ids)}건")
         if len(rows) < PAGE:
             break
         offset += PAGE
+    # 안전망: 중복 제거 (이론상 ORDER+page-stable이라 0건이지만 확인용)
+    dup_before = len(old_chat_ids)
+    old_chat_ids = list(dict.fromkeys(old_chat_ids))
+    if dup_before != len(old_chat_ids):
+        print(f"      [warn] 중복 {dup_before - len(old_chat_ids)}건 제거 → unique {len(old_chat_ids)}건")
     print(f"      총 처리 대상: {len(old_chat_ids)}건")
     print()
 

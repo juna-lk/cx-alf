@@ -8,6 +8,7 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timezone, timedelta
 from _alf_common import supabase_get, supabase_post, supabase_upsert, user_to_row, make_handler_base
+from _pii import mask_messages
 
 CT_ACCESS_KEY = os.environ.get("CHANNELTALK_ACCESS_KEY", "")
 CT_ACCESS_SECRET = os.environ.get("CHANNELTALK_ACCESS_SECRET", "")
@@ -198,7 +199,9 @@ def build_row(chat: dict, messages: list) -> dict:
         "chat_id": chat_id,
         "date": dt.strftime("%Y-%m-%d"),
         "tags": chat.get("tags") or [],
-        "messages": messages,
+        # 상담 본문에 고객이 직접 적은 이메일·전화·계좌가 섞여 들어온다.
+        # 저장 전에 가린다 (_pii.py).
+        "messages": mask_messages(messages),
         "handling_type": chat.get("handlingType") or "none",
         "csat_score": chat.get("csatScore"),
         "message_count": len(messages),

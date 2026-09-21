@@ -6,6 +6,9 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone, timedelta
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _pii import mask_name, mask_email, mask_phone, mask_deep, mask_messages, desk_url
 
 _KST = timezone(timedelta(hours=9))
 
@@ -574,10 +577,12 @@ def user_to_row(user: dict) -> dict:
         "user_id": user.get("id"),
         "member_id": user.get("memberId"),
         "type": user.get("type"),
-        "name": user.get("name") or profile.get("name"),
-        "email": user.get("email") or profile.get("email"),
-        "mobile_number": user.get("mobileNumber") or profile.get("mobileNumber"),
-        "profile": profile,
+        # 수집 단계에서 바로 가린다 (_pii.py). 원본을 넣었다가 나중에 지우면
+        # 백업·복제본에 계속 남는다. 사람 식별은 user_id 로 한다.
+        "name": mask_name(user.get("name") or profile.get("name")),
+        "email": mask_email(user.get("email") or profile.get("email")),
+        "mobile_number": mask_phone(user.get("mobileNumber") or profile.get("mobileNumber")),
+        "profile": mask_deep(profile),
     }
     for col, pkey in _USER_PROMOTE_MAP.items():
         val = profile.get(pkey)
