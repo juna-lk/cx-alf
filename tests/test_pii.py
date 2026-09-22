@@ -177,3 +177,23 @@ def test_email_in_name_field_is_masked():
     assert mask_name("heossu@naver.com") == "h***@n***.com"
     # 진짜 파일명은 여전히 그대로
     assert mask_name("image.png") == "image.png"
+
+
+def test_one_letter_nickname_honorific_in_filename():
+    """`곰님_영수증.pdf` 처럼 한 글자 별명도 파일명에서는 잡는다."""
+    from _pii import mask_filename
+    assert mask_filename("곰님_부분취소영수증.pdf") == "*님_부분취소영수증.pdf"
+    # 본문 규칙은 그대로 (2~4자만)
+    assert mask_text("곰님 안녕하세요") == "곰님 안녕하세요"
+    # 사이트·업체 이름은 건드리지 않는다
+    assert mask_filename("케어스쿨 정산내역(2024년 3월).xlsx") == "케어스쿨 정산내역(2024년 3월).xlsx"
+    assert mask_filename("세모클래스_파비콘.ico") == "세모클래스_파비콘.ico"
+
+
+def test_leading_name_in_filename():
+    from _pii import mask_filename
+    assert mask_filename("이바울_취소영수증.pdf") == "이**_취소영수증.pdf"
+    # 업체 이름은 그대로
+    assert mask_filename("오픈스쿨_2303정산내역.xlsx") == "오픈스쿨_2303정산내역.xlsx"
+    # 하이픈은 이름 구분자로 보지 않는다 (오탐 방지)
+    assert mask_filename("제목을-입력해주세요_-002.png") == "제목을-입력해주세요_-002.png"

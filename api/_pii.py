@@ -68,6 +68,18 @@ NON_PERSON_CONTAINERS = {"attachments", "files", "buttons", "blocks", "options",
 FILENAME_RE = re.compile(r'\.[A-Za-z0-9]{2,5}$')
 # "홍길동님_부분환불.pdf" 처럼 '님' 을 붙여 쓴 이름. 상담 본문에도 흔하다.
 HONORIFIC_RE = re.compile(r'(?<![가-힣])([가-힣]{2,4})님')
+# 파일명 전용. `곰님_부분취소영수증.pdf` 같은 한 글자 별명까지 잡되,
+# 뒤에 구분자가 오는 경우로 좁혀 오탐을 막는다.
+FILE_HONORIFIC_RE = re.compile(r'(?<![가-힣])([가-힣])님(?=[_\-\s.])')
+# `이바울_취소영수증.pdf` 처럼 표시 없이 맨 앞에 오는 이름. 상담 고객이
+# 아닌 제3자(수강생) 이름이라 이름 사전으로도 못 잡는 자리다.
+# 구분자는 밑줄만 본다. 하이픈까지 허용하면 `제목을-입력해주세요_-002.png`
+# 의 '제목을' 이 이름으로 잡힌다(실제 오탐).
+FILE_LEADING_NAME_RE = re.compile(r'^([가-힣]{2,4})(?=_)')
+# 업체·사이트 이름은 사람이 아니다. `오픈스쿨_2303정산내역.xlsx` 를 가리면
+# 무슨 파일인지 알 수 없게 된다.
+BUSINESS_SUFFIXES = ("스쿨", "클래스", "아카데미", "스튜디오", "센터", "에듀",
+                     "컴퍼니", "코리아", "파트너스", "미디어", "그룹", "연구소")
 # '님' 이 붙어도 사람 이름이 아닌 말들.
 HONORIFIC_STOPWORDS = {
     "고객", "선생", "회원", "사장", "대표", "부모", "학부모", "어머", "아버",
@@ -165,9 +177,25 @@ def mask_filename(value):
     if not value or not isinstance(value, str):
         return value
     s = HONORIFIC_RE.sub(_sub_honorific, value)
+    # 파일명에서는 한 글자 별명도 잡는다. `곰님_부분취소영수증.pdf` 처럼
+    # 구분자가 뒤따르므로 본문보다 안전하게 좁힐 수 있다.
+    # 한 글자는 첫 글자만 남기는 방식이 통하지 않는다(가려지는 게 없다).
+    # 통째로 바꾼다.
+    s = FILE_HONORIFIC_RE.sub("*님", s)
+    s = FILE_LEADING_NAME_RE.sub(_sub_leading_name, s)
     s = EMAIL_RE.sub(lambda m: f"{m.group(1)}***@{m.group(2)}***.{m.group(3)}", s)
     s = PHONE_RE.sub(lambda m: f"{m.group(1)}-****-{m.group(3)}", s)
     return s
+
+
+def _sub_leading_name(m):
+    """파일명 맨 앞의 이름을 가린다. 업체 이름은 그대로."""
+    word = m.group(1)
+    if word.endswith(BUSINESS_SUFFIXES):
+        return word
+    if any(word.startswith(x) for x in NAME_LABEL_STOPWORDS | HONORIFIC_STOPWORDS):
+        return word
+    return word[0] + "*" * (len(word) - 1)
 
 
 def _sub_name_label(m):
