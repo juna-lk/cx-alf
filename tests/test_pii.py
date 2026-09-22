@@ -151,3 +151,20 @@ def test_honorific_titles_survive():
     for s in ("고객님 안녕하세요", "선생님께 전달했습니다", "회원님 계정입니다",
               "학부모님 문의", "담당자님 확인 부탁드립니다"):
         assert mask_text(s) == s, s
+
+
+def test_internal_staff_names_unified():
+    """CX 셀 인원 이름은 한 값으로 통일한다. 담당자별 구분은 포기."""
+    from _pii import mask_internal, INTERNAL_LABEL
+    assert mask_internal("전준호") == INTERNAL_LABEL
+    assert mask_internal("Logan") == INTERNAL_LABEL
+    assert mask_internal("<@U12345>") == INTERNAL_LABEL
+    assert mask_internal("") == ""
+    assert mask_internal(None) is None
+
+
+def test_manager_key_in_messages_is_internal():
+    msgs = [{"role": "agent", "text": "확인했습니다", "manager": "전준호"}]
+    assert mask_deep(msgs)[0]["manager"] == "라클멤버"
+    # 본문은 그대로
+    assert mask_deep(msgs)[0]["text"] == "확인했습니다"

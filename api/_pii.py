@@ -53,6 +53,13 @@ PROFILE_EMAIL_KEYS = {"email", "userEmail", "contactEmail", "signEmail"}
 PROFILE_PHONE_KEYS = {"mobileNumber", "phone", "phoneNumber", "tel", "contactPhone"}
 PROFILE_DROP_KEYS = {"address", "addressDetail", "zipCode", "bizRegNo", "accountNumber",
                      "residentNumber", "birthday", "birthDate"}
+# CX 셀 내부 인원 이름. 고객 정보는 아니지만 이름은 이름이라 한 값으로 통일한다
+# (2026-09-22 결정). 담당자별 분석이 안 되는 건 감수하기로 했다.
+# 형태가 제각각이라(영문명·한글명·슬랙 멘션 `<@U...>`) 패턴으로는 못 가린다.
+# 이 키들에는 내부 인원만 들어오므로 값이 있으면 통째로 바꾼다.
+INTERNAL_LABEL = "라클멤버"
+INTERNAL_NAME_KEYS = {"manager", "agent_name", "agentName", "assignee_name",
+                      "assigneeName", "source_author", "submitted_by"}
 # 이 안에서는 `name` 이 사람이 아니라 파일·항목 이름이다. 구분 안 하면
 # 첨부 파일명 image.png 가 i**** 로 뭉개진다(실제로 그랬다).
 NON_PERSON_CONTAINERS = {"attachments", "files", "buttons", "blocks", "options",
@@ -83,6 +90,11 @@ def mask_name(value):
     if len(s) == 1:
         return s + "*"
     return s[0] + "*" * (len(s) - 1)
+
+
+def mask_internal(value):
+    """CX 셀 내부 인원 이름 → 라클멤버. 빈 값은 그대로."""
+    return INTERNAL_LABEL if value else value
 
 
 def is_masked(value) -> bool:
@@ -181,7 +193,9 @@ def mask_deep(value, container=None):
             if k in PROFILE_DROP_KEYS:
                 continue
             person_ok = container not in NON_PERSON_CONTAINERS
-            if k in PROFILE_NAME_KEYS and not person_ok and isinstance(v, str):
+            if k in INTERNAL_NAME_KEYS:
+                out[k] = mask_internal(v) if isinstance(v, str) else mask_deep(v, k)
+            elif k in PROFILE_NAME_KEYS and not person_ok and isinstance(v, str):
                 # 첨부 파일명 등. 이름만 가리고 나머지는 남긴다.
                 out[k] = mask_filename(v)
             elif k in PROFILE_NAME_KEYS and person_ok:
