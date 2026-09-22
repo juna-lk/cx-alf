@@ -85,6 +85,10 @@ def mask_name(value):
         return s
     if "*" in s:          # 이미 가려진 값 (김**)
         return s
+    if "@" in s:
+        # 이름 칸에 이메일을 적은 사람이 있다. `.com` 으로 끝나서 아래
+        # 파일명 예외에 걸려 그대로 통과하던 자리다 (실제로 3건 샜다).
+        return mask_email(s)
     if FILENAME_RE.search(s):   # image.png, 환불요청서.pdf — 사람 아님
         return s
     if len(s) == 1:

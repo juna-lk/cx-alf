@@ -168,3 +168,12 @@ def test_manager_key_in_messages_is_internal():
     assert mask_deep(msgs)[0]["manager"] == "라클멤버"
     # 본문은 그대로
     assert mask_deep(msgs)[0]["text"] == "확인했습니다"
+
+
+def test_email_in_name_field_is_masked():
+    """이름 칸에 이메일을 적는 사람이 있다. `.com` 이 파일명 예외에 걸려
+    그대로 통과하던 자리라 못 박아 둔다."""
+    assert mask_name("iamgyuweon@gmail.com") == "i***@g***.com"
+    assert mask_name("heossu@naver.com") == "h***@n***.com"
+    # 진짜 파일명은 여전히 그대로
+    assert mask_name("image.png") == "image.png"
